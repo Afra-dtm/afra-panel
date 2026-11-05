@@ -307,14 +307,14 @@ async function axIncele(batch){
   const {data:R,error}=await sb.rpc('ax_onizle',{p_batch:batch});if(error)return toast(error.message);
   const S=R.filter(r=>r.tip==='satis'),O=R.filter(r=>r.tip==='odeme');
   const top=(a,f)=>a.filter(f).reduce((x,r)=>x+ +r.tutar,0);
-  const yeni=R.filter(r=>!r.mevcut).length,eslesmez=R.filter(r=>!r.sube_id).length;
+  const yeni=R.filter(r=>!r.mevcut&&r.tur!=='vadeli').length,eslesmez=R.filter(r=>!r.sube_id).length;
   const ozet=SUBELER.map(s=>{const a=S.filter(r=>r.sube_id===s.id),b=O.filter(r=>r.sube_id===s.id);if(!a.length&&!b.length)return'';
-   return `<tr><td>${esc(s.ad)}</td><td class="r num">${a.filter(r=>r.tur==='satis_fatura').length}</td><td class="r num">${tl(top(a,r=>r.tur==='satis_fatura'))}</td><td class="r num">${tl(top(a,r=>r.tur==='iade'))}</td><td class="r num">${tl(top(b,r=>r.tur==='giris'))}</td></tr>`}).join('');
-  const satir=r=>`<tr style="${r.mevcut?'opacity:.5':''}"><td>${esc(r.tip==='satis'?(LBL[r.tur]||r.tur):LBL[r.odeme_tipi]||r.odeme_tipi)}${r.iptal?' <span class="pill kritik">iptal</span>':''}</td><td>${r.sube_id?esc(subeAd(r.sube_id)):'<span class="pill kritik">şube yok</span>'}</td>
+   return `<tr><td>${esc(s.ad)}</td><td class="r num">${a.filter(r=>r.tur==='satis_fatura').length}</td><td class="r num">${tl(top(a,r=>r.tur==='satis_fatura'))}</td><td class="r num">${tl(top(a,r=>r.tur==='iade'))}</td><td class="r num">${tl(top(b,r=>r.tur==='giris')-top(b,r=>r.tur==='cikis'))}${top(b,r=>r.tur==='vadeli')?`<div class="hint">+ ${tl(top(b,r=>r.tur==='vadeli'))} vadeli</div>`:''}</td></tr>`}).join('');
+  const satir=r=>`<tr style="${r.mevcut||r.tur==='vadeli'?'opacity:.5':''}"><td>${r.tur==='vadeli'?'Vadeli (VAD) <span class="hint">kasaya işlenmez</span>':esc(r.tip==='satis'?(LBL[r.tur]||r.tur):LBL[r.odeme_tipi]||r.odeme_tipi)}${r.iptal?' <span class="pill kritik">iptal</span>':''}</td><td>${r.sube_id?esc(subeAd(r.sube_id)):'<span class="pill kritik">şube yok</span>'}</td>
    <td>${esc(r.cari||'')}</td><td class="hint">${esc(r.belge||'')} ${esc(r.aciklama||'')}</td><td class="r num ${r.tur==='iade'||r.tur==='cikis'?'neg':''}">${tl(r.tutar)}</td><td>${r.mevcut?'<span class="hint">zaten var</span>':''}</td></tr>`;
   const d=document.createElement('dialog');d.style.width='min(1000px,calc(100vw - 32px))';
   d.innerHTML=`<h3 style="margin:0 0 6px">AX aktarımı — ${esc(batch)}</h3><p class="hint" style="margin:0 0 14px">${yeni} yeni kayıt eklenecek${R.length-yeni?`, ${R.length-yeni} kayıt zaten sistemde (tekrar yazılmaz)`:''}${eslesmez?`. <b class="neg">${eslesmez} satırın şubesi bulunamadı, bunlar eklenmez.</b>`:''}</p>
-   <div class="tw"><table><thead><tr><th>Şube</th><th class="r">Satış adedi</th><th class="r">Satış tutarı</th><th class="r">İade / iptal</th><th class="r">Tahsilat</th></tr></thead><tbody>${ozet||'<tr><td colspan="5" class="empty">Kayıt yok</td></tr>'}</tbody></table></div>
+   <div class="tw"><table><thead><tr><th>Şube</th><th class="r">Satış adedi</th><th class="r">Satış tutarı</th><th class="r">İade / iptal</th><th class="r">Kasa tahsilatı (net)</th></tr></thead><tbody>${ozet||'<tr><td colspan="5" class="empty">Kayıt yok</td></tr>'}</tbody></table></div>
    <h3 style="margin:18px 0 6px">Satırlar (${R.length})</h3><div class="tw" style="max-height:45vh;overflow:auto"><table><thead><tr><th>Tür</th><th>Şube</th><th>Müşteri</th><th>Belge / Açıklama</th><th class="r">Tutar</th><th></th></tr></thead><tbody>${R.map(satir).join('')}</tbody></table></div>
    <div class="acts"><button class="btn" data-k="kapat">Kapat</button><button class="btn" data-k="reddet">Reddet</button><button class="btn p" data-k="onayla">Onayla ve kasaya işle</button></div>`;
   document.body.appendChild(d);d.showModal();d.onclose=()=>d.remove();
