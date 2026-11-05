@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AFRA Panel – Finans Takip</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#c8102e">
+<link rel="icon" type="image/png" href="/icons/favicon-64.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AFRA Panel">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -115,6 +121,15 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   </div>
 </section>
 
+<section id="mfa" class="hidden" style="min-height:100vh;display:grid;place-items:center;padding:16px">
+  <div class="lcard" style="max-width:420px">
+    <div class="logo"><b>A</b> İki adımlı doğrulama</div>
+    <div id="mfabody" style="margin-top:16px"></div>
+    <div id="mfamsg" class="hint" style="margin-top:10px"></div>
+    <button class="btn" style="margin-top:14px;width:100%" onclick="sb.auth.signOut()">Çıkış yap</button>
+  </div>
+</section>
+
 <div id="app" class="hidden">
   <aside id="side">
     <div class="logo"><b>A</b> AFRA Panel</div>
@@ -123,6 +138,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <button class="nav" data-v="sevk">🚚 Sevkiyat</button>
     <button class="nav" data-v="finans">📈 Finansal Raporlar</button>
     <button class="nav" data-v="denetim">🛡️ Denetim <span class="badge hidden" id="nbadge"></span></button>
+    <button class="nav yon" data-v="marj">💹 Satış & Marj</button>
+    <button class="nav yon" data-v="fiyat">🏷️ Arçelik Fiyatları</button>
     <button class="nav" data-v="aktarim">🔄 AX Aktarımları</button>
     <button class="nav yon" data-v="kullanicilar">👥 Kullanıcılar</button>
     <button class="nav yon" data-v="yonetim">🏢 Şubeler</button>
@@ -183,17 +200,50 @@ $('#tema').onclick=()=>{const r=document.documentElement,c=r.dataset.theme==='da
 try{const t=localStorage.getItem('tema');if(t)document.documentElement.dataset.theme=t}catch(e){}
 $('#menu').onclick=()=>$('#side').classList.toggle('open');
 
-sb.auth.onAuthStateChange((_e,s)=>{s?boot(s.user):(ME=null,$('#app').classList.add('hidden'),$('#login').classList.remove('hidden'))});
+let BOOTING=false;
+sb.auth.onAuthStateChange((ev,s)=>{if(!s){ME=null;['#app','#mfa'].forEach(x=>$(x).classList.add('hidden'));$('#login').classList.remove('hidden');return}
+  if(ev==='TOKEN_REFRESHED'||ev==='USER_UPDATED'||ev==='MFA_CHALLENGE_VERIFIED'&&ME)return;setTimeout(()=>boot(s.user),0)});
+try{if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('/sw.js')}catch(e){}
+
+/* İki adımlı doğrulama (yöneticiler) */
+async function ikiAdim(){
+  const {data:d}=await sb.rpc('oturum_durumu');
+  if(!d||d.rol!=='yonetici'||!d.iki_adim_zorunlu)return true;
+  const {data:aal}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+  if(aal?.currentLevel==='aal2')return true;
+  $('#login').classList.add('hidden');$('#app').classList.add('hidden');$('#mfa').classList.remove('hidden');
+  const {data:fl}=await sb.auth.mfa.listFactors();const f=(fl?.totp||[]).find(x=>x.status==='verified');
+  const kodAlani=`<div class="form" style="grid-template-columns:1fr"><label>Uygulamadaki 6 haneli kod<input class="ctl num" id="mfakod" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="font-size:20px;letter-spacing:4px;text-align:center"></label><button class="btn p" id="mfaok">Doğrula</button></div>`;
+  return new Promise(res=>{
+    const dogrula=async fid=>{$('#mfamsg').textContent='Doğrulanıyor…';
+      const {error}=await sb.auth.mfa.challengeAndVerify({factorId:fid,code:$('#mfakod').value.trim()});
+      if(error){$('#mfamsg').textContent='Kod hatalı ya da süresi doldu. Uygulamadaki güncel kodu girin.';return}
+      $('#mfa').classList.add('hidden');res(true)};
+    if(f){$('#mfabody').innerHTML=`<p class="hint">Yönetici hesapları için iki adımlı doğrulama zorunlu. Authenticator uygulamanızdaki (Google Authenticator, Microsoft Authenticator vb.) <b>AFRA Panel</b> kodunu girin.</p>${kodAlani}`;
+      $('#mfaok').onclick=()=>dogrula(f.id);$('#mfakod').onkeydown=e=>{if(e.key==='Enter')dogrula(f.id)};$('#mfakod').focus();return}
+    (async()=>{for(const x of (fl?.all||[]).filter(x=>x.status!=='verified'))await sb.auth.mfa.unenroll({factorId:x.id});
+      const {data:en,error}=await sb.auth.mfa.enroll({factorType:'totp',friendlyName:'AFRA Panel '+new Date().toLocaleDateString('tr-TR')});
+      if(error){$('#mfabody').innerHTML=`<p class="neg">İki adımlı doğrulama başlatılamadı: ${esc(error.message)}</p>`;return}
+      $('#mfabody').innerHTML=`<p class="hint">Yönetici hesapları için iki adımlı doğrulama zorunlu. Telefonunuzdaki authenticator uygulamasıyla aşağıdaki kodu okutun, sonra uygulamanın gösterdiği 6 haneli kodu girin.</p>
+       <div style="background:#fff;border-radius:10px;padding:10px;width:200px;margin:10px auto"><img src="${esc(en.totp.qr_code)}" alt="QR kod" style="width:180px;height:180px;display:block"></div>
+       <p class="hint" style="text-align:center">Okutamıyorsanız elle girin:<br><span class="num" style="user-select:all;word-break:break-all">${esc(en.totp.secret)}</span></p>${kodAlani}`;
+      $('#mfaok').onclick=()=>dogrula(en.id);$('#mfakod').onkeydown=e=>{if(e.key==='Enter')dogrula(en.id)}})();
+  });
+}
 
 async function boot(user){
+  if(BOOTING)return;BOOTING=true;
+  try{
+  await ikiAdim();
   const {data:p}=await sb.from('profiller').select('*').eq('id',user.id).single();
   ME=p||{rol:'sube',email:user.email};
-  $('#login').classList.add('hidden');$('#app').classList.remove('hidden');
+  $('#login').classList.add('hidden');$('#mfa').classList.add('hidden');$('#app').classList.remove('hidden');
   $('#uname').textContent=ME.ad_soyad||ME.kullanici_adi;$('#urol').textContent=isYon()?'Yönetici':'Şube kullanıcısı';
   document.querySelectorAll('.yon').forEach(n=>n.classList.toggle('hidden',!isYon()));
   await loadSubeler();
   if(!$('#fbas').value){const d=new Date();d.setDate(d.getDate()-29);$('#fbas').value=iso(d);$('#fbit').value=today();}
   render();
+  }finally{BOOTING=false}
 }
 async function loadSubeler(){
   const {data}=await sb.from('subeler').select('*').order('ad');SUBELER=data||[];
@@ -212,7 +262,7 @@ const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim
 
 async function render(){
   charts.forEach(c=>c.destroy());charts=[];
-  const T={ozet:'Genel Bakış',kasa:'Günlük Kasa',sevk:'Sevkiyat Takibi',finans:'Finansal Raporlar',denetim:'Denetim & Kontroller',aktarim:'AX Aktarımları',yonetim:'Şubeler',kullanicilar:'Kullanıcılar'};
+  const T={ozet:'Genel Bakış',kasa:'Günlük Kasa',sevk:'Sevkiyat Takibi',finans:'Finansal Raporlar',denetim:'Denetim & Kontroller',aktarim:'AX Aktarımları',yonetim:'Şubeler ve POS Oranları',kullanicilar:'Kullanıcılar',marj:'Satış & Marj (Perakende Raporu)',fiyat:'Arçelik Fiyatları ve Maliyet'};
   $('#title').textContent=T[VIEW];$('#view').innerHTML='<div class="empty">Yükleniyor…</div>';
   if(!SUBELER.length&&!['yonetim','kullanicilar'].includes(VIEW)){$('#view').innerHTML=`<div class="card empty">${isYon()?'Henüz şube tanımlı değil. <br><br><button class="btn p" onclick="VIEW=\'yonetim\';render()">Şube ekle</button>':'Hesabınıza henüz bir şube atanmadı. Yöneticinizle iletişime geçin.'}</div>`;return}
   try{await V[VIEW]()}catch(e){console.error(e);$('#view').innerHTML=`<div class="card empty">Hata: ${esc(e.message)}</div>`}
@@ -288,8 +338,8 @@ V.kasa=async()=>{
   ${M.map(r=>`<tr><td>${fdate(r.tarih)}</td><td>${esc(subeAd(r.sube_id))}</td><td class="r num">${tl(r.nakit_net)}</td><td class="r num">${tl(r.beklenen_nakit)}</td><td class="r num">${r.kapatildi?tl(r.sayilan_nakit):'–'}</td>
    <td class="r num ${r.fark<0?'neg':r.fark>0?'pos':''}">${r.kapatildi?tl(r.fark):'–'}</td><td>${r.kapatildi?(Math.abs(r.fark)<0.01?'<span class="pill ok">Denk</span>':'<span class="pill uyari">Fark var</span>'):'<span class="pill iade">Açık</span>'}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">Kayıt yok</td></tr>'}
   </tbody></table></div></div>
-  <div class="card" style="margin-top:16px"><h3>Kasa hareketleri (${H.length})</h3><div class="tw"><table><thead><tr><th>Tarih</th><th>Şube</th><th>Tür</th><th>Ödeme</th><th>Açıklama / Cari</th><th>Belge</th><th class="r">Tutar</th><th>Kaynak</th><th></th></tr></thead><tbody>
-  ${H.map(r=>`<tr><td>${fdate(r.tarih)}</td><td>${esc(subeAd(r.sube_id))}</td><td>${pill(r.tur)}</td><td>${LBL[r.odeme_tipi]}</td><td>${esc(r.aciklama||'')}${r.cari_ad?`<div class="hint">${esc(r.cari_ad)}</div>`:''}</td><td>${esc(r.belge_no||'')}</td>
+  <div class="card" style="margin-top:16px"><h3>Kasa hareketleri (${H.length})${H.some(r=>r.komisyon)?` <span class="hint">· POS komisyonu: ${tl(H.reduce((a,r)=>a+(+r.komisyon||0),0))}</span>`:''}</h3><div class="tw"><table><thead><tr><th>Tarih</th><th>Şube</th><th>Tür</th><th>Ödeme</th><th>Açıklama / Cari</th><th>Belge</th><th class="r">Tutar</th><th>Kaynak</th><th></th></tr></thead><tbody>
+  ${H.map(r=>`<tr><td>${fdate(r.tarih)}</td><td>${esc(subeAd(r.sube_id))}</td><td>${pill(r.tur)}</td><td>${LBL[r.odeme_tipi]}${r.kart?`<div class="hint">${esc(r.kart)}${r.taksit?` · ${r.taksit} taksit`:''}${r.komisyon!=null?` · kom. ${tl(r.komisyon)}`:''}</div>`:''}${r.uyari?`<div><span class="pill uyari" title="${esc(r.uyari)}">${esc(r.uyari.length>34?r.uyari.slice(0,32)+'…':r.uyari)}</span></div>`:''}</td><td>${esc(r.aciklama||'')}${r.cari_ad?`<div class="hint">${esc(r.cari_ad)}</div>`:''}</td><td>${esc(r.belge_no||'')}</td>
    <td class="r num ${r.tur==='cikis'?'neg':''}">${r.tur==='cikis'?'-':''}${tl(r.tutar)}</td><td>${pill(r.kaynak)}</td><td>${r.kaynak==='manuel'||isYon()?`<button class="btn s" onclick="delRow('kasa_hareketleri','${r.id}')">Sil</button>`:''}</td></tr>`).join('')||'<tr><td colspan="9" class="empty">Kayıt yok</td></tr>'}
   </tbody></table></div></div>`;
   $('#kadd').onclick=async()=>{const o=await form('Kasa hareketi ekle',[subeField(),{k:'tarih',l:'Tarih',t:'date',d:today(),req:true},
@@ -384,9 +434,95 @@ V.finans=async()=>{
   $('#cimp').onclick=()=>importFile('cari_hareketler',{tarih:['tarih','date'],cari_kod:['cari kod','cari kodu','hesap'],cari_ad:['cari','cari adı','müşteri','ad'],tur:['tür','tur','işlem'],tutar:['tutar','amount'],belge_no:['belge','fatura no','belge no'],vade_tarihi:['vade','vade tarihi']});
 };
 
+async function hepsi(mk,max=20000){const out=[];for(let i=0;i<max;i+=1000){const {data,error}=await mk().range(i,i+999);if(error)throw error;out.push(...(data||[]));if(!data||data.length<1000)break}return out}
+/* ---------- Satış & Marj (perakende raporu) ---------- */
+V.marj=async()=>{
+  const A=await hepsi(()=>{let r=sb.from('v_satis_analiz').select('*').gte('tarih',$('#fbas').value).lte('tarih',$('#fbit').value).order('tarih',{ascending:false}).order('id');
+    return $('#fsube').value?r.eq('sube_id',$('#fsube').value):r});
+  const sat=A.filter(x=>x.tur==='satis_fatura'&&!/iptal edilen satış/.test(x.fatura_notu||'')),sum=(a,k)=>a.reduce((s,x)=>s+(+x[k]||0),0);
+  const fiyatli=sat.filter(x=>x.net_liste_toplam),maliyetli=sat.filter(x=>x.kar!=null);
+  const ekInd=fiyatli.length?(1-sum(fiyatli,'tutar')/sum(fiyatli,'net_liste_toplam'))*100:null;
+  const netSat=maliyetli.reduce((s,x)=>s+(+x.net_tutar||x.tutar/1.2),0),kar=sum(maliyetli,'kar');
+  const temsil={};sat.forEach(x=>{const k=x.temsilci||'—';(temsil[k]=temsil[k]||{n:0,t:0,k:0,m:0,lt:0,lf:0});const o=temsil[k];o.n+=+x.miktar||1;o.t+=+x.tutar;if(x.kar!=null){o.k+=+x.kar;o.m+=(+x.net_tutar||x.tutar/1.2)}if(x.net_liste_toplam){o.lt+=+x.tutar;o.lf+=+x.net_liste_toplam}});
+  $('#view').innerHTML=`
+  <div class="grid k4">
+   <div class="card kpi"><div class="l">Satış (KDV dahil)</div><div class="v num">${tl(sum(sat,'tutar'))}</div><div class="d">${sum(sat,'miktar')} adet · ${sat.length} satır</div></div>
+   <div class="card kpi"><div class="l">Ek indirim (net listeye göre)</div><div class="v num ${ekInd>0?'neg':''}">${ekInd==null?'–':ekInd.toFixed(2)+'%'}</div><div class="d">${fiyatli.length}/${sat.length} satırın site fiyatı var</div></div>
+   <div class="card kpi"><div class="l">Kâr (ABS'ye göre)</div><div class="v num ${kar<0?'neg':''}">${maliyetli.length?tl(kar):'–'}</div><div class="d">${maliyetli.length?`%${(kar/netSat*100).toFixed(2)} · `:''}${maliyetli.length}/${sat.length} satırın ABS fiyatı var</div></div>
+   <div class="card kpi"><div class="l">İade / iptal</div><div class="v num">${tl(sum(A.filter(x=>x.tur==='iade'),'tutar'))}</div></div>
+  </div>
+  <p class="hint">Net liste = arcelik.com.tr liste fiyatı − sitedeki oliz (satış tarihinin dönemi: ayın 1–15'i 1. dönem, 16'sı ve sonrası 2. dönem). Ek indirim = net listenin altında verilen indirim. Kâr = KDV hariç satış − ABS alış fiyatı × adet (ABS ve paro, "Arçelik Fiyatları" ekranından yüklenir).</p>
+  <div class="card"><h3>Satış temsilcisi özeti</h3><div class="tw"><table><thead><tr><th>Temsilci</th><th class="r">Adet</th><th class="r">Satış</th><th class="r">Ek indirim</th><th class="r">Kâr</th><th class="r">Kâr %</th></tr></thead><tbody>
+   ${Object.entries(temsil).sort((a,b)=>b[1].t-a[1].t).map(([k,o])=>`<tr><td>${esc(k)}</td><td class="r num">${o.n}</td><td class="r num">${tl(o.t)}</td><td class="r num">${o.lf?((1-o.lt/o.lf)*100).toFixed(2)+'%':'–'}</td><td class="r num">${o.m?tl(o.k):'–'}</td><td class="r num">${o.m?(o.k/o.m*100).toFixed(2)+'%':'–'}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">Kayıt yok</td></tr>'}
+  </tbody></table></div></div>
+  <div class="card" style="margin-top:16px"><h3>Satış satırları <button class="btn s" id="mexp" style="float:right">Excel'e aktar</button></h3><div class="tw"><table><thead><tr><th>Tarih</th><th>Şube</th><th>Temsilci</th><th>Ürün</th><th class="r">Adet</th><th class="r">Satış</th><th class="r">Net liste</th><th class="r">Ek ind.</th><th class="r">ABS</th><th class="r">Kâr</th><th>Fatura notu</th></tr></thead><tbody>
+   ${A.slice(0,500).map(x=>`<tr${x.tur==='iade'?' style="opacity:.6"':''}><td>${fdate(x.tarih)}</td><td>${esc(subeAd(x.sube_id))}</td><td>${esc(x.temsilci||'')}</td><td>${esc(x.urun_adi||x.urun_kisa_kodu||'')}<div class="hint num">${esc(x.madde_kodu)}</div></td>
+    <td class="r num">${x.miktar}</td><td class="r num ${x.tur==='iade'?'neg':''}">${x.tur==='iade'?'-':''}${tl(x.tutar)}</td><td class="r num">${x.net_liste_toplam?tl(x.net_liste_toplam):'–'}</td>
+    <td class="r num ${x.ek_indirim_yuzde>5?'neg':''}">${x.ek_indirim_yuzde!=null?x.ek_indirim_yuzde+'%':'–'}</td><td class="r num">${x.abs_fiyati!=null?tl(x.abs_fiyati*x.miktar):'–'}</td>
+    <td class="r num ${x.kar<0?'neg':''}">${x.kar!=null?tl(x.kar):'–'}</td><td class="hint">${esc((x.fatura_notu||'').slice(0,60))}</td></tr>`).join('')||'<tr><td colspan="11" class="empty">Bu aralıkta AX\'ten gelmiş satış yok</td></tr>'}
+  </tbody></table></div></div>`;
+  $('#mexp').onclick=()=>xlsxOut(A.map(x=>({Tarih:x.tarih,Şube:subeAd(x.sube_id),Tür:LBL[x.tur],Temsilci:x.temsilci,'Sipariş':x.siparis_no,'Madde kodu':x.madde_kodu,Ürün:x.urun_adi||x.urun_kisa_kodu,Adet:+x.miktar,
+    'Satış (KDV dahil)':+x.tutar,'Satış (KDV hariç)':+x.net_tutar||null,'Site liste':+x.site_liste||null,'Site oliz':+x.site_oliz||null,'Net liste toplam':+x.net_liste_toplam||null,'Ek indirim %':x.ek_indirim_yuzde,
+    'ABS birim':+x.abs_fiyati||null,'Paro':+x.paro||null,'Kâr':x.kar!=null?+x.kar:null,'Kâr %':x.kar_yuzde,'Fatura notu':x.fatura_notu})),'satis_marj');
+};
+
+/* ---------- Arçelik fiyatları ve maliyet ---------- */
+V.fiyat=async()=>{
+  const {data:D=[]}=await sb.from('web_fiyat_donemleri').select('*').order('donem',{ascending:false}).order('yari',{ascending:false});
+  const tam=D.filter(d=>d.durum==='tamam');const sec=window._fd&&tam.find(d=>d.id==window._fd)||tam[0];
+  const onceki=sec?tam.find(d=>d.donem<sec.donem||(d.donem===sec.donem&&d.yari<sec.yari)):null;
+  const q=(window._fq||'').trim();
+  const W=sec?await hepsi(()=>sb.from('web_fiyatlari').select('kod,ad,marka,kategori,liste_fiyati,satis_fiyati,url').eq('donem_id',sec.id).order('kategori').order('kod')):[];
+  const P={};if(onceki)(await hepsi(()=>sb.from('web_fiyatlari').select('kod,satis_fiyati').eq('donem_id',onceki.id).order('kod'))).forEach(x=>P[x.kod]=+x.satis_fiyati);
+  const U=await hepsi(()=>sb.from('urun_fiyatlari').select('*').order('gecerlilik',{ascending:false}).order('madde_kodu'));
+  const deg=W.filter(w=>P[w.kod]!=null&&P[w.kod]!=+w.satis_fiyati),art=deg.filter(w=>+w.satis_fiyati>P[w.kod]),yeni=onceki?W.filter(w=>P[w.kod]==null):[];
+  const kalkan=onceki?Object.keys(P).filter(k=>!W.some(w=>w.kod===k)).length:0;
+  const nq=normUser(q);const L=W.filter(w=>!q||normUser(w.kod+' '+w.ad+' '+w.kategori).includes(nq)).filter(w=>window._fs!=='deg'||(P[w.kod]!=null&&P[w.kod]!=+w.satis_fiyati));
+  const ad=d=>`${new Date(d.donem+'-01T00:00').toLocaleDateString('tr-TR',{month:'long',year:'numeric'})} · ${d.yari}. dönem`;
+  $('#view').innerHTML=`
+  <div class="grid k4">
+   <div class="card kpi"><div class="l">Dönem</div><div class="v" style="font-size:17px">${sec?ad(sec):'Henüz yok'}</div><div class="d">${sec?fdate((sec.tamamlanma||sec.created_at).slice(0,10)):'Ayın 1–3 ve 16–18\'inde otomatik çekilir'}</div></div>
+   <div class="card kpi"><div class="l">Ürün</div><div class="v num">${W.length}</div><div class="d">${onceki?`önceki: ${ad(onceki)}`:'karşılaştırılacak önceki dönem yok'}</div></div>
+   <div class="card kpi"><div class="l">Fiyatı değişen</div><div class="v num">${onceki?deg.length:'–'}</div><div class="d">${onceki?`${art.length} arttı · ${deg.length-art.length} düştü`:''}</div></div>
+   <div class="card kpi"><div class="l">Yeni / kalkan</div><div class="v num">${onceki?`${yeni.length} / ${kalkan}`:'–'}</div></div>
+  </div>
+  <div class="tabs" style="margin-top:16px">
+   <select class="ctl" id="fdsel">${tam.map(d=>`<option value="${d.id}" ${sec&&d.id===sec.id?'selected':''}>${ad(d)}</option>`).join('')||'<option>Dönem yok</option>'}</select>
+   <input class="ctl" id="fq" placeholder="Ürün, madde kodu, kategori ara" value="${esc(q)}" style="flex:1;min-width:180px">
+   <select class="ctl" id="fsel2"><option value="">Tüm ürünler</option><option value="deg" ${window._fs==='deg'?'selected':''}>Sadece fiyatı değişenler</option></select>
+   <button class="btn" id="fexp">Excel'e aktar</button>
+  </div>
+  <div class="card"><h3>arcelik.com.tr fiyatları (${L.length})</h3><div class="tw" style="max-height:60vh;overflow:auto"><table><thead><tr><th>Madde kodu</th><th>Ürün</th><th>Kategori</th><th class="r">Liste</th><th class="r">Oliz</th><th class="r">Net liste (site)</th><th class="r">Önceki dönem</th></tr></thead><tbody>
+   ${L.slice(0,800).map(w=>{const p=P[w.kod];const d=p!=null?+w.satis_fiyati-p:null;return `<tr><td class="num">${esc(w.kod)}</td><td>${w.url?`<a href="${esc(w.url)}" target="_blank" rel="noopener">${esc(w.ad)}</a>`:esc(w.ad)}</td><td class="hint">${esc((w.kategori||'').split('/').slice(-1)[0])}</td>
+    <td class="r num">${tl(w.liste_fiyati)}</td><td class="r num">${tl(w.liste_fiyati-w.satis_fiyati)}</td><td class="r num">${tl(w.satis_fiyati)}</td>
+    <td class="r num ${d>0?'neg':d<0?'pos':''}">${p==null?(onceki?'<span class="pill bilgi">yeni</span>':'–'):d?`${tl(p)} <div class="hint">${d>0?'+':''}${tl(d)}</div>`:'='}</td></tr>`}).join('')||'<tr><td colspan="7" class="empty">Kayıt yok</td></tr>'}
+  </tbody></table></div>${L.length>800?'<p class="hint">İlk 800 satır gösteriliyor; tamamı için Excel\'e aktarın.</p>':''}</div>
+  <div class="grid k2" style="margin-top:16px">
+   <div class="card"><h3>ABS alış fiyatı ve paro (${U.length})</h3>
+    <div class="tw" style="max-height:340px;overflow:auto"><table><thead><tr><th>Madde kodu</th><th>Ürün</th><th>Geçerlilik</th><th class="r">ABS</th><th class="r">Paro</th></tr></thead><tbody>
+    ${U.slice(0,400).map(u=>`<tr><td class="num">${esc(u.madde_kodu)}</td><td>${esc(u.urun_adi||'')}</td><td>${fdate(u.gecerlilik)}</td><td class="r num">${tl(u.abs_fiyati)}</td><td class="r num">${tl(u.paro)}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">Henüz yüklenmedi</td></tr>'}
+    </tbody></table></div></div>
+   <div class="card"><h3>Fiyat listesi yükle</h3><p class="hint">AX'ten aldığınız alış fiyatı listesini (Excel/CSV) yükleyin. Sütunlar adlarına göre tanınır: <b>Madde kodu</b>, ürün adı, <b>ABS / alış fiyatı</b>, <b>paro / oliz</b>, liste fiyatı. Arçelik kampanyaları ayın 15'inde değişebildiği için geçerlilik ayın 1'i ya da 15'i olmalıdır.</p>
+    <div class="form" style="grid-template-columns:1fr"><label>Geçerlilik tarihi<select class="ctl" id="ugec">${(()=>{const o=[];const t=new Date();for(let i=0;i<4;i++){const d=new Date(t.getFullYear(),t.getMonth()-i+1,1);[15,1].forEach(g=>{const x=new Date(d.getFullYear(),d.getMonth(),g);if(x<=new Date(t.getFullYear(),t.getMonth()+1,1))o.push(iso(x))})}return [...new Set(o)].sort().reverse().map(v=>`<option value="${v}" ${v===iso(new Date(t.getFullYear(),t.getMonth(),t.getDate()>=15?15:1))?'selected':''}>${fdate(v)}</option>`).join('')})()}</select></label>
+    <button class="btn p" id="uimp">Excel/CSV seç ve yükle</button></div></div>
+  </div>`;
+  $('#fdsel').onchange=e=>{window._fd=e.target.value;render()};$('#fsel2').onchange=e=>{window._fs=e.target.value;render()};
+  let t;$('#fq').oninput=e=>{clearTimeout(t);t=setTimeout(()=>{window._fq=e.target.value;render();setTimeout(()=>{const i=$('#fq');i&&(i.focus(),i.setSelectionRange(i.value.length,i.value.length))},80)},450)};
+  $('#fexp').onclick=()=>xlsxOut(L.map(w=>({'Madde kodu':w.kod,Ürün:w.ad,Marka:w.marka,Kategori:w.kategori,'Liste fiyatı':+w.liste_fiyati,Oliz:+w.liste_fiyati-w.satis_fiyati,'Net liste (site)':+w.satis_fiyati,'Önceki dönem':P[w.kod]??null,Bağlantı:w.url})),'arcelik_fiyatlari');
+  $('#uimp').onclick=()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.xlsx,.xls,.csv';
+    inp.onchange=async()=>{const wb=XLSX.read(await inp.files[0].arrayBuffer());const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:null});if(!rows.length)return toast('Dosyada satır yok');
+     const H=Object.keys(rows[0]),f=re=>H.find(h=>re.test(normUser(h)));
+     const cK=f(/madde|urun kod|stok kod|^kod$/),cA=f(/urun ad|aciklama|^ad$|tanim/),cB=f(/abs|alis|maliyet/),cP=f(/paro|oliz/),cL=f(/liste/);
+     if(!cK||!cB)return toast('Madde kodu ve ABS/alış fiyatı sütunları bulunamadı. Sütunlar: '+H.join(', '));
+     const g=$('#ugec').value;const out=rows.filter(r=>r[cK]).map(r=>({madde_kodu:String(r[cK]).trim(),gecerlilik:g,urun_adi:cA?r[cA]:null,abs_fiyati:normNum(r[cB])||null,paro:cP?normNum(r[cP]):null,liste_fiyati:cL?normNum(r[cL])||null:null}));
+     for(let i=0;i<out.length;i+=500){const {error}=await sb.from('urun_fiyatlari').upsert(out.slice(i,i+500),{onConflict:'madde_kodu,gecerlilik'});if(error)return toast('Hata: '+error.message)}
+     toast(`${out.length} ürünün fiyatı ${fdate(g)} geçerlilikle kaydedildi`);render()};inp.click()};
+};
+
 V.denetim=async()=>{
   const [a,s]=await Promise.all([sb.rpc('denetim_kontrolleri',{p_tarih:$('#fbit').value||today()}),sb.from('denetim_ayarlari').select('*').single()]);
   const A=(a.data||[]).filter(x=>!$('#fsube').value||x.sube_id===$('#fsube').value).sort((x,y)=>rank(x)-rank(y)),S=s.data||{};
+  let DK=[];if(isYon()){const {data}=await sb.from('dogrulama_kayitlari').select('*').order('created_at',{ascending:false}).limit(40);DK=data||[]}
   const groups=[...new Set(A.map(x=>x.kontrol))];
   $('#view').innerHTML=`
   <div class="grid k4">${['kritik','uyari','bilgi'].map(l=>`<div class="card kpi"><div class="l">${LBL[l]}</div><div class="v num">${A.filter(x=>x.seviye===l).length}</div></div>`).join('')}
@@ -398,15 +534,32 @@ V.denetim=async()=>{
      <label>Kasa fark toleransı (₺)<input class="ctl num" id="e1" type="number" value="${S.kasa_fark_esigi}"></label>
      <label>Yüksek nakit çıkış eşiği (₺)<input class="ctl num" id="e2" type="number" value="${S.buyuk_nakit_cikis_esigi}"></label>
      <label>Sevkiyat gecikme süresi (gün)<input class="ctl num" id="e3" type="number" value="${S.sevkiyat_gecikme_gun}"></label>
+     <label style="flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input type="checkbox" id="e4" ${S.yonetici_2fa_zorunlu!==false?'checked':''} ${isYon()?'':'disabled'}> Yöneticiler için iki adımlı doğrulama zorunlu</label>
      ${isYon()?'<button class="btn p" id="esave">Kaydet</button>':'<p class="hint">Eşikleri yalnızca yönetici değiştirebilir.</p>'}
     </div>
     <h3 style="margin-top:22px">Çalışan kontroller</h3>
     <ul class="hint" style="padding-left:18px;margin:0">
      <li>Gün sonu sayım – beklenen nakit farkı</li><li>Kapatılmamış gün sonu</li><li>Negatif nakit bakiye</li><li>Yüksek tutarlı nakit çıkışı</li>
-     <li>Geciken / bekleyen sevkiyat</li><li>Teslim edilip irsaliyesi eksik sevkiyat</li><li>Vadesi geçmiş alacak</li><li>Cari tahsilat ↔ kasa girişi uyumu</li><li>AX aktarımı yapılmamış / hatalı gün</li></ul></div>
-  </div>`;
-  if(isYon())$('#esave').onclick=async()=>{const {error}=await sb.from('denetim_ayarlari').update({kasa_fark_esigi:+$('#e1').value,buyuk_nakit_cikis_esigi:+$('#e2').value,sevkiyat_gecikme_gun:+$('#e3').value}).eq('id',1);toast(error?error.message:'Eşikler kaydedildi');render()};
+     <li>Geciken / bekleyen sevkiyat</li><li>Teslim edilip irsaliyesi eksik sevkiyat</li><li>Vadesi geçmiş alacak</li><li>Cari tahsilat ↔ kasa girişi uyumu</li><li>AX aktarımı yapılmamış / hatalı gün</li><li>Bağımsız doğrulama: AX ↔ sistem farkı</li></ul></div>
+  </div>
+  ${isYon()?`<div class="card" style="margin-top:16px"><h3>Bağımsız doğrulama (AX sistemi ↔ AFRA Panel)</h3>
+   <p class="hint">Kontrol ajanı her gün AX sistemini aktarımdan bağımsız olarak kendisi okur; dünkü satışları ve ay başından bugüne gün gün toplamları sistemle karşılaştırır. Fark ≤ 1 TL ise "uyumlu" sayılır.</p>
+   <div class="tw"><table><thead><tr><th>Kontrol</th><th>Aralık</th><th>Şube</th><th class="r">AX</th><th class="r">Sistem</th><th class="r">Fark</th><th>Sonuç</th><th>Özet</th></tr></thead><tbody>
+   ${DK.map(d=>`<tr><td>${d.tur==='ay_satis'?'Ay başından':'Günlük kasa'}<div class="hint">${new Date(d.created_at).toLocaleString('tr-TR')}</div></td><td>${fdate(d.tarih_bas)}${d.tarih_bas!==d.tarih_bit?' – '+fdate(d.tarih_bit):''}</td><td>${d.sube_id?esc(subeAd(d.sube_id)):'Tümü'}</td>
+    <td class="r num">${d.kaynak_tutar!=null?tl(d.kaynak_tutar):'–'}</td><td class="r num">${d.sistem_tutar!=null?tl(d.sistem_tutar):'–'}</td>
+    <td class="r num ${d.kaynak_tutar!=null&&Math.abs(d.sistem_tutar-d.kaynak_tutar)>1?'neg':''}">${d.kaynak_tutar!=null&&d.sistem_tutar!=null?tl(d.sistem_tutar-d.kaynak_tutar):'–'}</td>
+    <td><span class="pill ${{ok:'ok',fark:'kritik',hata:'uyari'}[d.durum]}">${{ok:'Uyumlu',fark:'Fark var',hata:'Okunamadı'}[d.durum]}</span></td><td class="hint">${esc(d.ozet||'')}${d.detay?` <a href="#" onclick='event.preventDefault();dogDetay(${d.id})'>ayrıntı</a>`:''}</td></tr>`).join('')||'<tr><td colspan="8" class="empty">Henüz doğrulama çalışmadı. Kontrol ajanı her gün 12:10\'da çalışır.</td></tr>'}
+   </tbody></table></div></div>`:''}`;
+  window._DK=DK;
+  if(isYon())$('#esave').onclick=async()=>{const {error}=await sb.from('denetim_ayarlari').update({kasa_fark_esigi:+$('#e1').value,buyuk_nakit_cikis_esigi:+$('#e2').value,sevkiyat_gecikme_gun:+$('#e3').value,yonetici_2fa_zorunlu:$('#e4').checked}).eq('id',1);toast(error?error.message:'Eşikler kaydedildi');render()};
 };
+
+function dogDetay(id){const d=(window._DK||[]).find(x=>x.id===id);if(!d)return;const dl=document.createElement('dialog');dl.style.width='min(900px,calc(100vw - 32px))';
+  const tbl=(t,a)=>a&&a.length?`<h3 style="margin:14px 0 6px">${t} (${a.length})</h3><div class="tw"><table><tbody>${a.map(x=>`<tr>${Object.values(typeof x==='object'?x:{v:x}).map(v=>`<td>${esc(typeof v==='object'?JSON.stringify(v):v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'';
+  const det=d.detay||{};
+  dl.innerHTML=`<h3 style="margin:0 0 8px">${esc(d.ozet||'Doğrulama ayrıntısı')}</h3>${tbl('AX\'te var, sistemde yok',det.ax_var_sistemde_yok)}${tbl('Sistemde var, AX\'te yok',det.sistemde_var_ax_yok)}${tbl('Gün farkları',det.gun_farklari)}
+   ${!det.ax_var_sistemde_yok&&!det.sistemde_var_ax_yok&&!det.gun_farklari?`<pre style="white-space:pre-wrap;font-size:12px">${esc(JSON.stringify(det,null,2))}</pre>`:''}<div class="acts"><button class="btn">Kapat</button></div>`;
+  document.body.appendChild(dl);dl.showModal();dl.querySelector('button').onclick=()=>dl.close();dl.onclose=()=>dl.remove()}
 
 V.aktarim=async()=>{
   let r=sb.from('aktarim_kayitlari').select('*').order('created_at',{ascending:false}).limit(200);
@@ -418,8 +571,20 @@ V.aktarim=async()=>{
    </tbody></table></div></div>`;
 };
 
+const KARTLAR=['Axess','Bonus','CardFinans','Maximum','Ödero','Paraf','World','Ziraat'],TAKSITLER=[1,2,3,4,5,6,7,8,9,10,11,12];
 V.yonetim=async()=>{
-  $('#view').innerHTML=`<div class="grid" style="grid-template-columns:1fr">
+  const {data:PO=[]}=await sb.from('pos_oranlari').select('*');const po={};PO.forEach(x=>po[x.kart+'|'+x.taksit]=x.oran);
+  setTimeout(()=>{const c=$('#poscard');if(!c)return;
+    c.querySelectorAll('input[data-k]').forEach(i=>i.onchange=async()=>{const [kart,taksit]=i.dataset.k.split('|');const v=i.value.trim();
+      const {error}=v===''?await sb.from('pos_oranlari').delete().eq('kart',kart).eq('taksit',+taksit):await sb.from('pos_oranlari').upsert({kart,taksit:+taksit,oran:normNum(v)});
+      i.style.borderColor=error?'var(--bad)':'var(--ok)';if(error)toast(error.message)});
+    $('#posyenile').onclick=async()=>{const {data,error}=await sb.rpc('komisyon_yenile',{p_bas:$('#fbas').value,p_bit:$('#fbit').value});toast(error?error.message:`${data} kasa hareketinin komisyonu yeniden hesaplandı`)}},0);
+  $('#view').innerHTML=`<div class="card" id="poscard" style="margin-bottom:16px"><h3>POS komisyon oranları (%)</h3>
+   <p class="hint">Kart × taksit oranlarını girin; her hücre değiştiğinde kaydedilir (boş bırakmak oranı siler). AX'ten gelen kart tahsilatlarının komisyonu bu tablodan hesaplanır. Eksik oranları girdikten sonra seçili tarih aralığı için yeniden hesaplatabilirsiniz.</p>
+   <div class="tw"><table><thead><tr><th>Kart</th>${TAKSITLER.map(t=>`<th class="r">${t===1?'Tek çekim':t+' tk'}</th>`).join('')}</tr></thead><tbody>
+   ${KARTLAR.map(k=>`<tr><td>${k}</td>${TAKSITLER.map(t=>`<td><input class="ctl num" style="width:64px;min-height:30px;padding:3px 6px;text-align:right" data-k="${k}|${t}" value="${po[k+'|'+t]??''}" inputmode="decimal"></td>`).join('')}</tr>`).join('')}
+   </tbody></table></div><button class="btn" id="posyenile" style="margin-top:12px">Seçili aralıkta komisyonları yeniden hesapla</button></div>
+  <div class="grid" style="grid-template-columns:1fr">
    <div class="card"><h3>Şubeler (${SUBELER.length})</h3><div class="tw"><table><thead><tr><th>Kod</th><th>Şube</th><th>Şehir</th><th>AX bayi kodu</th><th></th></tr></thead><tbody>
    ${SUBELER.map(s=>`<tr><td class="num">${esc(s.kod)}</td><td>${esc(s.ad)}</td><td>${esc(s.sehir||'')}</td><td class="num">${esc(s.ax_bayi_kodu||'')}</td><td><button class="btn s" onclick="editSube('${s.id}')">Düzenle</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Şube yok</td></tr>'}
    </tbody></table></div><button class="btn p" style="margin-top:12px" onclick="editSube()">+ Şube ekle</button></div></div>`;
@@ -451,7 +616,7 @@ V.kullanicilar=async()=>{
     <td><select class="ctl" ${ben?'disabled':''} onchange="setProf('${p.id}',{rol:this.value})"><option value="sube" ${p.rol==='sube'?'selected':''}>Şube</option><option value="yonetici" ${p.rol==='yonetici'?'selected':''}>Yönetici</option></select></td>
     <td><select class="ctl" onchange="setProf('${p.id}',{sube_id:this.value||null})"><option value="">– Şube –</option>${SUBELER.map(s=>`<option value="${s.id}" ${s.id===p.sube_id?'selected':''}>${esc(s.ad)}</option>`).join('')}</select></td>
     <td>${p.aktif?'<span class="pill ok">Aktif</span>':'<span class="pill iade">Pasif</span>'}</td>
-    <td style="white-space:nowrap"><button class="btn s" onclick="sifreSifirla('${p.id}','${esc(p.kullanici_adi)}')">Şifre</button>
+    <td style="white-space:nowrap"><button class="btn s" onclick="sifreSifirla('${p.id}','${esc(p.kullanici_adi)}')">Şifre</button>${p.rol==='yonetici'&&!ben?` <button class="btn s" title="Telefonunu kaybeden yöneticinin iki adımlı doğrulamasını sıfırlar; bir sonraki girişte yeniden kurar" onclick="ikiAdimSifirla('${p.id}','${esc(p.kullanici_adi)}')">2FA sıfırla</button>`:''}
      ${ben?'':`<button class="btn s" onclick="durumDegis('${p.id}',${!p.aktif})">${p.aktif?'Pasif yap':'Aktif yap'}</button> <button class="btn s" onclick="kullaniciSil('${p.id}','${esc(p.kullanici_adi)}')">Sil</button>`}</td></tr>`}).join('')}
    </tbody></table></div></div></div>`;
   const setF=()=>{window._kf={q:$('#kq').value,rol:$('#krol').value,sube:$('#ksube').value};render()};
@@ -464,6 +629,8 @@ async function kullaniciEkle(){const o=await form('Yeni kullanıcı',[{k:'ad_soy
   try{await yonet({islem:'olustur',...o});toast(`"${normUser(o.kullanici_adi)}" oluşturuldu`);render()}catch(e){toast(e.message)}}
 async function sifreSifirla(id,ka){const o=await form(`${ka} – yeni şifre`,[{k:'sifre',l:'Yeni şifre (en az 6 karakter)',t:'text',req:true,full:true}]);if(!o)return;
   try{await yonet({islem:'sifre',id,sifre:o.sifre});toast('Şifre güncellendi')}catch(e){toast(e.message)}}
+async function ikiAdimSifirla(id,ka){if(!confirm(`"${ka}" kullanıcısının iki adımlı doğrulaması sıfırlansın mı? Bir sonraki girişinde yeniden kuracak.`))return;
+  try{const r=await yonet({islem:'iki_adim_sifirla',id});toast(`İki adımlı doğrulama sıfırlandı (${r.silinen} kayıt)`)}catch(e){toast(e.message)}}
 async function durumDegis(id,aktif){try{await yonet({islem:'durum',id,aktif});toast(aktif?'Hesap aktif':'Hesap pasif yapıldı');render()}catch(e){toast(e.message)}}
 async function kullaniciSil(id,ka){if(!confirm(`"${ka}" kullanıcısı kalıcı olarak silinsin mi?`))return;try{await yonet({islem:'sil',id});toast('Kullanıcı silindi');render()}catch(e){toast(e.message)}}
 async function editSube(id){const s=id?SUBELER.find(x=>x.id===id):{};const o=await form(id?'Şubeyi düzenle':'Yeni şube',[{k:'kod',l:'Şube kodu',req:true},{k:'ad',l:'Şube adı',req:true},{k:'sehir',l:'Şehir'},{k:'ax_bayi_kodu',l:'AX bayi / şirket kodu'}],s);if(!o)return;

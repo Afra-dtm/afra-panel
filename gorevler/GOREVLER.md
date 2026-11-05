@@ -31,7 +31,7 @@ HAZIRLIK
 - Ekran toplamlarını oku (kontrol toplamı): input id'leri ...realTotalSalesQty_input (adet), ...realTotalLineAmount_input (tutar, iptaller hariç), ...realCancelTotalLineAmount_input (iptal tutarı, eksi), ...realReturnTotalLineAmount_input (iade).
 - Sanal tablo (fixedDataTable): görünür [role=grid]; başlıklar [role=columnheader] innerText (ilk sütun boş = seçim kutusu, hücre dizisi başlık dizisiyle aynı uzunlukta); hücre değeri [role=gridcell] içindeki input.value ya da innerText; satır no aria-rowindex (2'den başlar). Arka plan async döngü: .fixedDataTableLayout_rowsContainer üzerine WheelEvent deltaY 300, her adım requestAnimationFrame + 700 ms, satırları Map'e ekle ("Satır yükleniyor" olanları atla); toplanan = aria-rowcount-1 olunca ya da 25 adım yeni satır gelmezse bitir. Durumu ayrı kısa çağrılarla oku (tek çağrı 45 sn'yi aşmasın). 2..aria-rowcount arasında eksik indeks kalmamalı.
 - Doğrula: iptal edilmemiş satırların Miktar toplamı = ekran adedi, Toplam tutar toplamı = ekran tutarı. Tutmuyorsa toplamayı tekrarla; yine tutmazsa note'a yaz.
-- BAŞLIK (birebir): ["Satış siparişi","Madde kodu","Ürün Kısa Kodu","Miktar","Toplam tutar","Satış / İade","Sipariş Tarihi","İşlem Tarihi","Kota Grubu.Grup adı","Satır durumu","İptal tarihi","SalesLine RecId","Müşteri Adı","Satışı yapanın adı","Mağaza","Fatura Notu"]. "Kota Grubu.Grup adı" için ekrandaki "Kota Grubu" sütununu kullan. Tarihleri ilk 10 karakter (G.AA.YYYY), Miktar ve Toplam tutarı nokta ondalıklı sayı metni olarak gönder.
+- BAŞLIK (birebir): ["Satış siparişi","Madde kodu","Ürün Kısa Kodu","Miktar","Toplam tutar","Satış / İade","Sipariş Tarihi","İşlem Tarihi","Kota Grubu.Grup adı","Satır durumu","İptal tarihi","SalesLine RecId","Müşteri Adı","Satışı yapanın adı","Mağaza","Fatura Notu","Net tutarı","Not","Kanal"]. "Kota Grubu.Grup adı" için ekrandaki "Kota Grubu" sütununu, "Not" için ilk "Not" sütununu kullan. Tarihleri ilk 10 karakter (G.AA.YYYY), Miktar, Toplam tutar ve Net tutarı nokta ondalıklı sayı metni olarak gönder. (Fatura notu = liste altı indirim gerekçesi; banka kartı taksiti satış notundan okunur — eşlemeyi veritabanı yapar.)
 
 2) ÖDEMELER — https://liverapid360.operations.dynamics.com/?cmp=1126&mi=ETGCashTableReportForm (Kasa Föyü Raporu)
 - Her mağaza için ayrı: önce 21134410 (Parseller), sonra 21134409 (Güneşli). Alanlar: input id sonu _1_storeId_input (Mağaza), _1_TransDate_input, _1_toTransDate_input. Mağaza kodunu yaz, Tab; tarihleri DG yaz, Tab. Sonra "Sorgula" düğmesi (Onayla'ya DEĞİL).
@@ -48,7 +48,7 @@ HAZIRLIK
 - Doğrula: select durum, jsonb_array_length(satislar) s, jsonb_array_length(odemeler) o from ax_kuyruk where batch='B'; durum 'bekliyor' olmalı.
 - D günü satış yoksa (pazar/tatil) yine "done" gönder (note "satış yok").
 - resize_window preset "desktop", sekmeyi kapat. Bildirim (PushNotification varsa): "DG kasa aktarımı onayınızı bekliyor: X satış (Y TL), Z iptal, W ödeme — AFRA Panel → Günlük Kasa". AX'e ulaşılamadıysa / oturum kapalıysa ya da Claude uygulaması kapalıysa bunu bildir.
-- Bilgi: şube eşlemesini veritabanı yapar (YENİGÜN → Parseller, AFRA → Güneşli, KURUMSAL ya da "TOPLU PROJE SATIŞI" → Kurumsal). VAD (vadeli açık hesap) ödemeleri kasaya işlenmez; Ödero kart tahsilatı sayılır.
+- Bilgi: şube eşlemesini veritabanı yapar (YENİGÜN → Parseller, AFRA → Güneşli, KURUMSAL ya da "TOPLU PROJE SATIŞI" → Kurumsal, Mağaza/Kanal'da İNTERNET → İnternet Satışları; kurumsal/internet siparişlerin ödemeleri sipariş numarasından o şubeye bağlanır). VAD (vadeli açık hesap) ödemeleri kasaya işlenmez; Ödero kart tahsilatı sayılır, taksit bilgisi yoksa 3 taksit yazılır ve not düşülür; POS komisyonu "pos_oranlari" tablosundan hesaplanır.
 ```
 
 ---
@@ -79,4 +79,79 @@ GÖREV: Afra Dayanıklı Tüketim (Arçelik bayisi) için BUGÜNÜN sevkiyatlar�
 - Bildirim (PushNotification varsa): "GG.AA.YYYY sevkiyat: X satır, Y TL (Parseller A / Güneşli B; BOD C, mağaza deposu D) — AFRA Panel → Sevkiyat" + 3-5 dikkat maddesi (Teknisyende olmayan iş emirleri, mağaza deposundan çıkanlar, eski siparişler, iptaller).
 - Randevu yoksa: "GG.AA.YYYY için randevulu sevkiyat yok" + toplanan veriden önümüzdeki günlerin randevu sayıları.
 - AX'e ya da Claude uygulamasının tarayıcısına ulaşılamıyorsa bunu bildir: "bilgisayar açılınca bu sohbete 'bugünün sevkiyatını çek' yazabilirsiniz".
+```
+
+---
+
+## GÖREV 3 — AFRA Kontrol Ajanı (her gün 12:10)
+
+Cron: `CRON_TZ=Europe/Istanbul 10 12 * * *`
+
+> Bu görev diğer görevlerin işini BAĞIMSIZ olarak doğrular. Metnin başındaki "başka bir yapay zekanın ne yaptığını bilmiyorsun" ifadesi kasıtlıdır; kaldırmayın. (Eylül'de satış analizinin elle hesaptan ~%3 sapması üzerine istendi.)
+
+```
+Sen Afra Dayanıklı Tüketim'in BAĞIMSIZ KONTROL AJANISIN. Görevin: Arçelik AX sistemindeki satışları kaynağından kendin okuyup AFRA Panel'deki (Supabase, proje drgnnlewwnwshwvpoljy) kayıtlarla karşılaştırmak ve sonucu kaydetmek. Başka bir yapay zekanın bu verileri nasıl aktardığını bilmiyorsun ve bilmen gerekmiyor; sadece aşağıdaki kurallara göre kaynağı ve sistemi karşılaştır. Hiçbir yerde VERİ DEĞİŞTİRME: AX sisteminde kayıt açma/düzenleme yok ("Onayla", "Kaydet", "Sil" düğmelerine ASLA basma); Supabase'de yalnızca dogrulama_yaz fonksiyonunu çağır. Şifre girme; oturum kapalıysa "hata" kaydı yaz ve dur. Kullanıcıyla konuşurken "AX sistemi" de. Tüm iletişim Türkçe.
+
+KONTROL EDİLECEK GÜN (D): Türkiye saatiyle DÜN. Ayrıca D'nin ayı için AY BAŞINDAN D'YE kadar kontrol yap (ayın 1'inde D önceki ayın son günüdür, böylece önceki ayın tamamı kapsanır).
+
+HAZIRLIK: Anahtar: execute_sql → select value from app_secrets where name='dogrulama_key';  (K). Kayıt: select dogrulama_yaz('K', '<json>'::jsonb); (tek tırnakları ikile).
+Tarayıcı: built-in-browser becerisini yükle; Claude_Browser araçlarını tek ToolSearch ile yükle (sorgu "mcp__remote-devices__Claude_Browser__"); preview_start ile sekme aç; resize_window 1500x1000; bitince preset "desktop" ve sekmeyi kapat.
+
+ADIM 1 — Sistem tarafı (salt okunur):
+select * from sistem_satis_ozet('D','D');   -- şube bazında satır, adet, satış (iptal edilen satışın eşi hariç), iade
+Satır bazında: select s.kod, c.cari_ad, c.madde_kodu, c.miktar, c.tutar, c.ax_ref, c.tur from cari_hareketler c join subeler s on s.id=c.sube_id where c.kaynak='ax' and c.tarih='D';
+Onay bekleyen aktarım: select batch, durum from ax_kuyruk where durum='bekliyor'; (varsa özete "onay bekleyen kasa aktarımı var" ekle; fark büyük ihtimalle bundandır).
+
+ADIM 2 — Kaynak taraf (AX sistemi): https://liverapid360.operations.dynamics.com/?cmp=1126&mi=ETGSalesInDetail
+- Alanlar: etgsalesindetail_1_StartDate_input / _EndDate_input (Sipariş başlangıç/bitiş) = D'den 35 gün önce / DG; _startCreatedDateTime_input = DG, _endCreatedDateTime_input = "DG 23:59:59" (DG = G.AA.YYYY). triple_click + yaz + Tab; JS ile doğrula. "İptalleri Göster" (#etgsalesindetail_1_salesStatusCanceled_toggle) KAPALI olmalı (aria-checked "false"). "Sorgula" düğmesi, 15 sn bekle.
+- Ekran toplamları (tam değer, input.value): ...realTotalSalesQty_input (Adet), ...realTotalLineAmount_input (Tutar), ...realReturnTotalQty_input / ...realReturnTotalLineAmount_input (İade).
+- Sanal tablo: görünür [role=grid]; başlıklar [role=columnheader]; hücre [role=gridcell] input.value ya da innerText; aria-rowindex. Arka plan async döngü (window değişkeni; tek çağrı 45 sn'yi aşmasın): .fixedDataTableLayout_rowsContainer üzerine WheelEvent deltaY 300, her adım rAF + 700 ms; toplanan = aria-rowcount-1 olunca ya da 25 adım yeni satır gelmezse bitir.
+- "Satır durumu" İptal edildi olanları, tutarı 0 olanları (bedelsiz/bayi transferi) ve tutarı negatif iade satırlarını hariç tut. Şube: "Satışı yapanın adı" TOPLU PROJE SATIŞI → KRM; Mağaza'da YENİGÜN/PARSELLER → PRS; KURUMSAL → KRM; İNTERNET → INT; AFRA/GÜNEŞLİ → GNS.
+- Topladığın satırların toplamını ekran toplamıyla karşılaştır; tutmuyorsa toplamayı tekrarla, yine tutmazsa özete yaz. Veriyi sohbete satır satır kopyalama; toplama ve karşılaştırmayı sayfadaki JavaScript içinde yap, sadece özet ve farklı satırları al.
+
+ADIM 3 — Karşılaştır: her şube için AX satır/adet/tutar ile sistem satır/adet/satış. Fark ≤ 1 TL → "ok", değilse "fark". Farkta AX'te olup sistemde olmayan satırları (müşteri + madde kodu + tutar, ±1 TL) ve sistemde olup AX'te olmayanları listele (en fazla 50'şer).
+
+ADIM 4 — Kaydet (her şube için bir kez): select dogrulama_yaz('K', '{"tur":"kasa_gun","tarih_bas":"D","tarih_bit":"D","sube_kod":"PRS","kaynak_etiket":"AX · Detaylı satış raporu (iptal ve iade hariç)","kaynak_satir":..,"kaynak_adet":..,"kaynak_tutar":..,"sistem_satir":..,"sistem_adet":..,"sistem_tutar":..,"durum":"ok|fark","ozet":"<tek cümle Türkçe>","detay":{"ax_var_sistemde_yok":[...],"sistemde_var_ax_yok":[...]}}'::jsonb);
+AX'e ulaşılamazsa / oturum kapalıysa / tablo okunamazsa: durum "hata", ozet'te neden, kaynak_* boş.
+
+AY BAŞINDAN D'YE (HER ÇALIŞMADA). P = D'nin ayı (YYYY-MM), aralık P'nin 1'i – D.
+a) Sistem: select * from sistem_satis_ozet('<ilk gün>','D');
+b) AX, GÜN GÜN (satır toplama YAPMA): aralıktaki her gün G için işlem tarihi G 00:00:00 – G 23:59:59, iptaller kapalı, Sorgula, 5-8 sn bekle, ekran toplamlarını (Adet, Tutar, İade Adet, İade Tutar) oku; window içinde biriktir. Bitince tüm aralık için bir kez daha sorgula ve günlerin toplamıyla karşılaştır. (Şube ayrımı ekran toplamında yoktur; ay kontrolü tüm şubeler toplamıdır.)
+c) Karşılaştır: her gün AX Tutar ile sistem satış toplamı (tüm şubeler); AX İade ile sistem iade. Toplamda iki rakam ver: brüt (iade hariç) ve net (iade düşülmüş). Fark > 1 TL olan günler için (D hariç) o günün tablosunu satır satır okuyup eksik/fazla satışları bul (en fazla 10 gün; daha fazlaysa en büyük farklı 10 gün).
+d) Kaydet: select dogrulama_yaz('K', '{"tur":"ay_satis","donem":"P","tarih_bas":"<ilk gün>","tarih_bit":"D","kaynak_etiket":"AX · gün gün ekran toplamları (iptal hariç; iade ayrı)","kaynak_adet":..,"kaynak_tutar":<iade hariç>,"sistem_satir":..,"sistem_adet":..,"sistem_tutar":..,"durum":"ok|fark","ozet":"<brüt fark, net fark, kaç gün farklı>","detay":{"ax_iade":..,"sistem_iade":..,"ax_net":..,"sistem_net":..,"gun_farklari":[{"tarih":..,"ax":..,"sistem":..,"ax_iade":..,"sistem_iade":..,"eksik_fazla":[...]}]}}'::jsonb);
+Bağlantı yarıda koparsa o ana kadar okunan günleri detay'a yaz, durum "hata", ozet'te hangi güne kadar okunduğunu belirt.
+
+ADIM 5 — Bitir: sekmeyi kapat. Herhangi bir kayıt "fark" ya da "hata" ise bildirim gönder (PushNotification varsa): hangi gün/şube, fark tutarı, ay başından brüt ve net fark, "AFRA Panel → Denetim → Bağımsız doğrulama". Hepsi "ok" ise bildirim gönderme. Son mesajında kontrolün özetini Türkçe yaz.
+```
+
+---
+
+## GÖREV 4 — Arçelik Fiyat Taraması (ayın 1–3 ve 16–18'i, 14:41)
+
+Cron: `CRON_TZ=Europe/Istanbul 41 14 1-3,16-18 * *`
+
+> 1–3 ve 16–18 kasıtlıdır: ayın 1'i pazar/tatil olabilir ya da bilgisayar kapalı olabilir. İlk başarılı gün dönemi "tamam" yapar, sonraki günler boşa geçer.
+
+```
+GÖREV: Afra Dayanıklı Tüketim (Arçelik bayisi) için arcelik.com.tr'deki tüm ürün fiyatlarını çek ve AFRA Panel'in Supabase veritabanına (proje drgnnlewwnwshwvpoljy) o ayın DÖNEMİ olarak kaydet. 1. dönem = ayın 1'i, 2. dönem = ayın 16'sı. Tüm iletişim Türkçe. arcelik.com.tr'de hiçbir şeye tıklama, sepete ekleme, form doldurma; sadece oku.
+
+1) DÖNEM (Türkiye saati): bugün ayın 1-3'ü ise YARI=1; 16-18'i ise YARI=2. DONEM='YYYY-MM'.
+- execute_sql: select durum, urun_sayisi from web_fiyat_donemleri where donem='DONEM' and yari=YARI;  durum 'tamam' ise HİÇBİR ŞEY YAPMA, bildirim gönderme, kısa bir son mesajla bitir.
+- Anahtar: select value from app_secrets where name='fiyat_key';  (KEY)
+
+2) TARAMA: built-in-browser becerisini yükle; Claude_Browser araçlarını tek ToolSearch ile yükle (sorgu "mcp__remote-devices__Claude_Browser__"). preview_start ile https://www.arcelik.com.tr/buzdolabi aç (site izni istenirse request_access ile "site").
+- Afra-dtm/afra-panel deposundaki gorevler/arcelik_fiyat_tarama.js dosyasının içeriğini al (GitHub'dan ya da depo klonundan), __KEY__, __DONEM__ ve __YARI__ yerlerine değerleri koy (KEY ve DONEM tırnak içinde metin, YARI sayı) ve javascript_tool ile o sekmede AYNEN çalıştır. Hemen 'basladi' döner. Veriyi sohbete kopyalama.
+- Her 30-40 sn'de bir kısa çağrıyla durumu oku: ({state:__WF.state, done:__WF.done, cats:__WF.cats, items:__WF.items.size, err:__WF.err.length, error:__WF.error, result:__WF.result}). state 'bitti' ya da 'hata' olana kadar bekle (genelde 10-25 dk; en fazla 45 dk). Tek çağrı 45 sn'yi aşmasın. Sekmeyi kapatma, başka sayfaya gitme.
+
+3) KONTROL VE BİLDİRİM:
+- state='bitti' ise: select durum, urun_sayisi, notu from web_fiyat_donemleri where donem='DONEM' and yari=YARI;  durum 'tamam' olmalı.
+- Önceki tamam dönemle karşılaştır:
+  with cur as (select w.* from web_fiyatlari w join web_fiyat_donemleri d on d.id=w.donem_id where d.donem='DONEM' and d.yari=YARI),
+       prev as (select w.* from web_fiyatlari w where w.donem_id=(select id from web_fiyat_donemleri where durum='tamam' and (donem,yari)<('DONEM',YARI) order by donem desc, yari desc limit 1))
+  select (select count(*) from cur) urun, (select count(*) from cur c join prev p using(kod) where c.satis_fiyati<>p.satis_fiyati) degisen,
+    (select count(*) from cur c join prev p using(kod) where c.satis_fiyati>p.satis_fiyati) artan, (select count(*) from cur c join prev p using(kod) where c.satis_fiyati<p.satis_fiyati) dusen,
+    (select count(*) from cur c where not exists(select 1 from prev p where p.kod=c.kod)) yeni, (select count(*) from prev p where not exists(select 1 from cur c where c.kod=p.kod)) kalkan;
+- Bildirim (PushNotification varsa): "Arçelik fiyatları çekildi — <Ay Yıl> YARI. dönem: X ürün, Y ürünün fiyatı değişti (Z arttı, W düştü), N yeni ürün. AFRA Panel → Arçelik Fiyatları". Ürün sayısı önceki dönemin %80'inden azsa uyarı ekle.
+- state='hata' ya da tarayıcıya ulaşılamıyorsa: "Arçelik fiyat taraması yapılamadı: <neden>. Görev yarın tekrar deneyecek." Başarısız dönemi 'tamam' YAPMA.
+- Sekmeyi kapat. Kendi SQL'inle hiçbir tabloya yazma; kayıtları betikteki ingest_web_fiyat fonksiyonu yapar.
 ```
