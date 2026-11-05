@@ -11,113 +11,189 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AFRA Panel">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
-  --bg:#f4f5f7;--panel:#fff;--ink:#14171f;--muted:#6b7280;--line:#e5e7eb;
-  --brand:#c8102e;--brand-ink:#fff;--side:#111827;--side-ink:#d1d5db;
-  --ok:#0f9d58;--warn:#d97706;--bad:#dc2626;--info:#2563eb;
-  --okbg:#e7f6ee;--warnbg:#fdf3e2;--badbg:#fdeaea;--infobg:#e8effd;
-  --radius:12px;--shadow:0 1px 2px rgba(0,0,0,.04),0 2px 8px rgba(0,0,0,.04);
+  --bg:#eef1f4;--panel:#ffffff;--sunk:#f5f7f9;--ink:#1f2933;--ink2:#3e4c59;--muted:#6b7785;--line:#dde3e9;--line2:#e9edf1;
+  --side:#e6eaee;--side-ink:#3e4c59;--side-on:#ffffff;
+  --brand:#c8102e;--brand-d:#a50d26;--steel:#2f5d7c;
+  --ok:#11795a;--warn:#a85d00;--bad:#c4271c;--info:#2f5d7c;
+  --okbg:#e3f3ec;--warnbg:#fbefdc;--badbg:#fbe7e5;--infobg:#e4edf4;
+  --r-lg:14px;--r-md:10px;--r-sm:6px;
+  --focus:0 0 0 3px rgba(47,93,124,.28);
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0c0f14;--panel:#151a22;--ink:#e6e8ec;--muted:#9aa3b2;--line:#252c38;--side:#090b10;
-  --okbg:#10291c;--warnbg:#2c2210;--badbg:#2e1414;--infobg:#121f3a;}}
-:root[data-theme="dark"]{--bg:#0c0f14;--panel:#151a22;--ink:#e6e8ec;--muted:#9aa3b2;--line:#252c38;--side:#090b10;
-  --okbg:#10291c;--warnbg:#2c2210;--badbg:#2e1414;--infobg:#121f3a;}
+  --bg:#15191e;--panel:#1c2127;--sunk:#20262d;--ink:#e7ebef;--ink2:#c3ccd5;--muted:#8d99a6;--line:#2c343d;--line2:#262d35;
+  --side:#111418;--side-ink:#b6c0ca;--side-on:#1c2127;--steel:#7fb0d1;
+  --ok:#4cc29a;--warn:#e9a64a;--bad:#ef7a70;--info:#7fb0d1;
+  --okbg:#15302a;--warnbg:#33270f;--badbg:#3a1d1b;--infobg:#172a38;}}
+:root[data-theme="dark"]{
+  --bg:#15191e;--panel:#1c2127;--sunk:#20262d;--ink:#e7ebef;--ink2:#c3ccd5;--muted:#8d99a6;--line:#2c343d;--line2:#262d35;
+  --side:#111418;--side-ink:#b6c0ca;--side-on:#1c2127;--steel:#7fb0d1;
+  --ok:#4cc29a;--warn:#e9a64a;--bad:#ef7a70;--info:#7fb0d1;
+  --okbg:#15302a;--warnbg:#33270f;--badbg:#3a1d1b;--infobg:#172a38;}
 *{box-sizing:border-box}
-body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
-.num{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:Onest,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45;font-feature-settings:"tnum" 1}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:-.01em}
 button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:none;box-shadow:var(--focus)}
+a{color:var(--steel)}
 .hidden{display:none!important}
-/* login */
-#login{min-height:100vh;display:grid;place-items:center;padding:16px}
-.lcard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:32px;width:100%;max-width:380px;box-shadow:var(--shadow)}
-.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
-.logo b{background:var(--brand);color:#fff;border-radius:8px;width:34px;height:34px;display:grid;place-items:center;font-size:15px}
-/* layout */
-#app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
-aside{background:var(--side);color:var(--side-ink);padding:20px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
-aside .logo{color:#fff;margin:0 6px 22px}
-.nav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;border:0;background:none;text-align:left;width:100%;color:var(--side-ink)}
-.nav:hover{background:rgba(255,255,255,.06)}
-.nav.on{background:rgba(200,16,46,.18);color:#fff}
-.nav .badge{margin-left:auto;background:var(--brand);color:#fff;border-radius:99px;font-size:11px;padding:1px 7px}
-aside .foot{margin-top:auto;font-size:12px;padding:8px 6px;border-top:1px solid rgba(255,255,255,.08)}
-main{padding:22px 28px;min-width:0}
-.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:20px}
-.top h1{font-size:20px;margin:0;margin-right:auto}
-.ctl{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:38px}
-.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500;min-height:38px}
-.btn:hover{border-color:var(--muted)}
+svg.i{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+/* giriş */
+#login{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+.lside{background:var(--side);padding:48px clamp(24px,5vw,72px);display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid var(--line)}
+.lside .wm{font-size:clamp(56px,8vw,112px);font-weight:700;letter-spacing:-.045em;line-height:.9;color:var(--ink)}
+.lside .wm span{display:block;color:var(--brand)}
+.lside p{max-width:34ch;color:var(--ink2);font-size:16px;margin:22px 0 0}
+.lside ul{list-style:none;margin:0;padding:0;display:grid;gap:10px;color:var(--ink2);font-size:13.5px}
+.lside li{display:flex;gap:10px;align-items:center}
+.lmain{display:grid;place-items:center;padding:32px 16px;background:var(--panel)}
+.lcard{width:100%;max-width:360px}
+.lcard h2{font-size:24px;letter-spacing:-.02em;margin:0 0 6px}
+#mfa .lcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:28px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:650;font-size:16px;letter-spacing:-.01em}
+.logo b{background:var(--brand);color:#fff;border-radius:9px;width:32px;height:32px;display:grid;place-items:center;font-size:15px;font-weight:700}
+
+/* yerleşim */
+#app{display:grid;grid-template-columns:244px minmax(0,1fr);min-height:100vh}
+aside{background:var(--side);color:var(--side-ink);padding:18px 12px;display:flex;flex-direction:column;gap:2px;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line)}
+aside .logo{color:var(--ink);margin:2px 8px 18px}
+.grp{font-size:12px;color:var(--muted);margin:14px 12px 4px;font-weight:500}
+.nav{position:relative;display:flex;align-items:center;gap:11px;padding:8px 12px;border-radius:var(--r-md);cursor:pointer;border:0;background:none;text-align:left;width:100%;color:var(--side-ink);font-weight:500;font-size:13.5px;min-height:38px}
+.nav:hover{background:rgba(127,140,155,.12);color:var(--ink)}
+.nav.on{background:var(--side-on);color:var(--ink);box-shadow:0 1px 0 var(--line)}
+.nav.on::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--brand)}
+.nav.on svg.i{color:var(--brand)}
+.nav .badge{margin-left:auto;background:var(--brand);color:#fff;border-radius:6px;font-size:11px;font-weight:600;padding:1px 7px}
+aside .foot{margin-top:auto;padding:14px 4px 0;border-top:1px solid var(--line)}
+.who{display:flex;gap:10px;align-items:center;padding:0 8px 8px}
+.av{width:32px;height:32px;border-radius:50%;background:var(--steel);color:#fff;display:grid;place-items:center;font-weight:600;font-size:13px;flex:none}
+.who .n{font-weight:600;color:var(--ink);font-size:13px;line-height:1.2}.who .r{font-size:12px;color:var(--muted)}
+.foot .nav{min-height:34px;font-size:13px}
+main{padding:26px 32px 48px;min-width:0;max-width:1480px}
+.top{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end;margin-bottom:22px}
+.top .tt{margin-right:auto;min-width:0}
+.top h1{font-size:24px;font-weight:650;letter-spacing:-.025em;margin:0;line-height:1.15}
+.top .sub{color:var(--muted);font-size:13px;margin-top:4px}
+.fbar{display:flex;align-items:center;gap:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:3px;flex-wrap:wrap}
+.fbar .ctl{border:0;background:transparent;min-height:34px}
+.fbar .sep{width:1px;align-self:stretch;background:var(--line);margin:4px 2px}
+.ctl{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:7px 10px;min-height:38px;color:var(--ink)}
+input.ctl:hover,select.ctl:hover,textarea.ctl:hover{border-color:#c6cfd8}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line);background:var(--panel);border-radius:var(--r-md);padding:7px 14px;cursor:pointer;font-weight:550;min-height:38px;color:var(--ink);transition:background .12s,border-color .12s}
+.btn:hover{background:var(--sunk);border-color:#c6cfd8}
 .btn.p{background:var(--brand);color:#fff;border-color:var(--brand)}
-.btn.s{padding:4px 10px;min-height:30px;font-size:13px}
+.btn.p:hover{background:var(--brand-d);border-color:var(--brand-d)}
+.btn.s{padding:3px 10px;min-height:30px;font-size:12.5px;border-radius:var(--r-sm)}
+.btn:disabled{opacity:.55;cursor:default}
 .grid{display:grid;gap:16px}
 .k4{grid-template-columns:repeat(4,minmax(0,1fr))}
-.k2{grid-template-columns:2fr 1fr}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);min-width:0}
-.card h3{margin:0 0 12px;font-size:14px;font-weight:600}
-.kpi .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
-.kpi .v{font-size:24px;font-weight:600;margin-top:6px}
-.kpi .d{font-size:12px;color:var(--muted);margin-top:4px}
-.tw{overflow-x:auto}
-table{width:100%;border-collapse:collapse}
-th{text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
-td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.k2{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 20px;min-width:0}
+.card h3{margin:0 0 12px;font-size:15px;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.kpi{padding:16px 18px}
+.kpi .l{color:var(--muted);font-size:13px;font-weight:500}
+.kpi .v{font-size:26px;font-weight:650;margin-top:6px;letter-spacing:-.03em;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .d{font-size:12.5px;color:var(--muted);margin-top:6px}
+.k4>.kpi:first-child{background:var(--ink);border-color:var(--ink);color:#fff}
+.k4>.kpi:first-child .l,.k4>.kpi:first-child .d{color:rgba(255,255,255,.72)}
+:root[data-theme="dark"] .k4>.kpi:first-child{background:#e7ebef;color:#15191e;border-color:#e7ebef}
+:root[data-theme="dark"] .k4>.kpi:first-child .l,:root[data-theme="dark"] .k4>.kpi:first-child .d{color:#4b5663}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .k4>.kpi:first-child{background:#e7ebef;color:#15191e;border-color:#e7ebef}
+ :root:not([data-theme="light"]) .k4>.kpi:first-child .l,:root:not([data-theme="light"]) .k4>.kpi:first-child .d{color:#4b5663}}
+.tw{overflow-x:auto;margin:0 -20px;padding:0 20px}
+table{width:100%;border-collapse:separate;border-spacing:0}
+th{text-align:left;font-weight:500;color:var(--muted);font-size:12.5px;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--panel);position:sticky;top:0;z-index:1}
+td{padding:10px 10px;border-bottom:1px solid var(--line2);vertical-align:middle}
+tbody tr:hover td{background:var(--sunk)}
 td.r,th.r{text-align:right}
 tr:last-child td{border-bottom:0}
-.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:500;white-space:nowrap}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:var(--r-sm);font-size:12px;font-weight:550;white-space:nowrap;line-height:1.5}
 .kritik,.hata,.cikis{background:var(--badbg);color:var(--bad)}
 .uyari,.kismi,.bekliyor,.planlandi{background:var(--warnbg);color:var(--warn)}
 .bilgi,.yolda{background:var(--infobg);color:var(--info)}
 .basarili,.teslim_edildi,.giris,.ok{background:var(--okbg);color:var(--ok)}
-.iade,.iptal{background:var(--line);color:var(--muted)}
+.iade,.iptal{background:var(--line2);color:var(--muted)}
 .pos{color:var(--ok)}.neg{color:var(--bad)}
-.empty{color:var(--muted);text-align:center;padding:28px}
-.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
-.tab{padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-size:13px}
+.empty{color:var(--muted);text-align:center;padding:30px 12px}
+.tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.tab{padding:6px 12px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--panel);cursor:pointer;font-size:13px;font-weight:500;color:var(--ink2)}
+.tab:hover{border-color:#c6cfd8}
 .tab.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
-dialog{border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--ink);padding:22px;width:min(520px,calc(100vw - 32px))}
-dialog::backdrop{background:rgba(0,0,0,.45)}
-.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.form label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)}
+dialog{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--panel);color:var(--ink);padding:24px;width:min(540px,calc(100vw - 32px));box-shadow:0 24px 60px -20px rgba(15,23,32,.45)}
+dialog::backdrop{background:rgba(20,26,33,.5)}
+dialog h3{font-size:17px;letter-spacing:-.015em}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+.form label{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--ink2);font-weight:500}
 .form label.f{grid-column:1/-1}
-.form .ctl{color:var(--ink)}
-.acts{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
-.toast{position:fixed;bottom:18px;right:18px;background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:8px;z-index:99;max-width:360px}
+.form .ctl{color:var(--ink);font-weight:400}
+.acts{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;flex-wrap:wrap}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:11px 18px;border-radius:var(--r-md);z-index:99;max-width:min(440px,calc(100vw - 32px));font-weight:500;box-shadow:0 12px 30px -10px rgba(0,0,0,.4);animation:tin .18s ease-out}
+@keyframes tin{from{opacity:0;transform:translate(-50%,8px)}}
 .mtop{display:none}
-.alert{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
+.alert{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line2)}
 .alert:last-child{border-bottom:0}
-.alert .t{font-weight:500}.alert .s{color:var(--muted);font-size:12.5px;margin-top:2px}
-.alert .a{margin-left:auto;text-align:right;white-space:nowrap}
-.hint{color:var(--muted);font-size:12.5px;line-height:1.5}
+.alert .t{font-weight:550}.alert .s{color:var(--muted);font-size:12.5px;margin-top:2px}
+.alert .a{margin-left:auto;text-align:right;white-space:nowrap;font-weight:550}
+.hint{color:var(--muted);font-size:12.5px;line-height:1.55}
+p.hint{max-width:90ch}
+.poscell{width:70px;min-height:32px;padding:4px 8px;text-align:right;border-radius:var(--r-sm)}
+.poscell.dolu{background:var(--sunk)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (max-width:900px){
+  #login{grid-template-columns:1fr}
+  .lside{padding:28px 20px;border-right:0;border-bottom:1px solid var(--line)}
+  .lside ul{display:none}
+  .lside .wm{font-size:56px}
   #app{grid-template-columns:1fr}
-  aside{position:fixed;inset:0 auto 0 0;width:240px;z-index:50;transform:translateX(-100%);transition:.2s}
+  aside{position:fixed;inset:0 auto 0 0;width:260px;z-index:50;transform:translateX(-102%);transition:transform .2s;box-shadow:0 0 40px rgba(0,0,0,.25)}
+  aside:not(.open){box-shadow:none}
   aside.open{transform:none}
   .mtop{display:inline-flex}
-  main{padding:16px}
+  main{padding:16px 16px 40px}
+  .top{align-items:center}
+  .top h1{font-size:20px}
+  .fbar{width:100%}.fbar .ctl{flex:1;min-width:0}
   .k4{grid-template-columns:repeat(2,minmax(0,1fr))}
   .k2{grid-template-columns:1fr}
   .form{grid-template-columns:1fr}
+  .card{padding:16px}.tw{margin:0 -16px;padding:0 16px}
+  .kpi .v{font-size:21px}
 }
 </style>
 </head>
 <body>
 
 <section id="login" class="hidden">
-  <div class="lcard">
+  <div class="lside">
     <div class="logo"><b>A</b> AFRA Panel</div>
-    <p class="hint" style="margin:10px 0 22px">Arçelik AX günlük kasa, sevkiyat ve finans takip sistemi</p>
+    <div>
+      <div class="wm">AFRA<span>Panel</span></div>
+      <p>AX sistemindeki kasa, sevkiyat ve satışlarınızı her sabah tek ekranda kontrol edin.</p>
+    </div>
+    <ul>
+      <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M2.5 10h19M7 15h3"/></svg>Dünkü kasa onayınıza hazır gelir</li>
+      <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>Günün sevkiyatları randevu saatiyle listelenir</li>
+      <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6l8-3z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>Farklar bağımsız kontrolle yakalanır</li>
+    </ul>
+  </div>
+  <div class="lmain">
+  <div class="lcard">
+    <h2>Giriş yap</h2>
+    <p class="hint" style="margin:0 0 22px">Yöneticinizin size verdiği kullanıcı adı ve şifreyle girin.</p>
     <form id="lform" class="form" style="grid-template-columns:1fr">
-      <label>Kullanıcı adı<input class="ctl" type="text" id="luser" required autocomplete="username" autocapitalize="none"></label>
+      <label>Kullanıcı adı<input class="ctl" type="text" id="luser" required autocomplete="username" autocapitalize="none" spellcheck="false"></label>
       <label>Şifre<input class="ctl" type="password" id="lpass" required autocomplete="current-password"></label>
-      <button class="btn p" type="submit" id="lbtn">Giriş yap</button>
-      <div id="lmsg" class="hint">Hesabınız yoksa yöneticinizden kullanıcı adı ve şifre isteyin.</div>
+      <button class="btn p" type="submit" id="lbtn" style="min-height:42px;margin-top:4px">Giriş yap</button>
+      <div id="lmsg" class="hint" role="status"></div>
     </form>
+  </div>
   </div>
 </section>
 
@@ -133,28 +209,37 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <div id="app" class="hidden">
   <aside id="side">
     <div class="logo"><b>A</b> AFRA Panel</div>
-    <button class="nav on" data-v="ozet">📊 Genel Bakış</button>
-    <button class="nav" data-v="kasa">💰 Günlük Kasa</button>
-    <button class="nav" data-v="sevk">🚚 Sevkiyat</button>
-    <button class="nav" data-v="finans">📈 Finansal Raporlar</button>
-    <button class="nav" data-v="denetim">🛡️ Denetim <span class="badge hidden" id="nbadge"></span></button>
-    <button class="nav yon" data-v="marj">💹 Satış & Marj</button>
-    <button class="nav yon" data-v="fiyat">🏷️ Arçelik Fiyatları</button>
-    <button class="nav" data-v="aktarim">🔄 AX Aktarımları</button>
-    <button class="nav yon" data-v="kullanicilar">👥 Kullanıcılar</button>
-    <button class="nav yon" data-v="yonetim">🏢 Şubeler</button>
-    <div class="foot"><div id="uname"></div><div id="urol" style="opacity:.7"></div>
-      <button class="nav" id="sifrem" style="padding:8px 0">🔑 Şifremi değiştir</button>
-      <button class="nav" id="tema" style="padding:8px 0">🌓 Tema</button>
-      <button class="nav" id="cikis" style="padding:8px 0">↩ Çıkış</button></div>
+    <button class="nav on" data-v="ozet"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Genel bakış</span></button>
+    <div class="grp">Mağaza</div>
+    <button class="nav" data-v="kasa"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M2.5 10h19M7 15h3"/></svg><span>Günlük kasa</span></button>
+    <button class="nav" data-v="sevk"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg><span>Sevkiyat</span></button>
+    <div class="grp">Raporlar</div>
+    <button class="nav" data-v="finans"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Finansal raporlar</span></button>
+    <button class="nav yon" data-v="marj"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span>Satış ve marj</span></button>
+    <button class="nav yon" data-v="fiyat"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8L3 12z"/><circle cx="7.5" cy="8.5" r="1.4"/></svg><span>Arçelik fiyatları</span></button>
+    <div class="grp">Kontrol</div>
+    <button class="nav" data-v="denetim"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6l8-3z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span>Denetim</span><span class="badge hidden" id="nbadge"></span></button>
+    <button class="nav" data-v="aktarim"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg><span>AX aktarımları</span></button>
+    <div class="grp yon">Ayarlar</div>
+    <button class="nav yon" data-v="pos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2"/><path d="M8.5 6.5h7v4h-7zM8.5 14h.01M12 14h.01M15.5 14h.01M8.5 17.5h.01M12 17.5h.01M15.5 17.5h.01"/></svg><span>POS oranları</span></button>
+    <button class="nav yon" data-v="yonetim"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V9l5-4 5 4v12M13 21V12h8v9M2 21h20M7 13h2M7 17h2"/></svg><span>Şubeler</span></button>
+    <button class="nav yon" data-v="kullanicilar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c1.9.8 3.1 2.5 3.5 5.2"/></svg><span>Kullanıcılar</span></button>
+    <div class="foot">
+      <div class="who"><div class="av" id="uav">A</div><div><div class="n" id="uname"></div><div class="r" id="urol"></div></div></div>
+      <button class="nav" id="sifrem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg><span>Şifremi değiştir</span></button>
+      <button class="nav" id="tema"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/></svg><span>Koyu / açık tema</span></button>
+      <button class="nav" id="cikis"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h5a1 1 0 011 1v14a1 1 0 01-1 1h-5M10 16l-4-4 4-4M6 12h10"/></svg><span>Çıkış yap</span></button>
+    </div>
   </aside>
   <main>
     <div class="top">
-      <button class="btn mtop" id="menu">☰</button>
-      <h1 id="title">Genel Bakış</h1>
-      <select class="ctl" id="fsube"></select>
-      <input class="ctl" type="date" id="fbas">
-      <input class="ctl" type="date" id="fbit">
+      <button class="btn mtop" id="menu" aria-label="Menüyü aç"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <div class="tt"><h1 id="title">Genel bakış</h1><div class="sub" id="subt"></div></div>
+      <div class="fbar" role="group" aria-label="Filtreler">
+        <select class="ctl" id="fsube" aria-label="Şube"></select><span class="sep"></span>
+        <input class="ctl" type="date" id="fbas" aria-label="Başlangıç tarihi"><span class="sep"></span>
+        <input class="ctl" type="date" id="fbit" aria-label="Bitiş tarihi">
+      </div>
     </div>
     <div id="view"></div>
   </main>
@@ -238,7 +323,7 @@ async function boot(user){
   const {data:p}=await sb.from('profiller').select('*').eq('id',user.id).single();
   ME=p||{rol:'sube',email:user.email};
   $('#login').classList.add('hidden');$('#mfa').classList.add('hidden');$('#app').classList.remove('hidden');
-  $('#uname').textContent=ME.ad_soyad||ME.kullanici_adi;$('#urol').textContent=isYon()?'Yönetici':'Şube kullanıcısı';
+  $('#uname').textContent=ME.ad_soyad||ME.kullanici_adi;$('#uav').textContent=(ME.ad_soyad||ME.kullanici_adi||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toLocaleUpperCase('tr');$('#urol').textContent=isYon()?'Yönetici':'Şube kullanıcısı';
   document.querySelectorAll('.yon').forEach(n=>n.classList.toggle('hidden',!isYon()));
   await loadSubeler();
   if(!$('#fbas').value){const d=new Date();d.setDate(d.getDate()-29);$('#fbas').value=iso(d);$('#fbit').value=today();}
@@ -262,9 +347,12 @@ const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim
 
 async function render(){
   charts.forEach(c=>c.destroy());charts=[];
-  const T={ozet:'Genel Bakış',kasa:'Günlük Kasa',sevk:'Sevkiyat Takibi',finans:'Finansal Raporlar',denetim:'Denetim & Kontroller',aktarim:'AX Aktarımları',yonetim:'Şubeler ve POS Oranları',kullanicilar:'Kullanıcılar',marj:'Satış & Marj (Perakende Raporu)',fiyat:'Arçelik Fiyatları ve Maliyet'};
-  $('#title').textContent=T[VIEW];$('#view').innerHTML='<div class="empty">Yükleniyor…</div>';
-  if(!SUBELER.length&&!['yonetim','kullanicilar'].includes(VIEW)){$('#view').innerHTML=`<div class="card empty">${isYon()?'Henüz şube tanımlı değil. <br><br><button class="btn p" onclick="VIEW=\'yonetim\';render()">Şube ekle</button>':'Hesabınıza henüz bir şube atanmadı. Yöneticinizle iletişime geçin.'}</div>`;return}
+  const T={ozet:['Genel bakış','Kasa, satış, sevkiyat ve uyarıların özeti'],kasa:['Günlük kasa','AX aktarımlarının onayı, gün sonu sayımı ve kasa hareketleri'],sevk:['Sevkiyat','Randevulu teslimatlar ve iş emri durumları'],
+    finans:['Finansal raporlar','Satış, tahsilat ve cari bakiyeler'],denetim:['Denetim','Otomatik kontroller ve AX ile bağımsız karşılaştırma'],aktarim:['AX aktarımları','AX sisteminden gelen verilerin günlüğü'],
+    yonetim:['Şubeler','Şube tanımları ve AX bayi kodları'],kullanicilar:['Kullanıcılar','Hesaplar, roller ve şube atamaları'],pos:['POS oranları','Kart ve taksit bazında komisyon oranları'],
+    marj:['Satış ve marj','Net liste fiyatına göre ek indirim ve ABS fiyatına göre kâr'],fiyat:['Arçelik fiyatları','arcelik.com.tr dönem fiyatları, ABS ve paro']};
+  $('#title').textContent=T[VIEW][0];$('#subt').textContent=T[VIEW][1]+(['yonetim','kullanicilar','fiyat'].includes(VIEW)?'':` · ${fdate($('#fbas').value)} – ${fdate($('#fbit').value)}`);document.title=T[VIEW][0]+' · AFRA Panel';$('#view').innerHTML='<div class="empty">Yükleniyor…</div>';
+  if(!SUBELER.length&&!['yonetim','kullanicilar','pos'].includes(VIEW)){$('#view').innerHTML=`<div class="card empty">${isYon()?'Henüz şube tanımlı değil. <br><br><button class="btn p" onclick="VIEW=\'yonetim\';render()">Şube ekle</button>':'Hesabınıza henüz bir şube atanmadı. Yöneticinizle iletişime geçin.'}</div>`;return}
   try{await V[VIEW]()}catch(e){console.error(e);$('#view').innerHTML=`<div class="card empty">Hata: ${esc(e.message)}</div>`}
   refreshBadge();
 }
@@ -312,8 +400,8 @@ V.ozet=async()=>{
   $('#alist').innerHTML=alertList(A.sort((a,b)=>rank(a)-rank(b)).slice(0,7));
   const agg=d=>K.filter(r=>r.tarih===d);
   chart($('#c1'),{type:'bar',data:{labels:days.map(fdate),datasets:[
-    {label:'Giriş',data:days.map(d=>sum(agg(d),'toplam_giris')),backgroundColor:'#0f9d58',borderRadius:4},
-    {label:'Çıkış',data:days.map(d=>sum(agg(d),'toplam_cikis')),backgroundColor:'#c8102e',borderRadius:4}]},
+    {label:'Giriş',data:days.map(d=>sum(agg(d),'toplam_giris')),backgroundColor:css('--steel'),borderRadius:5,maxBarThickness:28},
+    {label:'Çıkış',data:days.map(d=>sum(agg(d),'toplam_cikis')),backgroundColor:css('--brand'),borderRadius:5,maxBarThickness:28}]},
     options:chartOpts()});
 };
 const rank=a=>({kritik:0,uyari:1,bilgi:2}[a.seviye]);
@@ -427,7 +515,7 @@ V.finans=async()=>{
   ${C.slice(0,300).map(r=>`<tr><td>${fdate(r.tarih)}</td><td>${esc(subeAd(r.sube_id))}</td><td>${esc(r.cari_ad)}</td><td>${esc(LBL[r.tur])}</td><td>${esc(r.belge_no||'')}</td><td>${fdate(r.vade_tarihi)}</td><td class="r num">${tl(r.tutar)}</td><td>${pill(r.kaynak)}</td></tr>`).join('')||'<tr><td colspan="8" class="empty">Kayıt yok</td></tr>'}
   </tbody></table></div></div>`;
   const s=(d,t)=>C.filter(r=>r.tarih===d&&r.tur===t).reduce((a,r)=>a+ +r.tutar,0);
-  chart($('#c2'),{type:'line',data:{labels:days.map(fdate),datasets:[{label:'Satış',data:days.map(d=>s(d,'satis_fatura')),borderColor:'#2563eb',backgroundColor:'#2563eb',tension:.3},{label:'Tahsilat',data:days.map(d=>s(d,'tahsilat')),borderColor:'#0f9d58',backgroundColor:'#0f9d58',tension:.3}]},options:chartOpts()});
+  chart($('#c2'),{type:'line',data:{labels:days.map(fdate),datasets:[{label:'Satış',data:days.map(d=>s(d,'satis_fatura')),borderColor:css('--steel'),backgroundColor:css('--steel'),tension:.3},{label:'Tahsilat',data:days.map(d=>s(d,'tahsilat')),borderColor:css('--ok'),backgroundColor:css('--ok'),tension:.3}]},options:chartOpts()});
   $('#cadd').onclick=async()=>{const o=await form('Cari hareket ekle',[subeField(),{k:'tarih',l:'Tarih',t:'date',d:today(),req:true},{k:'cari_kod',l:'Cari kodu'},{k:'cari_ad',l:'Cari adı',req:true},
     {k:'tur',l:'Tür',t:'select',o:['satis_fatura','tahsilat','iade','alis_fatura','odeme']},{k:'tutar',l:'Tutar (₺)',t:'number',req:true},{k:'belge_no',l:'Belge no'},{k:'vade_tarihi',l:'Vade tarihi',t:'date'},{k:'aciklama',l:'Açıklama',t:'textarea'}]);if(o)save('cari_hareketler',o)};
   $('#cexp').onclick=()=>xlsxOut(C.map(r=>({Tarih:r.tarih,Şube:subeAd(r.sube_id),'Cari kod':r.cari_kod,Cari:r.cari_ad,Tür:LBL[r.tur],Belge:r.belge_no,Vade:r.vade_tarihi,Tutar:+r.tutar})),'cari');
@@ -572,18 +660,39 @@ V.aktarim=async()=>{
 };
 
 const KARTLAR=['Axess','Bonus','CardFinans','Maximum','Ödero','Paraf','World','Ziraat'],TAKSITLER=[1,2,3,4,5,6,7,8,9,10,11,12];
+/* ---------- POS komisyon oranları ---------- */
+V.pos=async()=>{
+  const [{data:PO=[]},K]=await Promise.all([sb.from('pos_oranlari').select('*'),
+    hepsi(()=>{let r=sb.from('kasa_hareketleri').select('sube_id,kart,taksit,tutar,komisyon,komisyon_orani').eq('tur','giris').not('kart','is',null).gte('tarih',$('#fbas').value).lte('tarih',$('#fbit').value).order('id');return $('#fsube').value?r.eq('sube_id',$('#fsube').value):r})]);
+  const po={};PO.forEach(x=>po[x.kart+'|'+x.taksit]=x.oran);
+  const ks={};K.filter(r=>r.kart).forEach(r=>{const o=ks[r.kart]=ks[r.kart]||{n:0,t:0,k:0,eksik:0,tk:{}};o.n++;o.t+=+r.tutar;o.k+=+r.komisyon||0;if(r.komisyon_orani==null)o.eksik++;const t=r.taksit||1;o.tk[t]=(o.tk[t]||0)+1});
+  const top=K.reduce((a,r)=>a+ +r.tutar,0),kom=K.reduce((a,r)=>a+(+r.komisyon||0),0),eksik=K.filter(r=>r.komisyon_orani==null).length;
+  const dolu=PO.length,toplamHucre=KARTLAR.length*TAKSITLER.length;
+  $('#view').innerHTML=`
+  <div class="grid k4">
+   <div class="card kpi"><div class="l">Kartla tahsilat</div><div class="v num">${tl(top)}</div><div class="d">${K.length} işlem, seçili aralıkta</div></div>
+   <div class="card kpi"><div class="l">POS komisyonu</div><div class="v num">${tl(kom)}</div><div class="d">${top?`Tahsilatın %${(kom/top*100).toFixed(2)}'si`:'Henüz kart tahsilatı yok'}</div></div>
+   <div class="card kpi"><div class="l">Oranı eksik işlem</div><div class="v num ${eksik?'neg':''}">${eksik}</div><div class="d">${eksik?'Bu işlemlerin komisyonu hesaplanmadı':'Tüm işlemlerin oranı var'}</div></div>
+   <div class="card kpi"><div class="l">Girilen oran</div><div class="v num">${dolu} / ${toplamHucre}</div><div class="d">Kart × taksit hücresi</div></div>
+  </div>
+  <div class="card" id="poscard" style="margin-top:16px"><h3>Komisyon oranları (%)</h3>
+   <p class="hint" style="margin-top:-4px">Değeri yazıp başka hücreye geçtiğinizde kaydedilir; hücreyi boşaltırsanız oran silinir. Koyu çerçeveli hücreler, seçili aralıkta o kart ve taksitle işlem yapılmış ama oranı girilmemiş yerleri gösterir.</p>
+   <div class="tw"><table><thead><tr><th>Kart</th>${TAKSITLER.map(t=>`<th class="r">${t===1?'Tek çekim':t+' taksit'}</th>`).join('')}</tr></thead><tbody>
+   ${KARTLAR.map(k=>`<tr><td style="font-weight:550">${k}</td>${TAKSITLER.map(t=>{const v=po[k+'|'+t];const kullan=ks[k]?.tk[t];return `<td class="r"><input class="ctl num poscell ${v!=null?'dolu':''}" data-k="${k}|${t}" value="${v??''}" inputmode="decimal" aria-label="${k} ${t} taksit oranı" ${kullan&&v==null?'style="border-color:var(--warn);border-width:2px"':''} title="${kullan?kullan+' işlem':''}"></td>`}).join('')}</tr>`).join('')}
+   </tbody></table></div>
+   <div class="tabs" style="margin:14px 0 0"><button class="btn p" id="posyenile">Seçili aralıkta komisyonları yeniden hesapla</button><span class="hint">Oranları girdikten ya da değiştirdikten sonra geçmiş işlemlere uygulamak için kullanın.</span></div></div>
+  <div class="card" style="margin-top:16px"><h3>Kart bazında özet</h3><div class="tw"><table><thead><tr><th>Kart</th><th class="r">İşlem</th><th class="r">Tahsilat</th><th class="r">Komisyon</th><th class="r">Ortalama oran</th><th>Taksit dağılımı</th><th class="r">Oranı eksik</th></tr></thead><tbody>
+   ${Object.entries(ks).sort((a,b)=>b[1].t-a[1].t).map(([k,o])=>`<tr><td style="font-weight:550">${esc(k)}</td><td class="r num">${o.n}</td><td class="r num">${tl(o.t)}</td><td class="r num">${tl(o.k)}</td><td class="r num">${o.t&&o.k?'%'+(o.k/o.t*100).toFixed(2):'–'}</td>
+    <td class="hint">${Object.entries(o.tk).sort((a,b)=>a[0]-b[0]).map(([t,n])=>`${t==1?'tek':t+' tk'}: ${n}`).join(', ')}</td><td class="r num ${o.eksik?'neg':''}">${o.eksik||''}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">Seçili aralıkta kartla tahsilat yok</td></tr>'}
+  </tbody></table></div></div>`;
+  $('#poscard').querySelectorAll('input[data-k]').forEach(i=>i.onchange=async()=>{const [kart,taksit]=i.dataset.k.split('|');const v=i.value.trim();
+    const {error}=v===''?await sb.from('pos_oranlari').delete().eq('kart',kart).eq('taksit',+taksit):await sb.from('pos_oranlari').upsert({kart,taksit:+taksit,oran:normNum(v)});
+    if(error){i.style.borderColor='var(--bad)';return toast(error.message)}i.classList.toggle('dolu',v!=='');i.style.borderColor='var(--ok)';i.style.borderWidth='1px'});
+  $('#posyenile').onclick=async()=>{const {data,error}=await sb.rpc('komisyon_yenile',{p_bas:$('#fbas').value,p_bit:$('#fbit').value});if(error)return toast(error.message);toast(`${data} işlemin komisyonu yeniden hesaplandı`);render()};
+};
+
 V.yonetim=async()=>{
-  const {data:PO=[]}=await sb.from('pos_oranlari').select('*');const po={};PO.forEach(x=>po[x.kart+'|'+x.taksit]=x.oran);
-  setTimeout(()=>{const c=$('#poscard');if(!c)return;
-    c.querySelectorAll('input[data-k]').forEach(i=>i.onchange=async()=>{const [kart,taksit]=i.dataset.k.split('|');const v=i.value.trim();
-      const {error}=v===''?await sb.from('pos_oranlari').delete().eq('kart',kart).eq('taksit',+taksit):await sb.from('pos_oranlari').upsert({kart,taksit:+taksit,oran:normNum(v)});
-      i.style.borderColor=error?'var(--bad)':'var(--ok)';if(error)toast(error.message)});
-    $('#posyenile').onclick=async()=>{const {data,error}=await sb.rpc('komisyon_yenile',{p_bas:$('#fbas').value,p_bit:$('#fbit').value});toast(error?error.message:`${data} kasa hareketinin komisyonu yeniden hesaplandı`)}},0);
-  $('#view').innerHTML=`<div class="card" id="poscard" style="margin-bottom:16px"><h3>POS komisyon oranları (%)</h3>
-   <p class="hint">Kart × taksit oranlarını girin; her hücre değiştiğinde kaydedilir (boş bırakmak oranı siler). AX'ten gelen kart tahsilatlarının komisyonu bu tablodan hesaplanır. Eksik oranları girdikten sonra seçili tarih aralığı için yeniden hesaplatabilirsiniz.</p>
-   <div class="tw"><table><thead><tr><th>Kart</th>${TAKSITLER.map(t=>`<th class="r">${t===1?'Tek çekim':t+' tk'}</th>`).join('')}</tr></thead><tbody>
-   ${KARTLAR.map(k=>`<tr><td>${k}</td>${TAKSITLER.map(t=>`<td><input class="ctl num" style="width:64px;min-height:30px;padding:3px 6px;text-align:right" data-k="${k}|${t}" value="${po[k+'|'+t]??''}" inputmode="decimal"></td>`).join('')}</tr>`).join('')}
-   </tbody></table></div><button class="btn" id="posyenile" style="margin-top:12px">Seçili aralıkta komisyonları yeniden hesapla</button></div>
+  $('#view').innerHTML=`
   <div class="grid" style="grid-template-columns:1fr">
    <div class="card"><h3>Şubeler (${SUBELER.length})</h3><div class="tw"><table><thead><tr><th>Kod</th><th>Şube</th><th>Şehir</th><th>AX bayi kodu</th><th></th></tr></thead><tbody>
    ${SUBELER.map(s=>`<tr><td class="num">${esc(s.kod)}</td><td>${esc(s.ad)}</td><td>${esc(s.sehir||'')}</td><td class="num">${esc(s.ax_bayi_kodu||'')}</td><td><button class="btn s" onclick="editSube('${s.id}')">Düzenle</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Şube yok</td></tr>'}
