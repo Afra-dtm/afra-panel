@@ -124,7 +124,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <button class="nav" data-v="finans">📈 Finansal Raporlar</button>
     <button class="nav" data-v="denetim">🛡️ Denetim <span class="badge hidden" id="nbadge"></span></button>
     <button class="nav" data-v="aktarim">🔄 AX Aktarımları</button>
-    <button class="nav yon" data-v="yonetim">⚙️ Yönetim</button>
+    <button class="nav yon" data-v="kullanicilar">👥 Kullanıcılar</button>
+    <button class="nav yon" data-v="yonetim">🏢 Şubeler</button>
     <div class="foot"><div id="uname"></div><div id="urol" style="opacity:.7"></div>
       <button class="nav" id="sifrem" style="padding:8px 0">🔑 Şifremi değiştir</button>
       <button class="nav" id="tema" style="padding:8px 0">🌓 Tema</button>
@@ -211,9 +212,9 @@ const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim
 
 async function render(){
   charts.forEach(c=>c.destroy());charts=[];
-  const T={ozet:'Genel Bakış',kasa:'Günlük Kasa',sevk:'Sevkiyat Takibi',finans:'Finansal Raporlar',denetim:'Denetim & Kontroller',aktarim:'AX Aktarımları',yonetim:'Yönetim'};
+  const T={ozet:'Genel Bakış',kasa:'Günlük Kasa',sevk:'Sevkiyat Takibi',finans:'Finansal Raporlar',denetim:'Denetim & Kontroller',aktarim:'AX Aktarımları',yonetim:'Şubeler',kullanicilar:'Kullanıcılar'};
   $('#title').textContent=T[VIEW];$('#view').innerHTML='<div class="empty">Yükleniyor…</div>';
-  if(!SUBELER.length&&VIEW!=='yonetim'){$('#view').innerHTML=`<div class="card empty">${isYon()?'Henüz şube tanımlı değil. <br><br><button class="btn p" onclick="VIEW=\'yonetim\';render()">Şube ekle</button>':'Hesabınıza henüz bir şube atanmadı. Yöneticinizle iletişime geçin.'}</div>`;return}
+  if(!SUBELER.length&&!['yonetim','kullanicilar'].includes(VIEW)){$('#view').innerHTML=`<div class="card empty">${isYon()?'Henüz şube tanımlı değil. <br><br><button class="btn p" onclick="VIEW=\'yonetim\';render()">Şube ekle</button>':'Hesabınıza henüz bir şube atanmadı. Yöneticinizle iletişime geçin.'}</div>`;return}
   try{await V[VIEW]()}catch(e){console.error(e);$('#view').innerHTML=`<div class="card empty">Hata: ${esc(e.message)}</div>`}
   refreshBadge();
 }
@@ -387,20 +388,44 @@ V.aktarim=async()=>{
 };
 
 V.yonetim=async()=>{
-  const {data:P=[]}=await sb.from('profiller').select('*').order('created_at');
-  $('#view').innerHTML=`<div class="grid k2">
-   <div class="card"><h3>Şubeler</h3><div class="tw"><table><thead><tr><th>Kod</th><th>Şube</th><th>Şehir</th><th>AX bayi kodu</th><th></th></tr></thead><tbody>
+  $('#view').innerHTML=`<div class="grid" style="grid-template-columns:1fr">
+   <div class="card"><h3>Şubeler (${SUBELER.length})</h3><div class="tw"><table><thead><tr><th>Kod</th><th>Şube</th><th>Şehir</th><th>AX bayi kodu</th><th></th></tr></thead><tbody>
    ${SUBELER.map(s=>`<tr><td class="num">${esc(s.kod)}</td><td>${esc(s.ad)}</td><td>${esc(s.sehir||'')}</td><td class="num">${esc(s.ax_bayi_kodu||'')}</td><td><button class="btn s" onclick="editSube('${s.id}')">Düzenle</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Şube yok</td></tr>'}
-   </tbody></table></div><button class="btn p" style="margin-top:12px" onclick="editSube()">+ Şube ekle</button></div>
-   <div class="card"><h3>Kullanıcılar (${P.length})</h3><p class="hint">Kullanıcıları buradan eklersiniz; kullanıcı adı ve şifreyi kişiye siz iletirsiniz.</p>
+   </tbody></table></div><button class="btn p" style="margin-top:12px" onclick="editSube()">+ Şube ekle</button></div></div>`;
+};
+
+V.kullanicilar=async()=>{
+  const {data:all=[]}=await sb.from('profiller').select('*').order('created_at');
+  const f=window._kf||{q:'',rol:'',sube:''};
+  const P=all.filter(p=>(!f.q||normUser((p.ad_soyad||'')+' '+(p.kullanici_adi||'')).includes(normUser(f.q)))&&(!f.rol||p.rol===f.rol)&&(!f.sube||(f.sube==='-'?!p.sube_id:p.sube_id===f.sube)));
+  const say=x=>all.filter(x).length;
+  $('#view').innerHTML=`
+  <div class="grid k4">
+   <div class="card kpi"><div class="l">Toplam kullanıcı</div><div class="v num">${all.length}</div></div>
+   <div class="card kpi"><div class="l">Yönetici</div><div class="v num">${say(p=>p.rol==='yonetici')}</div></div>
+   <div class="card kpi"><div class="l">Şube kullanıcısı</div><div class="v num">${say(p=>p.rol==='sube')}</div><div class="d">${say(p=>p.rol==='sube'&&!p.sube_id)} kişiye şube atanmamış</div></div>
+   <div class="card kpi"><div class="l">Pasif hesap</div><div class="v num">${say(p=>!p.aktif)}</div></div>
+  </div>
+  <div class="tabs" style="margin-top:16px">
+   <input class="ctl" id="kq" placeholder="Ad veya kullanıcı adı ara" value="${esc(f.q)}" style="flex:1;min-width:180px">
+   <select class="ctl" id="krol"><option value="">Tüm roller</option><option value="yonetici" ${f.rol==='yonetici'?'selected':''}>Yönetici</option><option value="sube" ${f.rol==='sube'?'selected':''}>Şube kullanıcısı</option></select>
+   <select class="ctl" id="ksube"><option value="">Tüm şubeler</option><option value="-" ${f.sube==='-'?'selected':''}>Şube atanmamış</option>${SUBELER.map(s=>`<option value="${s.id}" ${f.sube===s.id?'selected':''}>${esc(s.ad)}</option>`).join('')}</select>
+   <button class="btn p" onclick="kullaniciEkle()">+ Kullanıcı ekle</button>
+  </div>
+  <div class="grid" style="grid-template-columns:1fr">
+   <div class="card"><h3>Kullanıcılar (${P.length})</h3><p class="hint">Kullanıcı adı ve şifreyi kişiye siz iletirsiniz. Şube kullanıcıları yalnızca atandıkları şubenin verisini görür.</p>
    <div class="tw"><table><thead><tr><th>Kullanıcı</th><th>Rol</th><th>Şube</th><th>Durum</th><th></th></tr></thead><tbody>
+   ${P.length?'':'<tr><td colspan="5" class="empty">Aramaya uyan kullanıcı yok</td></tr>'}
    ${P.map(p=>{const ben=p.id===ME.id;return `<tr><td><div style="font-weight:500">${esc(p.ad_soyad||p.kullanici_adi)}</div><div class="hint num">${esc(p.kullanici_adi||'')}</div></td>
     <td><select class="ctl" ${ben?'disabled':''} onchange="setProf('${p.id}',{rol:this.value})"><option value="sube" ${p.rol==='sube'?'selected':''}>Şube</option><option value="yonetici" ${p.rol==='yonetici'?'selected':''}>Yönetici</option></select></td>
     <td><select class="ctl" onchange="setProf('${p.id}',{sube_id:this.value||null})"><option value="">– Şube –</option>${SUBELER.map(s=>`<option value="${s.id}" ${s.id===p.sube_id?'selected':''}>${esc(s.ad)}</option>`).join('')}</select></td>
     <td>${p.aktif?'<span class="pill ok">Aktif</span>':'<span class="pill iade">Pasif</span>'}</td>
     <td style="white-space:nowrap"><button class="btn s" onclick="sifreSifirla('${p.id}','${esc(p.kullanici_adi)}')">Şifre</button>
      ${ben?'':`<button class="btn s" onclick="durumDegis('${p.id}',${!p.aktif})">${p.aktif?'Pasif yap':'Aktif yap'}</button> <button class="btn s" onclick="kullaniciSil('${p.id}','${esc(p.kullanici_adi)}')">Sil</button>`}</td></tr>`}).join('')}
-   </tbody></table></div><button class="btn p" style="margin-top:12px" onclick="kullaniciEkle()">+ Kullanıcı ekle</button></div></div>`;
+   </tbody></table></div></div></div>`;
+  const setF=()=>{window._kf={q:$('#kq').value,rol:$('#krol').value,sube:$('#ksube').value};render()};
+  $('#krol').onchange=setF;$('#ksube').onchange=setF;
+  let t;$('#kq').oninput=()=>{clearTimeout(t);t=setTimeout(()=>{setF();setTimeout(()=>{const i=$('#kq');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},60)},400)};
 };
 async function kullaniciEkle(){const o=await form('Yeni kullanıcı',[{k:'ad_soyad',l:'Ad soyad',req:true},{k:'kullanici_adi',l:'Kullanıcı adı',req:true},
   {k:'sifre',l:'Şifre (en az 6 karakter)',t:'text',req:true},{k:'rol',l:'Rol',t:'select',o:[['sube','Şube kullanıcısı'],['yonetici','Yönetici']]},
