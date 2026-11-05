@@ -274,7 +274,15 @@ function alertList(A){return A.length?A.map(a=>`<div class="alert">${pill(a.sevi
 V.kasa=async()=>{
   const [h,m]=await Promise.all([q('kasa_hareketleri').order('tarih',{ascending:false}).order('created_at',{ascending:false}).limit(500),q('v_kasa_mutabakat').order('tarih',{ascending:false})]);
   const H=h.data||[],M=m.data||[];
+  let KQ=[];if(isYon()){const {data}=await sb.from('ax_kuyruk').select('batch,rapor_tarihi,durum,meta,sonuc,created_at,islem_tarihi').order('created_at',{ascending:false}).limit(10);KQ=data||[]}
+  const bek=KQ.filter(k=>k.durum==='bekliyor');
   $('#view').innerHTML=`
+  ${isYon()?`<div class="card" style="margin-bottom:16px;${bek.length?'border-color:var(--warn)':''}"><h3>AX sistemi aktarımları ${bek.length?`<span class="pill uyari">${bek.length} onay bekliyor</span>`:''}</h3>
+   ${KQ.length?`<div class="tw"><table><thead><tr><th>Gün</th><th>Durum</th><th>Not</th><th>Sonuç</th><th></th></tr></thead><tbody>${KQ.map(k=>`<tr><td>${fdate(k.rapor_tarihi)}<div class="hint">${new Date(k.created_at).toLocaleString('tr-TR')}</div></td>
+    <td><span class="pill ${{bekliyor:'uyari',onaylandi:'basarili',reddedildi:'iade',yukleniyor:'bilgi'}[k.durum]}">${{bekliyor:'Onay bekliyor',onaylandi:'Onaylandı',reddedildi:'Reddedildi',yukleniyor:'Yükleniyor'}[k.durum]}</span></td><td class="hint">${esc(k.meta?.note||'')}</td>
+    <td class="hint">${k.sonuc?`${k.sonuc.satis} satış, ${k.sonuc.odeme} ödeme${k.sonuc.eslesmeyen?`, ${k.sonuc.eslesmeyen} eşleşmeyen`:''}`:''}</td>
+    <td>${k.durum==='bekliyor'?`<button class="btn p s" onclick="axIncele('${esc(k.batch)}')">İncele ve onayla</button>`:''}</td></tr>`).join('')}</tbody></table></div>`
+   :'<p class="hint">Her sabah AX sisteminden dünkü satış ve ödemeler buraya gelir. Siz onaylayınca kasaya ve cari hareketlere işlenir.</p>'}</div>`:''}
   <div class="tabs"><button class="btn p" id="kadd">+ Kasa hareketi</button><button class="btn" id="kgs">Gün sonu sayımı</button><button class="btn" id="kimp">Excel/CSV içe aktar</button><button class="btn" id="kexp">Excel'e aktar</button></div>
   <div class="card"><h3>Gün sonu mutabakatı</h3><div class="tw"><table><thead><tr><th>Tarih</th><th>Şube</th><th class="r">Günlük nakit net</th><th class="r">Beklenen kasa</th><th class="r">Sayılan</th><th class="r">Fark</th><th>Durum</th></tr></thead><tbody>
   ${M.map(r=>`<tr><td>${fdate(r.tarih)}</td><td>${esc(subeAd(r.sube_id))}</td><td class="r num">${tl(r.nakit_net)}</td><td class="r num">${tl(r.beklenen_nakit)}</td><td class="r num">${r.kapatildi?tl(r.sayilan_nakit):'–'}</td>
@@ -294,6 +302,29 @@ V.kasa=async()=>{
   $('#kimp').onclick=()=>importFile('kasa_hareketleri',{tarih:['tarih','date'],tur:['tür','tur','type'],odeme_tipi:['ödeme','odeme','ödeme tipi'],tutar:['tutar','amount'],aciklama:['açıklama','aciklama'],cari_ad:['cari','müşteri'],belge_no:['belge','belge no','fiş no']});
 };
 
+LBL.satis_fatura='Satış';
+async function axIncele(batch){
+  const {data:R,error}=await sb.rpc('ax_onizle',{p_batch:batch});if(error)return toast(error.message);
+  const S=R.filter(r=>r.tip==='satis'),O=R.filter(r=>r.tip==='odeme');
+  const top=(a,f)=>a.filter(f).reduce((x,r)=>x+ +r.tutar,0);
+  const yeni=R.filter(r=>!r.mevcut).length,eslesmez=R.filter(r=>!r.sube_id).length;
+  const ozet=SUBELER.map(s=>{const a=S.filter(r=>r.sube_id===s.id),b=O.filter(r=>r.sube_id===s.id);if(!a.length&&!b.length)return'';
+   return `<tr><td>${esc(s.ad)}</td><td class="r num">${a.filter(r=>r.tur==='satis_fatura').length}</td><td class="r num">${tl(top(a,r=>r.tur==='satis_fatura'))}</td><td class="r num">${tl(top(a,r=>r.tur==='iade'))}</td><td class="r num">${tl(top(b,r=>r.tur==='giris'))}</td></tr>`}).join('');
+  const satir=r=>`<tr style="${r.mevcut?'opacity:.5':''}"><td>${esc(r.tip==='satis'?(LBL[r.tur]||r.tur):LBL[r.odeme_tipi]||r.odeme_tipi)}${r.iptal?' <span class="pill kritik">iptal</span>':''}</td><td>${r.sube_id?esc(subeAd(r.sube_id)):'<span class="pill kritik">şube yok</span>'}</td>
+   <td>${esc(r.cari||'')}</td><td class="hint">${esc(r.belge||'')} ${esc(r.aciklama||'')}</td><td class="r num ${r.tur==='iade'||r.tur==='cikis'?'neg':''}">${tl(r.tutar)}</td><td>${r.mevcut?'<span class="hint">zaten var</span>':''}</td></tr>`;
+  const d=document.createElement('dialog');d.style.width='min(1000px,calc(100vw - 32px))';
+  d.innerHTML=`<h3 style="margin:0 0 6px">AX aktarımı — ${esc(batch)}</h3><p class="hint" style="margin:0 0 14px">${yeni} yeni kayıt eklenecek${R.length-yeni?`, ${R.length-yeni} kayıt zaten sistemde (tekrar yazılmaz)`:''}${eslesmez?`. <b class="neg">${eslesmez} satırın şubesi bulunamadı, bunlar eklenmez.</b>`:''}</p>
+   <div class="tw"><table><thead><tr><th>Şube</th><th class="r">Satış adedi</th><th class="r">Satış tutarı</th><th class="r">İade / iptal</th><th class="r">Tahsilat</th></tr></thead><tbody>${ozet||'<tr><td colspan="5" class="empty">Kayıt yok</td></tr>'}</tbody></table></div>
+   <h3 style="margin:18px 0 6px">Satırlar (${R.length})</h3><div class="tw" style="max-height:45vh;overflow:auto"><table><thead><tr><th>Tür</th><th>Şube</th><th>Müşteri</th><th>Belge / Açıklama</th><th class="r">Tutar</th><th></th></tr></thead><tbody>${R.map(satir).join('')}</tbody></table></div>
+   <div class="acts"><button class="btn" data-k="kapat">Kapat</button><button class="btn" data-k="reddet">Reddet</button><button class="btn p" data-k="onayla">Onayla ve kasaya işle</button></div>`;
+  document.body.appendChild(d);d.showModal();d.onclose=()=>d.remove();
+  d.querySelectorAll('[data-k]').forEach(b=>b.onclick=async()=>{const k=b.dataset.k;if(k==='kapat')return d.close();
+    if(k==='reddet'&&!confirm('Bu aktarım reddedilsin mi? Kasaya hiçbir şey yazılmaz.'))return;
+    b.disabled=true;const {data:res,error}=await sb.rpc('ax_onayla',{p_batch:batch,p_karar:k});
+    if(error){b.disabled=false;return toast(error.message)}
+    d.close();toast(k==='reddet'?'Aktarım reddedildi':`Kasaya işlendi: ${res.satis} satış, ${res.odeme} ödeme`);render()});
+}
+
 V.sevk=async()=>{
   const st=window._sst||'acik';
   let r=q('sevkiyatlar').order('tarih',{ascending:false}).limit(1000);
@@ -301,9 +332,9 @@ V.sevk=async()=>{
   const {data:S=[]}=await r;
   $('#view').innerHTML=`<div class="tabs">${[['acik','Açık'],['bekliyor','Bekliyor'],['planlandi','Planlandı'],['yolda','Yolda'],['teslim_edildi','Teslim'],['iade','İade'],['tumu','Tümü']].map(([k,l])=>`<button class="tab ${k===st?'on':''}" data-s="${k}">${l}</button>`).join('')}
    <span style="flex:1"></span><button class="btn p" id="sadd">+ Sevkiyat</button><button class="btn" id="simp">İçe aktar</button><button class="btn" id="sexp">Excel'e aktar</button></div>
-  <div class="card"><div class="tw"><table><thead><tr><th>Tarih</th><th>Şube</th><th>Sipariş / İrsaliye</th><th>Müşteri</th><th>Ürün</th><th class="r">Adet</th><th class="r">Tutar</th><th>Durum</th><th>Gün</th><th></th></tr></thead><tbody>
+  <div class="card"><div class="tw"><table><thead><tr><th>Sipariş / Randevu</th><th>Şube</th><th>Sipariş / İrsaliye</th><th>Müşteri</th><th>Ürün</th><th class="r">Adet</th><th class="r">Tutar</th><th>Durum</th><th>Gün</th><th></th></tr></thead><tbody>
   ${S.map(s=>{const g=Math.round((new Date(today())-new Date(s.tarih))/864e5);const acik=['bekliyor','planlandi','yolda'].includes(s.durum);
-   return `<tr><td>${fdate(s.tarih)}</td><td>${esc(subeAd(s.sube_id))}</td><td>${esc(s.siparis_no||'–')}<div class="hint">${esc(s.irsaliye_no||'')}</div></td><td>${esc(s.musteri||'')}<div class="hint">${esc(s.adres||'')}</div></td><td>${esc(s.urun_adi||s.urun_kodu||'')}</td>
+   return `<tr><td>${fdate(s.tarih)}${s.planlanan_tarih?`<div class="hint">📅 ${fdate(s.planlanan_tarih)} ${esc(s.randevu_saati||'')}</div>`:''}${s.depo_tipi?`<div><span class="pill ${s.depo_tipi==='MAĞAZA'?'kritik':'bilgi'}">${esc(s.depo_tipi)}</span> <span class="hint">${esc(s.depo||'')}</span></div>`:''}${s.is_emri_durumu?`<div class="hint">İE: ${esc(s.is_emri_durumu)}</div>`:''}</td><td>${esc(subeAd(s.sube_id))}</td><td>${esc(s.siparis_no||'–')}<div class="hint">${esc(s.irsaliye_no||'')}</div></td><td>${esc(s.musteri||'')}<div class="hint">${esc(s.adres||'')}</div></td><td>${esc(s.urun_adi||s.urun_kodu||'')}</td>
    <td class="r num">${s.adet}</td><td class="r num">${tl(s.tutar)}</td><td><select class="ctl" style="min-height:30px;padding:3px 6px" onchange="setDurum('${s.id}',this.value)">${['bekliyor','planlandi','yolda','teslim_edildi','iade','iptal'].map(d=>`<option value="${d}" ${d===s.durum?'selected':''}>${LBL[d]}</option>`).join('')}</select></td>
    <td class="num ${acik&&g>3?'neg':''}">${acik?g:''}</td><td><button class="btn s" onclick='editSevk(${JSON.stringify(s.id)})'>Düzenle</button></td></tr>`}).join('')||'<tr><td colspan="10" class="empty">Kayıt yok</td></tr>'}
   </tbody></table></div></div>`;
