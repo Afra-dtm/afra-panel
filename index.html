@@ -107,11 +107,10 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <div class="logo"><b>A</b> AFRA Panel</div>
     <p class="hint" style="margin:10px 0 22px">Arçelik AX günlük kasa, sevkiyat ve finans takip sistemi</p>
     <form id="lform" class="form" style="grid-template-columns:1fr">
-      <label>E-posta<input class="ctl" type="email" id="lemail" required></label>
-      <label>Şifre<input class="ctl" type="password" id="lpass" required minlength="6"></label>
+      <label>Kullanıcı adı<input class="ctl" type="text" id="luser" required autocomplete="username" autocapitalize="none"></label>
+      <label>Şifre<input class="ctl" type="password" id="lpass" required autocomplete="current-password"></label>
       <button class="btn p" type="submit" id="lbtn">Giriş yap</button>
-      <button class="btn" type="button" id="lreg">Yeni hesap oluştur</button>
-      <div id="lmsg" class="hint"></div>
+      <div id="lmsg" class="hint">Hesabınız yoksa yöneticinizden kullanıcı adı ve şifre isteyin.</div>
     </form>
   </div>
 </section>
@@ -127,6 +126,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <button class="nav" data-v="aktarim">🔄 AX Aktarımları</button>
     <button class="nav yon" data-v="yonetim">⚙️ Yönetim</button>
     <div class="foot"><div id="uname"></div><div id="urol" style="opacity:.7"></div>
+      <button class="nav" id="sifrem" style="padding:8px 0">🔑 Şifremi değiştir</button>
       <button class="nav" id="tema" style="padding:8px 0">🌓 Tema</button>
       <button class="nav" id="cikis" style="padding:8px 0">↩ Çıkış</button></div>
   </aside>
@@ -166,14 +166,18 @@ let ME=null,SUBELER=[],VIEW='ozet',charts=[];
 const isYon=()=>ME?.rol==='yonetici';
 
 /* ---------- auth ---------- */
-$('#lform').onsubmit=async e=>{e.preventDefault();$('#lmsg').textContent='';
-  const {error}=await sb.auth.signInWithPassword({email:$('#lemail').value,password:$('#lpass').value});
-  if(error)$('#lmsg').textContent='Giriş başarısız: '+error.message;};
-$('#lreg').onclick=async()=>{const email=$('#lemail').value,password=$('#lpass').value;
-  if(!email||password.length<6){$('#lmsg').textContent='E-posta ve en az 6 karakterli şifre girin.';return}
-  const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin}});
-  $('#lmsg').textContent=error?error.message:(data.session?'Hesap oluşturuldu.':'Hesap oluşturuldu. E-postanıza gelen onay bağlantısına tıklayın.');};
+const DOMAIN='afra-panel.local';
+const normUser=u=>String(u||'').trim().toLocaleLowerCase('tr').replace(/ı/g,'i').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s').replace(/ö/g,'o').replace(/ç/g,'c');
+$('#lform').onsubmit=async e=>{e.preventDefault();$('#lmsg').textContent='Giriş yapılıyor…';$('#lbtn').disabled=true;
+  const {error}=await sb.auth.signInWithPassword({email:normUser($('#luser').value)+'@'+DOMAIN,password:$('#lpass').value});
+  $('#lbtn').disabled=false;
+  $('#lmsg').textContent=error?(/banned/i.test(error.message)?'Hesabınız pasif durumda. Yöneticinize başvurun.':'Kullanıcı adı veya şifre hatalı.'):'';};
 $('#cikis').onclick=()=>sb.auth.signOut();
+async function yonet(body){const {data,error}=await sb.functions.invoke('kullanici-yonet',{body});
+  if(error){let m=error.message;try{m=(await error.context.json()).error||m}catch(e){}throw new Error(m)}return data}
+$('#sifrem').onclick=async()=>{const o=await form('Şifremi değiştir',[{k:'s1',l:'Yeni şifre',t:'password',req:true,full:true},{k:'s2',l:'Yeni şifre (tekrar)',t:'password',req:true,full:true}]);
+  if(!o)return;if(o.s1!==o.s2)return toast('Şifreler aynı değil');if(String(o.s1).length<6)return toast('Şifre en az 6 karakter olmalı');
+  const {error}=await sb.auth.updateUser({password:o.s1});toast(error?error.message:'Şifreniz değiştirildi')};
 $('#tema').onclick=()=>{const r=document.documentElement,c=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=c;try{localStorage.setItem('tema',c)}catch(e){}};
 try{const t=localStorage.getItem('tema');if(t)document.documentElement.dataset.theme=t}catch(e){}
 $('#menu').onclick=()=>$('#side').classList.toggle('open');
@@ -184,7 +188,7 @@ async function boot(user){
   const {data:p}=await sb.from('profiller').select('*').eq('id',user.id).single();
   ME=p||{rol:'sube',email:user.email};
   $('#login').classList.add('hidden');$('#app').classList.remove('hidden');
-  $('#uname').textContent=ME.ad_soyad||ME.email;$('#urol').textContent=isYon()?'Yönetici':'Şube kullanıcısı';
+  $('#uname').textContent=ME.ad_soyad||ME.kullanici_adi;$('#urol').textContent=isYon()?'Yönetici':'Şube kullanıcısı';
   document.querySelectorAll('.yon').forEach(n=>n.classList.toggle('hidden',!isYon()));
   await loadSubeler();
   if(!$('#fbas').value){const d=new Date();d.setDate(d.getDate()-29);$('#fbas').value=iso(d);$('#fbit').value=today();}
@@ -388,12 +392,24 @@ V.yonetim=async()=>{
    <div class="card"><h3>Şubeler</h3><div class="tw"><table><thead><tr><th>Kod</th><th>Şube</th><th>Şehir</th><th>AX bayi kodu</th><th></th></tr></thead><tbody>
    ${SUBELER.map(s=>`<tr><td class="num">${esc(s.kod)}</td><td>${esc(s.ad)}</td><td>${esc(s.sehir||'')}</td><td class="num">${esc(s.ax_bayi_kodu||'')}</td><td><button class="btn s" onclick="editSube('${s.id}')">Düzenle</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Şube yok</td></tr>'}
    </tbody></table></div><button class="btn p" style="margin-top:12px" onclick="editSube()">+ Şube ekle</button></div>
-   <div class="card"><h3>Kullanıcılar</h3><p class="hint">Kullanıcılar giriş ekranından hesap açar; burada rol ve şube atarsınız.</p>
-   ${P.map(p=>`<div class="alert"><div><div class="t">${esc(p.ad_soyad||p.email)}</div><div class="s">${esc(p.email)}</div></div><div class="a" style="display:flex;gap:6px">
-    <select class="ctl" onchange="setProf('${p.id}',{rol:this.value})"><option value="sube" ${p.rol==='sube'?'selected':''}>Şube</option><option value="yonetici" ${p.rol==='yonetici'?'selected':''}>Yönetici</option></select>
-    <select class="ctl" onchange="setProf('${p.id}',{sube_id:this.value||null})"><option value="">– Şube –</option>${SUBELER.map(s=>`<option value="${s.id}" ${s.id===p.sube_id?'selected':''}>${esc(s.ad)}</option>`).join('')}</select></div></div>`).join('')}
-   </div></div>`;
+   <div class="card"><h3>Kullanıcılar (${P.length})</h3><p class="hint">Kullanıcıları buradan eklersiniz; kullanıcı adı ve şifreyi kişiye siz iletirsiniz.</p>
+   <div class="tw"><table><thead><tr><th>Kullanıcı</th><th>Rol</th><th>Şube</th><th>Durum</th><th></th></tr></thead><tbody>
+   ${P.map(p=>{const ben=p.id===ME.id;return `<tr><td><div style="font-weight:500">${esc(p.ad_soyad||p.kullanici_adi)}</div><div class="hint num">${esc(p.kullanici_adi||'')}</div></td>
+    <td><select class="ctl" ${ben?'disabled':''} onchange="setProf('${p.id}',{rol:this.value})"><option value="sube" ${p.rol==='sube'?'selected':''}>Şube</option><option value="yonetici" ${p.rol==='yonetici'?'selected':''}>Yönetici</option></select></td>
+    <td><select class="ctl" onchange="setProf('${p.id}',{sube_id:this.value||null})"><option value="">– Şube –</option>${SUBELER.map(s=>`<option value="${s.id}" ${s.id===p.sube_id?'selected':''}>${esc(s.ad)}</option>`).join('')}</select></td>
+    <td>${p.aktif?'<span class="pill ok">Aktif</span>':'<span class="pill iade">Pasif</span>'}</td>
+    <td style="white-space:nowrap"><button class="btn s" onclick="sifreSifirla('${p.id}','${esc(p.kullanici_adi)}')">Şifre</button>
+     ${ben?'':`<button class="btn s" onclick="durumDegis('${p.id}',${!p.aktif})">${p.aktif?'Pasif yap':'Aktif yap'}</button> <button class="btn s" onclick="kullaniciSil('${p.id}','${esc(p.kullanici_adi)}')">Sil</button>`}</td></tr>`}).join('')}
+   </tbody></table></div><button class="btn p" style="margin-top:12px" onclick="kullaniciEkle()">+ Kullanıcı ekle</button></div></div>`;
 };
+async function kullaniciEkle(){const o=await form('Yeni kullanıcı',[{k:'ad_soyad',l:'Ad soyad',req:true},{k:'kullanici_adi',l:'Kullanıcı adı',req:true},
+  {k:'sifre',l:'Şifre (en az 6 karakter)',t:'text',req:true},{k:'rol',l:'Rol',t:'select',o:[['sube','Şube kullanıcısı'],['yonetici','Yönetici']]},
+  {k:'sube_id',l:'Şube',t:'select',o:[['','– Şube –'],...SUBELER.map(s=>[s.id,s.ad])],full:true}]);if(!o)return;
+  try{await yonet({islem:'olustur',...o});toast(`"${normUser(o.kullanici_adi)}" oluşturuldu`);render()}catch(e){toast(e.message)}}
+async function sifreSifirla(id,ka){const o=await form(`${ka} – yeni şifre`,[{k:'sifre',l:'Yeni şifre (en az 6 karakter)',t:'text',req:true,full:true}]);if(!o)return;
+  try{await yonet({islem:'sifre',id,sifre:o.sifre});toast('Şifre güncellendi')}catch(e){toast(e.message)}}
+async function durumDegis(id,aktif){try{await yonet({islem:'durum',id,aktif});toast(aktif?'Hesap aktif':'Hesap pasif yapıldı');render()}catch(e){toast(e.message)}}
+async function kullaniciSil(id,ka){if(!confirm(`"${ka}" kullanıcısı kalıcı olarak silinsin mi?`))return;try{await yonet({islem:'sil',id});toast('Kullanıcı silindi');render()}catch(e){toast(e.message)}}
 async function editSube(id){const s=id?SUBELER.find(x=>x.id===id):{};const o=await form(id?'Şubeyi düzenle':'Yeni şube',[{k:'kod',l:'Şube kodu',req:true},{k:'ad',l:'Şube adı',req:true},{k:'sehir',l:'Şehir'},{k:'ax_bayi_kodu',l:'AX bayi / şirket kodu'}],s);if(!o)return;
   const {error}=id?await sb.from('subeler').update(o).eq('id',id):await sb.from('subeler').insert(o);toast(error?error.message:'Kaydedildi');await loadSubeler();render()}
 async function setProf(id,u){const {error}=await sb.from('profiller').update(u).eq('id',id);toast(error?error.message:'Güncellendi')}
