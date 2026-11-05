@@ -171,7 +171,7 @@ $('#lform').onsubmit=async e=>{e.preventDefault();$('#lmsg').textContent='';
   if(error)$('#lmsg').textContent='Giriş başarısız: '+error.message;};
 $('#lreg').onclick=async()=>{const email=$('#lemail').value,password=$('#lpass').value;
   if(!email||password.length<6){$('#lmsg').textContent='E-posta ve en az 6 karakterli şifre girin.';return}
-  const {data,error}=await sb.auth.signUp({email,password});
+  const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin}});
   $('#lmsg').textContent=error?error.message:(data.session?'Hesap oluşturuldu.':'Hesap oluşturuldu. E-postanıza gelen onay bağlantısına tıklayın.');};
 $('#cikis').onclick=()=>sb.auth.signOut();
 $('#tema').onclick=()=>{const r=document.documentElement,c=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=c;try{localStorage.setItem('tema',c)}catch(e){}};
