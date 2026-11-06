@@ -139,6 +139,8 @@ dialog h3{font-size:17px;letter-spacing:-.015em}
 .form{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
 .form label{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--ink2);font-weight:500}
 .form label.f{grid-column:1/-1}
+.form.f4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:1100px){.form.f4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .form .ctl{color:var(--ink);font-weight:400}
 .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;flex-wrap:wrap}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:11px 18px;border-radius:var(--r-md);z-index:99;max-width:min(440px,calc(100vw - 32px));font-weight:500;box-shadow:0 12px 30px -10px rgba(0,0,0,.4);animation:tin .18s ease-out}
@@ -233,11 +235,12 @@ p.hint{max-width:90ch}
     <button class="nav on" data-v="ozet"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Genel bakış</span></button>
     <div class="grp">Mağaza</div>
     <button class="nav" data-v="kasa"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M2.5 10h19M7 15h3"/></svg><span>Günlük kasa</span></button>
+    <button class="nav" data-v="islem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h6M9 16h4"/></svg><span>Günlük işlem</span></button>
     <button class="nav" data-v="sevk"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg><span>Sevkiyat</span></button>
     <div class="grp">Raporlar</div>
     <button class="nav" data-v="finans"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Finansal raporlar</span></button>
-    <button class="nav yon" data-v="marj"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span>Satış ve marj</span></button>
-    <button class="nav yon" data-v="fiyat"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8L3 12z"/><circle cx="7.5" cy="8.5" r="1.4"/></svg><span>Arçelik fiyatları</span></button>
+    <button class="nav" data-v="marj"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span>Satış ve marj</span></button>
+    <button class="nav" data-v="fiyat"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8L3 12z"/><circle cx="7.5" cy="8.5" r="1.4"/></svg><span>Arçelik fiyatları</span></button>
     <div class="grp">Kontrol</div>
     <button class="nav" data-v="denetim"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6l8-3z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span>Denetim</span><span class="badge hidden" id="nbadge"></span></button>
     <button class="nav" data-v="aktarim"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg><span>AX aktarımları</span></button>
@@ -288,6 +291,16 @@ const pill=v=>`<span class="pill ${esc(v)}">${esc(LBL[v]||v)}</span>`;
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3500)}
 let ME=null,SUBELER=[],VIEW='ozet',charts=[];
 const isYon=()=>ME?.rol==='yonetici';
+const EKRANLAR=[['ozet','Genel bakış'],['kasa','Günlük kasa'],['islem','Günlük işlem'],['sevk','Sevkiyat'],['finans','Finansal raporlar'],['marj','Satış ve marj'],['fiyat','Arçelik fiyatları'],['denetim','Denetim'],['aktarim','AX aktarımları']];
+const YONETICI_EKRANLARI=['pos','yonetim','kullanicilar'],VARS_YETKI=['ozet','kasa','islem','sevk'];
+const yetkiListesi=p=>p?.rol==='yonetici'?EKRANLAR.map(e=>e[0]):(p?.yetkiler||VARS_YETKI);
+const izin=v=>isYon()||(!YONETICI_EKRANLARI.includes(v)&&yetkiListesi(ME).includes(v));
+function menuYetki(){
+  document.querySelectorAll('.nav[data-v]').forEach(n=>n.classList.toggle('hidden',!izin(n.dataset.v)));
+  document.querySelectorAll('aside .grp').forEach(g=>{let x=g.nextElementSibling,gor=false;while(x&&!x.classList.contains('grp')&&!x.classList.contains('foot')){if(x.matches('.nav[data-v]')&&!x.classList.contains('hidden'))gor=true;x=x.nextElementSibling}g.classList.toggle('hidden',!gor)});
+  if(!izin(VIEW)){const ilk=[...document.querySelectorAll('.nav[data-v]')].find(n=>!n.classList.contains('hidden'));VIEW=ilk?ilk.dataset.v:'ozet'}
+  document.querySelectorAll('.nav[data-v]').forEach(n=>n.classList.toggle('on',n.dataset.v===VIEW));
+}
 
 /* ---------- auth ---------- */
 const DOMAIN='afra-panel.local';
@@ -346,6 +359,7 @@ async function boot(user){
   $('#login').classList.add('hidden');$('#mfa').classList.add('hidden');$('#app').classList.remove('hidden');
   $('#uname').textContent=ME.ad_soyad||ME.kullanici_adi;$('#uav').textContent=(ME.ad_soyad||ME.kullanici_adi||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toLocaleUpperCase('tr');$('#urol').textContent=isYon()?'Yönetici':'Şube kullanıcısı';
   document.querySelectorAll('.yon').forEach(n=>n.classList.toggle('hidden',!isYon()));
+  menuYetki();
   await loadSubeler();
   if(!$('#fbas').value){const d=new Date();d.setDate(d.getDate()-29);$('#fbas').value=iso(d);$('#fbit').value=today();}
   render();
@@ -371,13 +385,14 @@ async function render(){
   const T={ozet:['Genel bakış','Kasa, satış, sevkiyat ve uyarıların özeti'],kasa:['Günlük kasa','AX aktarımlarının onayı, gün sonu sayımı ve kasa hareketleri'],sevk:['Sevkiyat','Randevulu teslimatlar ve iş emri durumları'],
     finans:['Finansal raporlar','Satış, tahsilat ve cari bakiyeler'],denetim:['Denetim','Otomatik kontroller ve AX ile bağımsız karşılaştırma'],aktarim:['AX aktarımları','AX sisteminden gelen verilerin günlüğü'],
     yonetim:['Şubeler','Şube tanımları ve AX bayi kodları'],kullanicilar:['Kullanıcılar','Hesaplar, roller ve şube atamaları'],pos:['POS oranları','Kart ve taksit bazında komisyon oranları'],
-    marj:['Satış ve marj','Net liste fiyatına göre ek indirim ve ABS fiyatına göre kâr'],fiyat:['Arçelik fiyatları','arcelik.com.tr dönem fiyatları, ABS ve paro']};
+    marj:['Satış ve marj','Net liste fiyatına göre ek indirim ve ABS fiyatına göre kâr'],fiyat:['Arçelik fiyatları','arcelik.com.tr dönem fiyatları, ABS ve paro'],islem:['Günlük işlem','Elle girilen satış, tahsilat, iptal ve gider kayıtları (AX\'ten bağımsız)']};
+  if(!izin(VIEW)){menuYetki()}
   $('#title').textContent=T[VIEW][0];$('#subt').textContent=T[VIEW][1]+(['yonetim','kullanicilar','fiyat'].includes(VIEW)?'':` · ${fdate($('#fbas').value)} – ${fdate($('#fbit').value)}`);document.title=T[VIEW][0]+' · AFRA Panel';$('#view').innerHTML='<div class="empty">Yükleniyor…</div>';
   if(!SUBELER.length&&!['yonetim','kullanicilar','pos'].includes(VIEW)){$('#view').innerHTML=`<div class="card empty">${isYon()?'Henüz şube tanımlı değil. <br><br><button class="btn p" onclick="VIEW=\'yonetim\';render()">Şube ekle</button>':'Hesabınıza henüz bir şube atanmadı. Yöneticinizle iletişime geçin.'}</div>`;return}
   try{await V[VIEW]()}catch(e){console.error(e);$('#view').innerHTML=`<div class="card empty">Hata: ${esc(e.message)}</div>`}
   refreshBadge();
 }
-async function refreshBadge(){const {data}=await sb.rpc('denetim_kontrolleri',{p_tarih:today()});
+async function refreshBadge(){if(!izin('denetim'))return;const {data}=await sb.rpc('denetim_kontrolleri',{p_tarih:today()});
   const n=(data||[]).filter(a=>a.seviye==='kritik').length;$('#nbadge').textContent=n;$('#nbadge').classList.toggle('hidden',!n)}
 
 /* ---------- dialog helper ---------- */
@@ -483,6 +498,95 @@ async function axIncele(batch){
     if(error){b.disabled=false;return toast(error.message)}
     d.close();toast(k==='reddet'?'Aktarım reddedildi':`Kasaya işlendi: ${res.satis} satış, ${res.odeme} ödeme`);render()});
 }
+
+/* ---------- Günlük işlem (elle giriş, AX'ten bağımsız) ---------- */
+const ITUR={satis:['Satış','ok'],tahsilat:['Tahsilat','bilgi'],iptal:['İptal / iade','kritik'],gider:['Gider','uyari']};
+const IODEME=[['nakit','Nakit'],['kredi_karti','Kredi kartı'],['havale','Havale / EFT'],['cek','Çek'],['senet','Senet'],['vadeli','Vadeli (açık hesap)'],['diger','Diğer']];
+const GIDER_KALEM=['Kargo / nakliye','Personel','Yemek','Kira','Elektrik / su / doğalgaz','Kırtasiye','Temizlik','Bakım / onarım','Vergi / harç','Diğer'];
+const isaret=r=>r.tur==='satis'||r.tur==='tahsilat'?1:-1;
+V.islem=async()=>{
+  const st=window._ist||'';
+  const [R,O,{data:DV=[]}]=await Promise.all([
+    hepsi(()=>{let r=q('gunluk_islemler').order('tarih',{ascending:false}).order('created_at',{ascending:false});return st?r.eq('tur',st):r}),
+    hepsi(()=>q('v_gunluk_islem_ozet').order('tarih',{ascending:false})),
+    sb.from('gunluk_islem_devir').select('*')]);
+  const top=t=>R.filter(r=>r.tur===t).reduce((a,r)=>a+ +r.tutar,0);
+  const sonBakiye=SUBELER.map(sb_=>{const o=O.find(x=>x.sube_id===sb_.id);return o?{s:sb_,b:+o.nakit_bakiye,t:o.tarih}:null}).filter(Boolean).filter(x=>!$('#fsube').value||x.s.id===$('#fsube').value);
+  const benimSube=ME.sube_id||$('#fsube').value||SUBELER[0]?.id;
+  const subeSec=isYon()||SUBELER.length>1;
+  $('#view').innerHTML=`
+  <div class="card" id="igir" style="margin-bottom:16px"><h3>Yeni işlem</h3>
+   <div class="tabs" id="iturler" role="radiogroup" aria-label="İşlem türü">${Object.entries(ITUR).map(([k,[l]],i)=>`<button type="button" class="tab ${(window._itur||'satis')===k?'on':''}" data-t="${k}" role="radio" aria-checked="${(window._itur||'satis')===k}">${l}</button>`).join('')}</div>
+   <form id="iform" class="form f4" autocomplete="off">
+    ${subeSec?`<label>Şube<select class="ctl" name="sube_id" required>${SUBELER.map(x=>`<option value="${x.id}" ${x.id===benimSube?'selected':''}>${esc(x.ad)}</option>`).join('')}</select></label>`:`<input type="hidden" name="sube_id" value="${benimSube||''}">`}
+    <label>Tarih<input class="ctl" type="date" name="tarih" value="${today()}" ${isYon()?'':`max="${today()}"`} required></label>
+    <label>Tutar (₺)<input class="ctl num" name="tutar" inputmode="decimal" required placeholder="0,00" style="font-size:16px;font-weight:600"></label>
+    <label>Ödeme tipi<select class="ctl" name="odeme_tipi">${IODEME.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></label>
+    <label data-g="kart">Kart<select class="ctl" name="kart"><option value="">–</option>${KARTLAR.map(k=>`<option>${k}</option>`).join('')}</select></label>
+    <label data-g="kart">Taksit<select class="ctl" name="taksit">${TAKSITLER.map(t=>`<option value="${t}">${t===1?'Tek çekim':t+' taksit'}</option>`).join('')}</select></label>
+    <label data-g="musteri">Müşteri<input class="ctl" name="musteri"></label>
+    <label data-g="urun">Ürün / madde kodu<input class="ctl" name="urun" placeholder="Örn. 7296520186 buzdolabı"></label>
+    <label data-g="gider">Gider kalemi<select class="ctl" name="gider_kalemi">${GIDER_KALEM.map(g=>`<option>${g}</option>`).join('')}</select></label>
+    <label>Belge / fiş no<input class="ctl" name="belge_no"></label>
+    <label class="f" style="grid-column:span 2">Açıklama<input class="ctl" name="aciklama"></label>
+    <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn p" type="submit" id="ikaydet">İşlemi kaydet</button><span class="hint">Kaydı giren olarak <b>${esc(ME.ad_soyad||ME.kullanici_adi)}</b> yazılır ve değiştirilemez. Kendi kaydınızı aynı gün içinde düzeltebilir ya da silebilirsiniz.</span></div>
+   </form></div>
+  <div class="grid k4">
+   <div class="card kpi"><div class="l">Nakit kasa</div><div class="v num">${sonBakiye.length?tl(sonBakiye.reduce((a,x)=>a+x.b,0)):'–'}</div><div class="d">${sonBakiye.length?sonBakiye.map(x=>`${esc(x.s.ad.replace(' Mağaza',''))}: ${tl(x.b)}`).join('<br>'):'Henüz kayıt yok'}</div></div>
+   <div class="card kpi"><div class="l">Satış</div><div class="v num">${tl(top('satis'))}</div><div class="d">${R.filter(r=>r.tur==='satis').length} kayıt</div></div>
+   <div class="card kpi"><div class="l">Tahsilat</div><div class="v num">${tl(top('tahsilat'))}</div><div class="d">${R.filter(r=>r.tur==='tahsilat').length} kayıt</div></div>
+   <div class="card kpi"><div class="l">İptal ve gider</div><div class="v num ${top('iptal')+top('gider')?'neg':''}">${tl(top('iptal')+top('gider'))}</div><div class="d">İptal ${tl(top('iptal'))} · Gider ${tl(top('gider'))}</div></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>Günlük özet ${isYon()?'<button class="btn s" id="idevir" style="margin-left:auto">Kasa başlangıç bakiyesi</button>':''}</h3>
+   ${DV.length?`<p class="hint" style="margin-top:-4px">Başlangıç bakiyesi: ${DV.map(d=>`${esc(subeAd(d.sube_id))} ${tl(d.tutar)} (${fdate(d.tarih)})`).join(', ')}</p>`:isYon()?'<p class="hint" style="margin-top:-4px">Nakit kasanın doğru görünmesi için her şubenin başlangıç bakiyesini girin.</p>':''}
+   <div class="tw"><table><thead><tr><th>Tarih</th><th>Şube</th><th class="r">Satış</th><th class="r">Tahsilat</th><th class="r">İptal</th><th class="r">Gider</th><th class="r">Kart</th><th class="r">Nakit net</th><th class="r">Nakit kasa</th></tr></thead><tbody>
+   ${O.map(o=>`<tr><td>${fdate(o.tarih)}</td><td>${esc(subeAd(o.sube_id))}</td><td class="r num">${tl(o.satis||0)}</td><td class="r num">${tl(o.tahsilat||0)}</td><td class="r num ${o.iptal?'neg':''}">${tl(o.iptal||0)}</td><td class="r num ${o.gider?'neg':''}">${tl(o.gider||0)}</td><td class="r num">${tl(o.kart||0)}</td><td class="r num ${o.nakit_net<0?'neg':''}">${tl(o.nakit_net)}</td><td class="r num" style="font-weight:600">${tl(o.nakit_bakiye)}</td></tr>`).join('')||'<tr><td colspan="9" class="empty">Bu aralıkta işlem yok</td></tr>'}
+   </tbody></table></div></div>
+  <div class="card" style="margin-top:16px"><h3>Kayıtlar (${R.length})<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">${[['','Tümü'],...Object.entries(ITUR).map(([k,[l]])=>[k,l])].map(([k,l])=>`<button class="tab ${st===k?'on':''}" data-st="${k}">${l}</button>`).join('')}<button class="btn s" id="iexp">Excel'e aktar</button></span></h3>
+   <div class="tw"><table><thead><tr><th>Tarih</th><th>Şube</th><th>Tür</th><th>Ödeme</th><th>Müşteri / ürün</th><th>Açıklama</th><th class="r">Tutar</th><th>Giren</th><th></th></tr></thead><tbody>
+   ${R.map(r=>{const duz=isYon()||(r.giren_id===ME.id&&r.created_at.slice(0,10)===today());return `<tr><td>${fdate(r.tarih)}</td><td>${esc(subeAd(r.sube_id))}</td><td><span class="pill ${ITUR[r.tur][1]}">${ITUR[r.tur][0]}</span></td>
+    <td>${esc((IODEME.find(x=>x[0]===r.odeme_tipi)||[])[1]||r.odeme_tipi)}${r.kart?`<div class="hint">${esc(r.kart)} · ${r.taksit>1?r.taksit+' taksit':'tek çekim'}</div>`:''}</td>
+    <td>${esc(r.musteri||'')}${r.urun?`<div class="hint">${esc(r.urun)}</div>`:''}${r.gider_kalemi?`<div class="hint">${esc(r.gider_kalemi)}</div>`:''}</td>
+    <td class="hint">${esc(r.aciklama||'')}${r.belge_no?`<div>Belge: ${esc(r.belge_no)}</div>`:''}</td>
+    <td class="r num ${isaret(r)<0?'neg':''}">${isaret(r)<0?'−':''}${tl(r.tutar)}</td>
+    <td><div>${esc(r.giren_ad)}</div><div class="hint">${new Date(r.created_at).toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${r.guncelleyen_ad?` · düzelten: ${esc(r.guncelleyen_ad)}`:''}</div></td>
+    <td style="white-space:nowrap">${duz?`<button class="btn s" onclick="islemDuzenle('${r.id}')">Düzenle</button> <button class="btn s" onclick="islemSil('${r.id}')">Sil</button>`:''}</td></tr>`}).join('')||'<tr><td colspan="9" class="empty">Kayıt yok. Yukarıdaki formdan ilk işlemi girin.</td></tr>'}
+   </tbody></table></div></div>`;
+  window._IR=R;
+  const f=$('#iform');
+  const alanlar=()=>{const t=window._itur||'satis',od=f.odeme_tipi.value;
+    f.querySelectorAll('[data-g="kart"]').forEach(x=>x.classList.toggle('hidden',!((t==='satis'||t==='tahsilat')&&od==='kredi_karti')));
+    f.querySelector('[data-g="gider"]').classList.toggle('hidden',t!=='gider');
+    f.querySelector('[data-g="urun"]').classList.toggle('hidden',!(t==='satis'||t==='iptal'));
+    f.querySelector('[data-g="musteri"]').classList.toggle('hidden',t==='gider');
+    $('#ikaydet').textContent=ITUR[t][0]+' kaydet'};
+  $('#iturler').querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{window._itur=b.dataset.t;$('#iturler').querySelectorAll('[data-t]').forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-checked',x===b)});alanlar();f.tutar.focus()});
+  f.odeme_tipi.onchange=alanlar;alanlar();
+  f.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(f));const tutar=normNum(d.tutar);
+    if(!(tutar>0))return toast('Tutar sıfırdan büyük olmalı');if(!d.sube_id)return toast('Şube seçin');
+    const t=window._itur||'satis',kartli=(t==='satis'||t==='tahsilat')&&d.odeme_tipi==='kredi_karti';
+    if(kartli&&!d.kart)return toast('Kart seçin');
+    const row={sube_id:d.sube_id,tarih:d.tarih,tur:t,odeme_tipi:d.odeme_tipi,tutar,belge_no:d.belge_no||null,aciklama:d.aciklama||null,
+      musteri:t==='gider'?null:(d.musteri||null),urun:(t==='satis'||t==='iptal')?(d.urun||null):null,madde_kodu:((d.urun||'').match(/\b\d{8,12}\b/)||[])[0]||null,
+      gider_kalemi:t==='gider'?d.gider_kalemi:null,kart:kartli?d.kart:null,taksit:kartli?+d.taksit:null};
+    $('#ikaydet').disabled=true;const {error}=await sb.from('gunluk_islemler').insert(row);$('#ikaydet').disabled=false;
+    if(error)return toast('Kaydedilemedi: '+error.message);toast(`${ITUR[t][0]} kaydedildi: ${tl(tutar)}`);render()};
+  $('#view').querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{window._ist=b.dataset.st;render()});
+  $('#iexp').onclick=()=>xlsxOut(R.map(r=>({Tarih:r.tarih,Şube:subeAd(r.sube_id),Tür:ITUR[r.tur][0],Ödeme:(IODEME.find(x=>x[0]===r.odeme_tipi)||[])[1],Kart:r.kart,Taksit:r.taksit,
+    Müşteri:r.musteri,Ürün:r.urun,'Gider kalemi':r.gider_kalemi,'Belge no':r.belge_no,Açıklama:r.aciklama,Tutar:isaret(r)*r.tutar,Giren:r.giren_ad,'Giriş zamanı':new Date(r.created_at).toLocaleString('tr-TR'),Düzelten:r.guncelleyen_ad})),'gunluk_islem');
+  if(isYon())$('#idevir').onclick=async()=>{const sid=$('#fsube').value||SUBELER[0]?.id;const m=DV.find(d=>d.sube_id===sid)||{};
+    const o=await form('Nakit kasa başlangıç bakiyesi',[{k:'sube_id',l:'Şube',t:'select',o:SUBELER.map(x=>[x.id,x.ad]),d:sid,full:true},{k:'tarih',l:'Bu tarihten itibaren',t:'date',d:m.tarih||today(),req:true},{k:'tutar',l:'Kasadaki nakit (₺)',t:'number',d:m.tutar??0,req:true}]);
+    if(!o)return;const {error}=await sb.from('gunluk_islem_devir').upsert({sube_id:o.sube_id,tarih:o.tarih,tutar:normNum(o.tutar),updated_at:new Date().toISOString()});toast(error?error.message:'Başlangıç bakiyesi kaydedildi');render()};
+};
+async function islemDuzenle(id){const r=(window._IR||[]).find(x=>x.id===id);if(!r)return;
+  const o=await form(`${ITUR[r.tur][0]} kaydını düzelt`,[{k:'tarih',l:'Tarih',t:'date',req:true},{k:'tutar',l:'Tutar (₺)',t:'number',req:true},{k:'odeme_tipi',l:'Ödeme tipi',t:'select',o:IODEME},
+    {k:'musteri',l:'Müşteri'},{k:'urun',l:'Ürün / madde kodu'},{k:'belge_no',l:'Belge / fiş no'},{k:'aciklama',l:'Açıklama',t:'textarea'}],r);if(!o)return;
+  const u={tarih:o.tarih,tutar:normNum(o.tutar),odeme_tipi:o.odeme_tipi,musteri:o.musteri,urun:o.urun,belge_no:o.belge_no,aciklama:o.aciklama};
+  if(!(u.tutar>0))return toast('Tutar sıfırdan büyük olmalı');
+  const {error,count}=await sb.from('gunluk_islemler').update(u,{count:'exact'}).eq('id',id);
+  toast(error?error.message:count===0?'Bu kaydı düzeltme yetkiniz yok (yalnızca kendi kaydınızı, girdiğiniz gün düzeltebilirsiniz)':'Kayıt düzeltildi');render()}
+async function islemSil(id){const r=(window._IR||[]).find(x=>x.id===id);if(!r||!confirm(`${ITUR[r.tur][0]} kaydı (${tl(r.tutar)}) silinsin mi?`))return;
+  const {error,count}=await sb.from('gunluk_islemler').delete({count:'exact'}).eq('id',id);toast(error?error.message:count===0?'Bu kaydı silme yetkiniz yok':'Kayıt silindi');render()}
 
 V.sevk=async()=>{
   const st=window._sst||'acik';
@@ -721,7 +825,7 @@ V.yonetim=async()=>{
 };
 
 V.kullanicilar=async()=>{
-  const {data:all=[]}=await sb.from('profiller').select('*').order('created_at');
+  const {data:all=[]}=await sb.from('profiller').select('*').order('created_at');window._KU=all;
   const f=window._kf||{q:'',rol:'',sube:''};
   const P=all.filter(p=>(!f.q||normUser((p.ad_soyad||'')+' '+(p.kullanici_adi||'')).includes(normUser(f.q)))&&(!f.rol||p.rol===f.rol)&&(!f.sube||(f.sube==='-'?!p.sube_id:p.sube_id===f.sube)));
   const say=x=>all.filter(x).length;
@@ -739,12 +843,13 @@ V.kullanicilar=async()=>{
    <button class="btn p" onclick="kullaniciEkle()">+ Kullanıcı ekle</button>
   </div>
   <div class="grid" style="grid-template-columns:1fr">
-   <div class="card"><h3>Kullanıcılar (${P.length})</h3><p class="hint">Kullanıcı adı ve şifreyi kişiye siz iletirsiniz. Şube kullanıcıları yalnızca atandıkları şubenin verisini görür.</p>
-   <div class="tw"><table><thead><tr><th>Kullanıcı</th><th>Rol</th><th>Şube</th><th>Durum</th><th></th></tr></thead><tbody>
-   ${P.length?'':'<tr><td colspan="5" class="empty">Aramaya uyan kullanıcı yok</td></tr>'}
+   <div class="card"><h3>Kullanıcılar (${P.length})</h3><p class="hint">Kullanıcı adı ad soyaddan otomatik oluşturulur; şifreyle birlikte kişiye siz iletirsiniz. Şube kullanıcıları yalnızca atandıkları şubenin verisini ve izin verdiğiniz ekranları görür.</p>
+   <div class="tw"><table><thead><tr><th>Kullanıcı</th><th>Rol</th><th>Şube</th><th>Görebileceği ekranlar</th><th>Durum</th><th></th></tr></thead><tbody>
+   ${P.length?'':'<tr><td colspan="6" class="empty">Aramaya uyan kullanıcı yok</td></tr>'}
    ${P.map(p=>{const ben=p.id===ME.id;return `<tr><td><div style="font-weight:500">${esc(p.ad_soyad||p.kullanici_adi)}</div><div class="hint num">${esc(p.kullanici_adi||'')}</div></td>
     <td><select class="ctl" ${ben?'disabled':''} onchange="setProf('${p.id}',{rol:this.value})"><option value="sube" ${p.rol==='sube'?'selected':''}>Şube</option><option value="yonetici" ${p.rol==='yonetici'?'selected':''}>Yönetici</option></select></td>
     <td><select class="ctl" onchange="setProf('${p.id}',{sube_id:this.value||null})"><option value="">– Şube –</option>${SUBELER.map(s=>`<option value="${s.id}" ${s.id===p.sube_id?'selected':''}>${esc(s.ad)}</option>`).join('')}</select></td>
+    <td>${p.rol==='yonetici'?'<span class="hint">Tüm ekranlar (yönetici)</span>':`<button class="btn s" onclick="yetkiDuzenle('${p.id}')" title="Ekranları düzenle">${yetkiListesi(p).length} ekran</button> <span class="hint">${esc(yetkiListesi(p).map(k=>(EKRANLAR.find(e=>e[0]===k)||[,k])[1]).join(', '))}${p.yetkiler?'':' (varsayılan)'}</span>`}</td>
     <td>${p.aktif?'<span class="pill ok">Aktif</span>':'<span class="pill iade">Pasif</span>'}</td>
     <td style="white-space:nowrap"><button class="btn s" onclick="sifreSifirla('${p.id}','${esc(p.kullanici_adi)}')">Şifre</button>${p.rol==='yonetici'&&!ben?` <button class="btn s" title="Telefonunu kaybeden yöneticinin iki adımlı doğrulamasını sıfırlar; bir sonraki girişte yeniden kurar" onclick="ikiAdimSifirla('${p.id}','${esc(p.kullanici_adi)}')">2FA sıfırla</button>`:''}
      ${ben?'':`<button class="btn s" onclick="durumDegis('${p.id}',${!p.aktif})">${p.aktif?'Pasif yap':'Aktif yap'}</button> <button class="btn s" onclick="kullaniciSil('${p.id}','${esc(p.kullanici_adi)}')">Sil</button>`}</td></tr>`}).join('')}
@@ -753,10 +858,50 @@ V.kullanicilar=async()=>{
   $('#krol').onchange=setF;$('#ksube').onchange=setF;
   let t;$('#kq').oninput=()=>{clearTimeout(t);t=setTimeout(()=>{setF();setTimeout(()=>{const i=$('#kq');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},60)},400)};
 };
-async function kullaniciEkle(){const o=await form('Yeni kullanıcı',[{k:'ad_soyad',l:'Ad soyad',req:true},{k:'kullanici_adi',l:'Kullanıcı adı',req:true},
-  {k:'sifre',l:'Şifre (en az 6 karakter)',t:'text',req:true},{k:'rol',l:'Rol',t:'select',o:[['sube','Şube kullanıcısı'],['yonetici','Yönetici']]},
-  {k:'sube_id',l:'Şube',t:'select',o:[['','– Şube –'],...SUBELER.map(s=>[s.id,s.ad])],full:true}]);if(!o)return;
-  try{await yonet({islem:'olustur',...o});toast(`"${normUser(o.kullanici_adi)}" oluşturuldu`);render()}catch(e){toast(e.message)}}
+const rastgeleSifre=()=>{const h='abcdefghjkmnpqrstuvwxyz',H='ABCDEFGHJKLMNPQRSTUVWXYZ',r='23456789';const c=a=>a[crypto.getRandomValues(new Uint32Array(1))[0]%a.length];return c(H)+c(h)+c(h)+c(h)+'-'+c(r)+c(r)+c(r)+c(r)};
+const yetkiKutulari=(sec,ad='y')=>`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px 14px">${EKRANLAR.map(([k,l])=>`<label style="flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-weight:400"><input type="checkbox" name="${ad}" value="${k}" ${sec.includes(k)?'checked':''}> ${l}</label>`).join('')}</div>
+  <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn s" data-hazir="vars">Varsayılan (genel bakış, kasa, işlem, sevkiyat)</button><button type="button" class="btn s" data-hazir="hepsi">Hepsini seç</button><button type="button" class="btn s" data-hazir="hic">Hiçbirini seçme</button></div>`;
+const hazirBagla=(kok,ad='y')=>kok.querySelectorAll('[data-hazir]').forEach(b=>b.onclick=()=>{const m=b.dataset.hazir;kok.querySelectorAll(`input[name="${ad}"]`).forEach(c=>c.checked=m==='hepsi'||(m==='vars'&&VARS_YETKI.includes(c.value)))});
+function kullaniciEkle(){
+  const d=document.createElement('dialog');d.style.width='min(620px,calc(100vw - 32px))';
+  d.innerHTML=`<form method="dialog" id="kuf"><h3 style="margin:0 0 16px">Yeni kullanıcı</h3><div class="form">
+   <label class="f">Ad soyad<input class="ctl" name="ad_soyad" required autocomplete="off" placeholder="Örn. Ayşe Yılmaz"></label>
+   <label>Kullanıcı adı<div class="ctl num" id="kuka" style="background:var(--sunk);color:var(--muted)">Ad soyad yazınca oluşur</div></label>
+   <label>Şifre<div style="display:flex;gap:6px"><input class="ctl num" name="sifre" required minlength="6" value="${rastgeleSifre()}" style="flex:1;min-width:0"><button type="button" class="btn" id="kuyeni" title="Yeni rastgele şifre">Yenile</button></div></label>
+   <label>Rol<select class="ctl" name="rol"><option value="sube">Şube kullanıcısı</option><option value="yonetici">Yönetici</option></select></label>
+   <label>Şube<select class="ctl" name="sube_id"><option value="">– Şube –</option>${SUBELER.map(x=>`<option value="${x.id}">${esc(x.ad)}</option>`).join('')}</select></label>
+   <div class="f" id="kuyet" style="grid-column:1/-1"><div style="font-size:12.5px;color:var(--ink2);font-weight:500;margin-bottom:8px">Görebileceği ekranlar</div>${yetkiKutulari(VARS_YETKI)}</div>
+   <p class="hint f" id="kuyon" style="grid-column:1/-1;margin:0" hidden>Yöneticiler tüm ekranları görür ve ilk girişte iki adımlı doğrulama kurar.</p>
+  </div><div class="acts"><button class="btn" value="cancel" formnovalidate>Vazgeç</button><button class="btn p" id="kuok" type="submit">Kullanıcıyı oluştur</button></div></form>`;
+  document.body.appendChild(d);d.showModal();d.onclose=()=>d.remove();
+  const f=d.querySelector('#kuf');hazirBagla(d);
+  let tm;f.ad_soyad.oninput=()=>{clearTimeout(tm);const v=f.ad_soyad.value.trim();if(!v){$('#kuka').textContent='Ad soyad yazınca oluşur';return}
+    $('#kuka').textContent='…';tm=setTimeout(async()=>{try{const r=await yonet({islem:'kullanici_adi_oner',ad_soyad:v});$('#kuka').textContent=r.kullanici_adi||'–';$('#kuka').style.color='var(--ink)'}catch(e){$('#kuka').textContent='–'}},350)};
+  d.querySelector('#kuyeni').onclick=()=>f.sifre.value=rastgeleSifre();
+  f.rol.onchange=()=>{const y=f.rol.value==='yonetici';d.querySelector('#kuyet').hidden=y;d.querySelector('#kuyon').hidden=!y};
+  f.onsubmit=async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();
+    const yet=[...f.querySelectorAll('input[name="y"]:checked')].map(c=>c.value);
+    if(f.rol.value!=='yonetici'&&!yet.length)return toast('En az bir ekran seçin');
+    if(f.rol.value!=='yonetici'&&!f.sube_id.value&&!confirm('Şube seçmediniz; kullanıcı hiçbir şubenin verisini göremez. Yine de oluşturulsun mu?'))return;
+    const btn=d.querySelector('#kuok');btn.disabled=true;
+    try{const r=await yonet({islem:'olustur',ad_soyad:f.ad_soyad.value.trim(),sifre:f.sifre.value,rol:f.rol.value,sube_id:f.sube_id.value||null,yetkiler:yet});
+      const sifre=f.sifre.value;d.close();render();girisBilgisi(f.ad_soyad.value.trim(),r.kullanici_adi,sifre)}catch(err){btn.disabled=false;toast(err.message)}};
+}
+function girisBilgisi(ad,ka,sifre){const d=document.createElement('dialog');const metin=`AFRA Panel giriş bilgileriniz\nAdres: ${location.origin}\nKullanıcı adı: ${ka}\nŞifre: ${sifre}`;
+  d.innerHTML=`<h3 style="margin:0 0 6px">${esc(ad)} oluşturuldu</h3><p class="hint" style="margin:0 0 16px">Bu bilgileri kişiye iletin. Şifre bir daha gösterilmez; unutulursa Kullanıcılar ekranından yenisini verebilirsiniz.</p>
+   <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 14px;background:var(--sunk);border-radius:var(--r-md);padding:14px 16px;font-size:15px"><span class="hint">Kullanıcı adı</span><b class="num" style="user-select:all">${esc(ka)}</b><span class="hint">Şifre</span><b class="num" style="user-select:all">${esc(sifre)}</b></div>
+   <div class="acts"><button class="btn" id="gbkopya">Kopyala</button><button class="btn p" id="gbkapat">Tamam</button></div>`;
+  document.body.appendChild(d);d.showModal();d.onclose=()=>d.remove();
+  d.querySelector('#gbkopya').onclick=async()=>{try{await navigator.clipboard.writeText(metin);toast('Giriş bilgileri kopyalandı')}catch(e){toast('Kopyalanamadı; bilgileri seçip kopyalayın')}};
+  d.querySelector('#gbkapat').onclick=()=>d.close()}
+function yetkiDuzenle(id){const p=(window._KU||[]).find(x=>x.id===id);if(!p)return;
+  const d=document.createElement('dialog');d.style.width='min(560px,calc(100vw - 32px))';
+  d.innerHTML=`<h3 style="margin:0 0 6px">${esc(p.ad_soyad||p.kullanici_adi)} — ekranlar</h3><p class="hint" style="margin:0 0 14px">İşaretli ekranlar menüde görünür ve veriler de yalnızca bu ekranlar için açılır. Yönetici ekranları (POS oranları, Şubeler, Kullanıcılar) yalnızca yöneticilere açıktır.</p>
+   ${yetkiKutulari(yetkiListesi(p))}<div class="acts"><button class="btn" data-k="iptal">Vazgeç</button><button class="btn p" data-k="kaydet">Kaydet</button></div>`;
+  document.body.appendChild(d);d.showModal();d.onclose=()=>d.remove();hazirBagla(d);
+  d.querySelector('[data-k="iptal"]').onclick=()=>d.close();
+  d.querySelector('[data-k="kaydet"]').onclick=async()=>{const y=[...d.querySelectorAll('input[name="y"]:checked')].map(c=>c.value);if(!y.length)return toast('En az bir ekran seçin');
+    const {error}=await sb.from('profiller').update({yetkiler:y}).eq('id',id);if(error)return toast(error.message);d.close();toast('Ekran yetkileri kaydedildi');render()}}
 async function sifreSifirla(id,ka){const o=await form(`${ka} – yeni şifre`,[{k:'sifre',l:'Yeni şifre (en az 6 karakter)',t:'text',req:true,full:true}]);if(!o)return;
   try{await yonet({islem:'sifre',id,sifre:o.sifre});toast('Şifre güncellendi')}catch(e){toast(e.message)}}
 async function ikiAdimSifirla(id,ka){if(!confirm(`"${ka}" kullanıcısının iki adımlı doğrulaması sıfırlansın mı? Bir sonraki girişinde yeniden kuracak.`))return;
