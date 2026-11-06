@@ -253,13 +253,18 @@ p.hint{max-width:90ch}
     <button class="nav on" data-v="ozet"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Genel bakış</span></button>
     <button class="nav" data-v="kasa"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M2.5 10h19M7 15h3"/></svg><span>Günlük kasa</span></button>
     <button class="nav" data-v="islem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h6M9 16h4"/></svg><span>Günlük işlem</span></button>
+    <button class="nav" data-v="gider"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>Giderler</span></button>
     <div class="grp">Raporlar</div>
+    <button class="nav" data-v="grapor"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M8 17v-3M12 17v-5M16 17v-2"/></svg><span>Günlük rapor</span></button>
+    <button class="nav" data-v="prapor"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></svg><span>Perakende raporu</span></button>
     <button class="nav" data-v="finans"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Finansal raporlar</span></button>
     <button class="nav" data-v="marj"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span>Satış ve marj</span></button>
     <div class="grp">Takip</div>
     <button class="nav" data-v="sevk"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg><span>Sevkiyat</span></button>
     <button class="nav" data-v="denetim"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6l8-3z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span>Denetim</span><span class="badge hidden" id="nbadge"></span></button>
+    <button class="nav" data-v="odeme"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M10 15h4"/></svg><span>Arçelik ödeme</span></button>
     <button class="nav" data-v="fiyat"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8L3 12z"/><circle cx="7.5" cy="8.5" r="1.4"/></svg><span>Arçelik fiyatları</span></button>
+    <button class="nav yon" data-v="alis"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg><span>Alış fiyatları</span></button>
     <button class="nav" data-v="aktarim"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg><span>AX aktarımları</span></button>
     <div class="grp yon">Ayarlar</div>
     <button class="nav yon" data-v="pos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2"/><path d="M8.5 6.5h7v4h-7zM8.5 14h.01M12 14h.01M15.5 14h.01M8.5 17.5h.01M12 17.5h.01M15.5 17.5h.01"/></svg><span>POS oranları</span></button>
@@ -309,8 +314,8 @@ const pill=v=>`<span class="pill ${esc(v)}">${esc(LBL[v]||v)}</span>`;
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3500)}
 let ME=null,SUBELER=[],VIEW='ozet',charts=[];
 const isYon=()=>ME?.rol==='yonetici';
-const EKRANLAR=[['ozet','Genel bakış'],['kasa','Günlük kasa'],['islem','Günlük işlem'],['sevk','Sevkiyat'],['finans','Finansal raporlar'],['marj','Satış ve marj'],['fiyat','Arçelik fiyatları'],['denetim','Denetim'],['aktarim','AX aktarımları']];
-const YONETICI_EKRANLARI=['pos','yonetim','kullanicilar'],VARS_YETKI=['ozet','kasa','islem','sevk'];
+const EKRANLAR=[['ozet','Genel bakış'],['kasa','Günlük kasa'],['islem','Günlük işlem'],['gider','Giderler'],['grapor','Günlük rapor'],['prapor','Perakende raporu'],['finans','Finansal raporlar'],['marj','Satış ve marj'],['sevk','Sevkiyat'],['denetim','Denetim'],['odeme','Arçelik ödeme'],['fiyat','Arçelik fiyatları'],['aktarim','AX aktarımları']];
+const YONETICI_EKRANLARI=['pos','yonetim','kullanicilar','alis'],VARS_YETKI=['ozet','kasa','islem','sevk'];
 const yetkiListesi=p=>p?.rol==='yonetici'?EKRANLAR.map(e=>e[0]):(p?.yetkiler||VARS_YETKI);
 const izin=v=>isYon()||(!YONETICI_EKRANLARI.includes(v)&&yetkiListesi(ME).includes(v));
 function menuYetki(){
@@ -405,9 +410,9 @@ async function render(){
   const T={ozet:['Genel bakış','Kasa, satış, sevkiyat ve uyarıların özeti'],kasa:['Günlük kasa','AX aktarımlarının onayı, gün sonu sayımı ve kasa hareketleri'],sevk:['Sevkiyat','Randevulu teslimatlar ve iş emri durumları'],
     finans:['Finansal raporlar','Satış, tahsilat ve cari bakiyeler'],denetim:['Denetim','Otomatik kontroller ve AX ile bağımsız karşılaştırma'],aktarim:['AX aktarımları','AX sisteminden gelen verilerin günlüğü'],
     yonetim:['Şubeler','Şube tanımları ve AX bayi kodları'],kullanicilar:['Kullanıcılar','Hesaplar, roller ve şube atamaları'],pos:['POS oranları','Kart ve taksit bazında komisyon oranları'],
-    marj:['Satış ve marj','Net liste fiyatına göre ek indirim ve ABS fiyatına göre kâr'],fiyat:['Arçelik fiyatları','arcelik.com.tr dönem fiyatları, ABS ve paro'],islem:['Günlük işlem','Elle girilen satış, tahsilat, iptal, gider ve kasa giriş / çıkış kayıtları (AX\'ten bağımsız)']};
+    marj:['Satış ve marj','Net liste fiyatına göre ek indirim ve ABS fiyatına göre kâr'],fiyat:['Arçelik fiyatları','arcelik.com.tr dönem fiyatları, ABS ve paro'],gider:['Giderler','Aylık giderler; ödenenler mağaza kâr hesabına düşer'],grapor:['Günlük rapor','Satış, maliyet, komisyon ve net kâr'],prapor:['Perakende raporu','Net listeye göre ekstra iskonto ve liste altı satışlar'],odeme:['Arçelik ödeme','Yetkili Satıcı Ekstresi\'ne göre çarşamba DBS ödeme planı'],alis:['Alış fiyatları','AX stok alış fiyat raporu · ürün başına en yüksek alış (ABS)'],islem:['Günlük işlem','Elle girilen satış, tahsilat, iptal, gider ve kasa giriş / çıkış kayıtları (AX\'ten bağımsız)']};
   if(!izin(VIEW)){menuYetki()}
-  $('#title').textContent=T[VIEW][0];$('#subt').textContent=T[VIEW][1]+(['yonetim','kullanicilar','fiyat'].includes(VIEW)?'':` · ${fdate($('#fbas').value)} – ${fdate($('#fbit').value)}`);document.title=T[VIEW][0]+' · AFRA Panel';$('#view').innerHTML='<div class="empty">Yükleniyor…</div>';
+  $('#title').textContent=T[VIEW][0];$('#subt').textContent=T[VIEW][1]+(['yonetim','kullanicilar','fiyat','gider','alis','odeme'].includes(VIEW)?'':` · ${fdate($('#fbas').value)} – ${fdate($('#fbit').value)}`);document.title=T[VIEW][0]+' · AFRA Panel';$('#view').innerHTML='<div class="empty">Yükleniyor…</div>';
   if(!SUBELER.length&&!['yonetim','kullanicilar','pos'].includes(VIEW)){$('#view').innerHTML=`<div class="card empty">${isYon()?'Henüz şube tanımlı değil. <br><br><button class="btn p" onclick="VIEW=\'yonetim\';render()">Şube ekle</button>':'Hesabınıza henüz bir şube atanmadı. Yöneticinizle iletişime geçin.'}</div>`;return}
   try{await V[VIEW]()}catch(e){console.error(e);$('#view').innerHTML=`<div class="card empty">Hata: ${esc(e.message)}</div>`}
   refreshBadge();
@@ -788,6 +793,310 @@ V.fiyat=async()=>{
      for(let i=0;i<out.length;i+=500){const {error}=await sb.from('urun_fiyatlari').upsert(out.slice(i,i+500),{onConflict:'madde_kodu,gecerlilik'});if(error)return toast('Hata: '+error.message)}
      toast(`${out.length} ürünün fiyatı ${fdate(g)} geçerlilikle kaydedildi`);render()};inp.click()};
 };
+
+/* ===================== Ortak yardımcılar (yeni ekranlar) ===================== */
+const num=v=>{if(typeof v==='number')return v;if(v==null||String(v).trim()==='')return NaN;const s=String(v).replace(/[^\d,.-]/g,'');return s.includes(',')?+s.replace(/\./g,'').replace(',','.'):+s};
+const r2=n=>Math.round(n*100)/100;
+const ayAd=p=>new Date(p.slice(0,7)+'-01T00:00').toLocaleDateString('tr-TR',{month:'long',year:'numeric'});
+const ayAralik=ym=>{const[y,m]=ym.split('-').map(Number);return[ym+'-01',ym+'-'+String(new Date(y,m,0).getDate()).padStart(2,'0')]};
+const oncekiAy=ym=>{const[y,m]=ym.split('-').map(Number);const d=new Date(y,m-2,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
+const pct=v=>v==null||!isFinite(v)?'–':'%'+v.toLocaleString('tr-TR',{minimumFractionDigits:1,maximumFractionDigits:1});
+function onay(baslik,html,evet='Kaydet'){return new Promise(res=>{const d=document.createElement('dialog');
+  d.innerHTML=`<h3 style="margin:0 0 10px">${esc(baslik)}</h3><div>${html}</div><div class="acts"><button class="btn" data-x="0">Vazgeç</button><button class="btn p" data-x="1">${esc(evet)}</button></div>`;
+  document.body.appendChild(d);d.showModal();let v=false;d.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{v=b.dataset.x==='1';d.close()});d.onclose=()=>{d.remove();res(v)}})}
+function tarihHizli(){const t=new Date(),y=new Date(t);y.setDate(t.getDate()-1);const ilk=new Date(t.getFullYear(),t.getMonth(),1),gi=new Date(t.getFullYear(),t.getMonth()-1,1),gs=new Date(t.getFullYear(),t.getMonth(),0);
+  return[['Bugün',iso(t),iso(t)],['Dün',iso(y),iso(y)],['Bu ay',iso(ilk),iso(t)],['Geçen ay',iso(gi),iso(gs)]]}
+function hizliBagla(){document.querySelectorAll('[data-hz]').forEach(b=>b.onclick=()=>{const[a,z]=b.dataset.hz.split('|');$('#fbas').value=a;$('#fbit').value=z;render()})}
+const hizliHtml=()=>tarihHizli().map(([l,a,z])=>`<button class="btn s ${$('#fbas').value===a&&$('#fbit').value===z?'p':''}" data-hz="${a}|${z}">${l}</button>`).join('');
+async function satisSatirlari(){return hepsi(()=>{let r=sb.from('v_satis_analiz').select('*').gte('tarih',$('#fbas').value).lte('tarih',$('#fbit').value).order('tarih').order('id');
+  return $('#fsube').value?r.eq('sube_id',$('#fsube').value):r})}
+const iptalNotu=x=>/iptal edilen satış/i.test(x.fatura_notu||'');
+
+/* ===================== Alış fiyatları (AX Stok alış fiyat raporu) ===================== */
+V.alis=async()=>{
+  const {data:R,error}=await sb.from('alis_raporlari').select('*').order('donem',{ascending:false});if(error)throw error;
+  const sec=(R||[]).find(r=>r.id==window._alr)||(R||[])[0],onc=sec&&R.find(r=>r.donem<sec.donem);
+  const L=sec?await hepsi(()=>sb.from('alis_rapor_satirlari').select('*').eq('rapor_id',sec.id).order('madde_kodu')):[];
+  const P={};if(onc)(await hepsi(()=>sb.from('alis_rapor_satirlari').select('madde_kodu,en_yuksek').eq('rapor_id',onc.id).order('madde_kodu'))).forEach(x=>P[x.madde_kodu]=+x.en_yuksek);
+  L.forEach(x=>{x.onceki=P[x.madde_kodu]??null;x.fark=x.onceki==null?null:r2(+x.en_yuksek-x.onceki)});
+  const art=L.filter(x=>x.fark>0).length,dus=L.filter(x=>x.fark<0).length,yeni=onc?L.filter(x=>x.onceki==null).length:0;
+  const q=normUser(window._alq||''),sadece=!!window._alc,lim=window._all||300;
+  const F=L.filter(x=>(!q||normUser(x.madde_kodu+' '+(x.urun_adi||'')).includes(q))&&(!sadece||x.fark||(onc&&x.onceki==null)));
+  $('#view').innerHTML=`
+  <div class="tabs">
+   <select class="ctl" id="alsel" aria-label="Rapor dönemi">${(R||[]).map(r=>`<option value="${r.id}" ${sec&&r.id===sec.id?'selected':''}>${ayAd(r.donem)} · ${(r.urun_sayisi||0).toLocaleString('tr-TR')} ürün</option>`).join('')||'<option>Rapor yok</option>'}</select>
+   <input class="ctl" id="alq" placeholder="Madde kodu veya ürün ara" value="${esc(window._alq||'')}" style="flex:1;min-width:180px">
+   <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="alc" ${sadece?'checked':''}> Sadece değişenler</label>
+   <button class="btn" id="alx" ${sec?'':'disabled'}>Excel'e aktar</button>
+   <button class="btn p" id="alu">AX raporunu yükle</button>
+  </div>
+  ${sec?`<div class="grid k4">
+   <div class="card kpi"><div class="l">Dönem</div><div class="v" style="font-size:19px">${ayAd(sec.donem)}</div><div class="d">Fatura aralığı ${fdate(sec.bas)} – ${fdate(sec.bit)}</div></div>
+   <div class="card kpi"><div class="l">Ürün</div><div class="v num">${L.length.toLocaleString('tr-TR')}</div><div class="d">${(sec.satir_sayisi||0).toLocaleString('tr-TR')} fatura satırı</div></div>
+   <div class="card kpi"><div class="l">${onc?esc(ayAd(onc.donem))+' ile fark':'Önceki ay'}</div><div class="v num">${onc?`↑${art} · ↓${dus}`:'–'}</div><div class="d">${onc?yeni+' yeni ürün':'Karşılaştırılacak önceki rapor yok'}</div></div>
+   <div class="card kpi"><div class="l">Rapor alındı</div><div class="v" style="font-size:19px">${fdate(String(sec.created_at).slice(0,10))}</div><div class="d">Maliyette ${fdate(sec.donem+'-01')} itibarıyla geçerli</div></div>
+  </div>`:''}
+  <p class="hint">AX sistemi → <b>Stok alış fiyat raporu</b> · başlangıç <b>01.01.2020</b>, bitiş bugün → Sorgula → Excel'e aktar ve dosyayı buraya yükleyin. Ürün başına <b>en yüksek alış fiyatı</b> o ayın ABS maliyeti olur ve ayın 1'inden geçerlidir; her ayın raporu ayrı saklanır. Maliyet = ABS − paro × %85.</p>
+  <div class="card"><h3>Ürünler (${F.length.toLocaleString('tr-TR')})</h3><div class="tw" style="max-height:62vh;overflow:auto"><table><thead><tr><th>Madde kodu</th><th>Ürün</th><th class="r">En yüksek alış</th><th>Fatura (en yüksek)</th><th class="r">Son alış</th><th class="r">En düşük</th><th class="r">Satır</th><th class="r">Önceki ay</th><th class="r">Fark</th></tr></thead><tbody>
+   ${F.slice(0,lim).map(x=>`<tr><td class="num">${esc(x.madde_kodu)}</td><td>${esc(x.urun_adi||'')}</td><td class="r num"><b>${tl(x.en_yuksek)}</b></td><td class="hint num">${esc(x.en_yuksek_fatura||'')} · ${fdate(x.en_yuksek_tarih)}</td>
+    <td class="r num">${tl(x.son_alis)}<div class="hint">${fdate(x.son_tarih)}</div></td><td class="r num">${tl(x.en_dusuk)}</td><td class="r num">${x.satir}</td>
+    <td class="r num">${x.onceki==null?(onc?'<span class="pill bilgi">yeni</span>':'–'):tl(x.onceki)}</td><td class="r num ${x.fark>0?'neg':x.fark<0?'pos':''}">${!x.fark?'—':(x.fark>0?'+':'')+tl(x.fark)}</td></tr>`).join('')||`<tr><td colspan="9" class="empty">${sec?'Kayıt yok':'Henüz rapor yüklenmedi. “AX raporunu yükle” ile başlayın.'}</td></tr>`}
+  </tbody></table></div>${F.length>lim?`<p class="hint">${lim.toLocaleString('tr-TR')} / ${F.length.toLocaleString('tr-TR')} gösteriliyor · <a href="#" id="almore">300 satır daha</a></p>`:''}</div>`;
+  $('#alsel').onchange=e=>{window._alr=e.target.value;window._all=300;render()};
+  $('#alc').onchange=e=>{window._alc=e.target.checked;render()};
+  let t;$('#alq').oninput=e=>{clearTimeout(t);t=setTimeout(()=>{window._alq=e.target.value;window._all=300;render();setTimeout(()=>{const i=$('#alq');i&&(i.focus(),i.setSelectionRange(i.value.length,i.value.length))},80)},400)};
+  const m=$('#almore');if(m)m.onclick=e=>{e.preventDefault();window._all=lim+300;render()};
+  $('#alx').onclick=()=>xlsxOut(F.map(x=>({'Madde kodu':x.madde_kodu,Ürün:x.urun_adi,'En yüksek alış':+x.en_yuksek,'Fatura no':x.en_yuksek_fatura,'Fatura tarihi':x.en_yuksek_tarih,'Son alış':+x.son_alis,'Son alış tarihi':x.son_tarih,'En düşük alış':+x.en_dusuk,'Fatura satırı':x.satir,'Önceki ay':x.onceki,Fark:x.fark})),'alis_fiyatlari_'+sec.donem);
+  $('#alu').onclick=alisYukle;
+};
+async function alisYukle(){
+  const o=await form('AX alış fiyat raporunu yükle',[{k:'donem',l:'Dönem (rapor ayı)',t:'month',d:today().slice(0,7),req:true},{k:'dosya',l:'AX Excel dosyası (Stok alış fiyat raporu)',t:'file',req:true,full:true}]);
+  if(!o||!o.dosya||!o.dosya.size)return;
+  toast('Dosya okunuyor…');let rows=[],hi=-1,ix={};
+  try{const wb=XLSX.read(await o.dosya.arrayBuffer());
+    for(const n of wb.SheetNames){rows=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null,blankrows:false});
+      for(let i=0;i<Math.min(rows.length,25);i++){const r=(rows[i]||[]).map(c=>normUser(c));const fi=k=>r.findIndex(c=>c.includes(k));
+        if(fi('urun kodu')>=0&&fi('alis fiyat')>=0){hi=i;ix={inv:fi('fatura no'),d:fi('fatura tarih'),c:fi('urun kodu'),u:fi('urun adi'),q:fi('miktar'),p:fi('alis fiyat')};break}}
+      if(hi>=0)break}}catch(e){return toast('Dosya okunamadı: '+e.message)}
+  if(hi<0)return toast("Dosyada 'Ürün kodu' ve 'Alış fiyatı' sütunları bulunamadı. AX → Stok alış fiyat raporu Excel'i olmalı.");
+  const g=(r,k)=>ix[k]>=0?r[ix[k]]:null,seen=new Set(),out=[];let minD=null,maxD=null;
+  for(const r of rows.slice(hi+1)){const c=g(r,'c'),d=normDate(g(r,'d')),pr=num(g(r,'p'));if(!c||!d||!(pr>0))continue;
+    const inv=String(g(r,'inv')??'').trim(),q=num(g(r,'q'));const anahtar=[inv,d,String(c).trim(),isNaN(q)?'':q,pr].join('|');if(seen.has(anahtar))continue;seen.add(anahtar);
+    if(!minD||d<minD)minD=d;if(!maxD||d>maxD)maxD=d;
+    out.push({anahtar,fatura_no:inv||null,fatura_tarihi:d,madde_kodu:String(c).trim(),urun_adi:g(r,'u')==null?null:String(g(r,'u')).trim(),miktar:isNaN(q)?null:q,fiyat:pr})}
+  if(!out.length)return toast('Dosyada okunabilir fatura satırı yok.');
+  const urun=new Set(out.map(x=>x.madde_kodu)).size;
+  if(!await onay('Alış fiyat raporu',`<p class="hint" style="margin:0 0 10px">${esc(o.dosya.name)}</p><div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px"><span class="hint">Dönem</span><b>${esc(ayAd(o.donem))}</b><span class="hint">Fatura aralığı</span><b>${fdate(minD)} – ${fdate(maxD)}</b><span class="hint">Fatura satırı</span><b>${out.length.toLocaleString('tr-TR')}</b><span class="hint">Ürün</span><b>${urun.toLocaleString('tr-TR')}</b></div><p class="hint" style="margin:12px 0 0">Ürün başına en yüksek alış fiyatı ${esc(ayAd(o.donem))} maliyeti olarak ${fdate(o.donem+'-01')} tarihinden geçerli yazılır. Aynı ayın raporu varsa yenilenir.</p>`,'Yükle ve raporu oluştur'))return;
+  for(let i=0;i<out.length;i+=500){toast(`Yükleniyor ${i.toLocaleString('tr-TR')} / ${out.length.toLocaleString('tr-TR')}`);const {error}=await sb.from('alis_faturalari').upsert(out.slice(i,i+500),{onConflict:'anahtar'});if(error)return toast('Hata: '+error.message)}
+  const {data,error}=await sb.rpc('alis_raporu_olustur',{p_donem:o.donem,p_bit:maxD});if(error)return toast('Hata: '+error.message);
+  window._alr=data.rapor_id;toast(`${ayAd(o.donem)} raporu oluşturuldu · ${data.urun} ürün, ${data.satir} fatura satırı`);render()}
+
+/* ===================== Giderler ===================== */
+const GD_KAT=['Arçelik Mal Alımı','Banka / POS Komisyonu','Diğer Gider','Elektrik-Su-Doğalgaz','Kira','Kredi Taksidi','Nakliye / Sevkiyat','Pazarlama','Personel Maaş','SGK / Vergi'];
+const GD_KAR_DISI=['Arçelik Mal Alımı'];
+const GD_ODEME=[['nakit','Nakit'],['havale','Havale / EFT'],['kredi_karti','Kredi kartı'],['cek','Çek / Senet']];
+const magazaSubeleri=()=>{const m=SUBELER.filter(s=>/parsel|gunesli|magaza/.test(normUser(s.ad)));return m.length?m:SUBELER};
+V.gider=async()=>{
+  const ay=window._gm||(window._gm=today().slice(0,7)),[a,z]=ayAralik(ay),s=$('#fsube').value;
+  let r=sb.from('giderler').select('*').gte('tarih',a).lte('tarih',z).order('tarih',{ascending:false});if(s)r=r.or(`sube_id.eq.${s},sube_id.is.null`);
+  const {data:A,error}=await r;if(error)throw error;
+  const {data:Pv}=await sb.from('giderler').select('kategori,karsi_taraf,sube_id,tutar,aciklama,odeme_sekli').eq('sabit',true).gte('tarih',ayAralik(oncekiAy(ay))[0]).lte('tarih',ayAralik(oncekiAy(ay))[1]);
+  const kat=window._gk||'',dur=window._gd||'';
+  const L=(A||[]).filter(x=>(!kat||x.kategori===kat)&&(!dur||x.durum===dur));
+  const sum=X=>X.reduce((t,x)=>t+ +x.tutar,0),od=(A||[]).filter(x=>x.durum==='odendi'),bk=(A||[]).filter(x=>x.durum!=='odendi'),kar=od.filter(x=>!GD_KAR_DISI.includes(x.kategori));
+  const byK={};kar.forEach(x=>byK[x.kategori]=(byK[x.kategori]||0)+ +x.tutar);const enb=Object.entries(byK).sort((p,q)=>q[1]-p[1])[0];
+  const MG=magazaSubeleri(),pay={};MG.forEach(m=>pay[m.id]={dogrudan:0,ortak:0});
+  kar.forEach(x=>{if(x.sube_id&&pay[x.sube_id])pay[x.sube_id].dogrudan+= +x.tutar;else if(x.sube_id){pay[x.sube_id]=pay[x.sube_id]||{dogrudan:0,ortak:0,disi:true};pay[x.sube_id].dogrudan+= +x.tutar}else MG.forEach(m=>pay[m.id].ortak+= +x.tutar/MG.length)});
+  const eksik=(Pv||[]).filter(p=>!(A||[]).some(x=>x.kategori===p.kategori&&(x.sube_id||'')===(p.sube_id||'')&&(x.karsi_taraf||'')===(p.karsi_taraf||'')));
+  const aylar=[];{let d=new Date();d.setDate(1);for(let i=0;i<15;i++){aylar.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));d.setMonth(d.getMonth()-1)}}
+  $('#view').innerHTML=`
+  <div class="tabs">
+   <select class="ctl" id="gdm" aria-label="Ay">${aylar.map(m=>`<option value="${m}" ${m===ay?'selected':''}>${ayAd(m)}</option>`).join('')}</select>
+   <select class="ctl" id="gdk" aria-label="Kategori"><option value="">Tüm kategoriler</option>${GD_KAT.map(k=>`<option ${k===kat?'selected':''}>${esc(k)}</option>`).join('')}</select>
+   <select class="ctl" id="gdd" aria-label="Durum"><option value="">Ödenen + bekleyen</option><option value="odendi" ${dur==='odendi'?'selected':''}>Sadece ödenen</option><option value="bekliyor" ${dur==='bekliyor'?'selected':''}>Sadece bekleyen</option></select>
+   <span style="flex:1"></span>
+   ${eksik.length?`<button class="btn" id="gds">Sabit giderleri getir (${eksik.length})</button>`:''}
+   <button class="btn" id="gdx">Excel'e aktar</button><button class="btn p" id="gda">+ Gider ekle</button>
+  </div>
+  <div class="grid k4">
+   <div class="card kpi"><div class="l">Ödenen</div><div class="v num">${tl(sum(od))}</div><div class="d">${od.length} kayıt</div></div>
+   <div class="card kpi"><div class="l">Bekleyen ödeme</div><div class="v num ${bk.length?'neg':''}">${tl(sum(bk))}</div><div class="d">${bk.length?bk.length+' kayıt':'Bekleyen yok'}</div></div>
+   <div class="card kpi"><div class="l">Kâr hesabına giren</div><div class="v num">${tl(sum(kar))}</div><div class="d">Ödenen giderler (Arçelik mal alımı hariç)</div></div>
+   <div class="card kpi"><div class="l">En büyük kalem</div><div class="v" style="font-size:18px">${enb?esc(enb[0]):'—'}</div><div class="d">${enb?tl(enb[1]):'Bu ay gider kaydı yok'}</div></div>
+  </div>
+  <p class="hint">Ödenmiş giderler mağaza kâr hesabına düşer. Şubesi seçilmeyen gider <b>ortak</b> sayılır ve ${MG.map(m=>esc(m.ad)).join(' ile ')} arasında eşit bölünür. Arçelik mal alımı kâra girmez; ürün maliyeti zaten satış maliyetinin içindedir. “Sabit” işaretli giderler sonraki ay tek tuşla getirilir.</p>
+  <div class="grid k2">
+   <div class="card"><h3>Kayıtlar (${L.length})</h3><div class="tw"><table><thead><tr><th>Tarih</th><th>Şube</th><th>Kategori</th><th>Kime / açıklama</th><th class="r">Tutar</th><th>Durum</th><th>Giren</th><th></th></tr></thead><tbody>
+    ${L.map(x=>`<tr><td>${fdate(x.tarih)}</td><td>${x.sube_id?esc(subeAd(x.sube_id)):'<span class="hint">Ortak</span>'}</td><td>${esc(x.kategori)}${x.sabit?' <span class="pill bilgi">sabit</span>':''}</td><td>${esc(x.karsi_taraf||'')}<div class="hint">${esc(x.aciklama||'')}</div></td>
+     <td class="r num">${tl(x.tutar)}</td><td>${x.durum==='odendi'?'<span class="pill basarili">Ödendi</span>':'<span class="pill bekliyor">Bekliyor</span>'}</td><td class="hint">${esc(x.giren_ad||'')}</td>
+     <td style="white-space:nowrap">${x.durum!=='odendi'?`<button class="btn s" data-gdo="${x.id}">Ödendi</button> `:''}<button class="btn s" data-gde="${x.id}">Düzenle</button> <button class="btn s" data-gdsil="${x.id}">Sil</button></td></tr>`).join('')||`<tr><td colspan="8" class="empty">${esc(ayAd(ay))} için gider kaydı yok. “+ Gider ekle” ile başlayın.</td></tr>`}
+   </tbody></table></div></div>
+   <div class="card"><h3>Mağazalara düşen gider</h3><div class="tw"><table><thead><tr><th>Şube</th><th class="r">Doğrudan</th><th class="r">Ortaktan pay</th><th class="r">Toplam</th></tr></thead><tbody>
+    ${Object.entries(pay).map(([id,p])=>`<tr><td>${esc(subeAd(id))}</td><td class="r num">${tl(p.dogrudan)}</td><td class="r num">${tl(p.ortak)}</td><td class="r num"><b>${tl(p.dogrudan+p.ortak)}</b></td></tr>`).join('')}
+   </tbody></table></div>
+   <h3 style="margin-top:18px">Kategoriye göre</h3><div class="tw"><table><tbody>
+    ${Object.entries(byK).sort((p,q)=>q[1]-p[1]).map(([k,v])=>`<tr><td>${esc(k)}</td><td class="r num">${tl(v)}</td></tr>`).join('')||'<tr><td class="empty">Kayıt yok</td></tr>'}
+   </tbody></table></div></div>
+  </div>`;
+  window._GD=A||[];
+  $('#gdm').onchange=e=>{window._gm=e.target.value;render()};$('#gdk').onchange=e=>{window._gk=e.target.value;render()};$('#gdd').onchange=e=>{window._gd=e.target.value;render()};
+  $('#gda').onclick=()=>giderDuzenle();
+  document.querySelectorAll('[data-gde]').forEach(b=>b.onclick=()=>giderDuzenle(b.dataset.gde));
+  document.querySelectorAll('[data-gdo]').forEach(b=>b.onclick=async()=>{const {error,count}=await sb.from('giderler').update({durum:'odendi'},{count:'exact'}).eq('id',b.dataset.gdo);toast(error?error.message:count===0?'Bu kaydı düzeltme yetkiniz yok':'Ödendi olarak işaretlendi');render()});
+  document.querySelectorAll('[data-gdsil]').forEach(b=>b.onclick=async()=>{if(!confirm('Gider kaydı silinsin mi?'))return;const {error,count}=await sb.from('giderler').delete({count:'exact'}).eq('id',b.dataset.gdsil);toast(error?error.message:count===0?'Bu kaydı silme yetkiniz yok (kendi kaydınızı yalnızca girdiğiniz gün silebilirsiniz)':'Silindi');render()});
+  $('#gdx').onclick=()=>xlsxOut((A||[]).map(x=>({Tarih:x.tarih,Şube:x.sube_id?subeAd(x.sube_id):'Ortak',Kategori:x.kategori,Kime:x.karsi_taraf,Açıklama:x.aciklama,Tutar:+x.tutar,Durum:x.durum==='odendi'?'Ödendi':'Bekliyor','Ödeme şekli':(GD_ODEME.find(o=>o[0]===x.odeme_sekli)||[])[1]||'',Sabit:x.sabit?'Evet':'',Giren:x.giren_ad})),'giderler_'+ay);
+  const sb2=$('#gds');if(sb2)sb2.onclick=async()=>{const t=ay===today().slice(0,7)?today():ayAralik(ay)[0];
+    if(!await onay('Sabit giderleri getir',`<p style="margin:0">${esc(ayAd(oncekiAy(ay)))} ayındaki ${eksik.length} sabit gider ${esc(ayAd(ay))} için <b>bekliyor</b> olarak eklenecek. Tutarı veya tarihi sonra düzenleyebilirsiniz.</p>`,'Ekle'))return;
+    const {error}=await sb.from('giderler').insert(eksik.map(p=>({tarih:t,sube_id:p.sube_id,kategori:p.kategori,karsi_taraf:p.karsi_taraf,aciklama:p.aciklama,tutar:p.tutar,odeme_sekli:p.odeme_sekli,durum:'bekliyor',sabit:true})));
+    toast(error?error.message:eksik.length+' sabit gider eklendi');render()};
+};
+async function giderDuzenle(id){const x=id?(window._GD||[]).find(g=>g.id===id):null;
+  const subeO=isYon()?[['','Ortak (mağazalara bölünür)'],...SUBELER.map(s=>[s.id,s.ad])]:SUBELER.filter(s=>s.id===ME.sube_id).map(s=>[s.id,s.ad]);
+  const o=await form(x?'Gideri düzenle':'Gider ekle',[{k:'tarih',l:'Tarih',t:'date',d:today(),req:true},{k:'sube_id',l:'Şube',t:'select',o:subeO,d:x?x.sube_id||'':($('#fsube').value||(isYon()?'':ME.sube_id))},
+    {k:'kategori',l:'Kategori',t:'select',o:GD_KAT.map(k=>[k,k]),req:true},{k:'tutar',l:'Tutar (₺)',t:'number',req:true},
+    {k:'karsi_taraf',l:'Kime ödendi'},{k:'durum',l:'Durum',t:'select',o:[['odendi','Ödendi'],['bekliyor','Bekliyor']]},
+    {k:'odeme_sekli',l:'Ödeme şekli',t:'select',o:[['','–'],...GD_ODEME]},{k:'sabit',l:'Her ay tekrarlar mı?',t:'select',o:[['false','Hayır'],['true','Evet (sabit gider)']]},
+    {k:'aciklama',l:'Açıklama',t:'textarea'}],x?{...x,sube_id:x.sube_id||'',sabit:String(x.sabit)}:{});
+  if(!o)return;const t=num(o.tutar);if(!(t>0))return toast('Geçerli bir tutar girin');
+  const kayit={tarih:o.tarih,sube_id:o.sube_id||null,kategori:o.kategori,tutar:r2(t),karsi_taraf:o.karsi_taraf,durum:o.durum||'odendi',odeme_sekli:o.odeme_sekli||null,sabit:o.sabit==='true',aciklama:o.aciklama};
+  const {error,count}=x?await sb.from('giderler').update(kayit,{count:'exact'}).eq('id',x.id):await sb.from('giderler').insert(kayit);
+  toast(error?error.message:x&&count===0?'Bu kaydı düzeltme yetkiniz yok (kendi kaydınızı yalnızca girdiğiniz gün düzeltebilirsiniz)':'Kaydedildi');if(!error){window._gm=o.tarih.slice(0,7);render()}}
+
+/* ===================== Günlük rapor (kâr) ===================== */
+V.grapor=async()=>{
+  const [A,K]=await Promise.all([satisSatirlari(),hepsi(()=>q('kasa_hareketleri','tarih,sube_id,komisyon,odeme_tipi,tur').eq('odeme_tipi','kredi_karti').order('tarih').order('id'))]);
+  const G={},key=(d,s)=>d+'|'+s,yon=isYon();
+  const sat=x=>x.tur==='iade'?-1:1;
+  A.forEach(x=>{const k=key(x.tarih,x.sube_id);const o=G[k]=G[k]||{tarih:x.tarih,sube:x.sube_id,adet:0,ciro:0,kdvsiz:0,mal:0,katki:0,brut:0,kom:0,eksik:0,malli:0};const sg=sat(x);
+    o.adet+=sg*(+x.miktar||1);o.ciro+=sg*+x.tutar;o.kdvsiz+=sg*(+x.kdv_haric||0);
+    if(x.maliyet_birim!=null){const m=+x.maliyet_birim*(+x.miktar||1);o.mal+=sg*m;o.katki+=sg*(+x.arcelik_katki||0);o.brut+=sg*(+x.kdv_haric-m);o.malli+=sg*+x.kdv_haric}else if(x.tur!=='iade')o.eksik++});
+  K.forEach(x=>{if(x.tur!=='giris'||!x.komisyon)return;const k=key(x.tarih,x.sube_id);const o=G[k]=G[k]||{tarih:x.tarih,sube:x.sube_id,adet:0,ciro:0,kdvsiz:0,mal:0,katki:0,brut:0,kom:0,eksik:0,malli:0};o.kom+= +x.komisyon});
+  const R=Object.values(G).sort((a,b)=>b.tarih.localeCompare(a.tarih)||subeAd(a.sube).localeCompare(subeAd(b.sube),'tr'));
+  const T=R.reduce((t,o)=>{for(const k in o)if(typeof o[k]==='number')t[k]=(t[k]||0)+o[k];return t},{});
+  const S={};R.forEach(o=>{const s=S[o.sube]=S[o.sube]||{sube:o.sube,ciro:0,kdvsiz:0,mal:0,brut:0,kom:0,malli:0,eksik:0,adet:0};['ciro','kdvsiz','mal','brut','kom','malli','eksik','adet'].forEach(k=>s[k]+=o[k])});
+  const net=o=>o.brut-o.kom,km=o=>o.malli?o.brut/o.malli*100:null,maliyetVar=T.malli>0;
+  $('#view').innerHTML=`
+  <div class="tabs">${hizliHtml()}<span style="flex:1"></span><button class="btn" id="grx">Excel'e aktar</button></div>
+  <div class="grid k4">
+   <div class="card kpi"><div class="l">Satış (ciro, KDV dahil)</div><div class="v num">${tl(T.ciro||0)}</div><div class="d">${Math.round(T.adet||0)} adet · KDV hariç ${tl(T.kdvsiz||0)}</div></div>
+   <div class="card kpi"><div class="l">Satış maliyeti</div><div class="v num">${maliyetVar?tl(T.mal):'–'}</div><div class="d">ABS − paro×%85 · Arçelik katkısı ${maliyetVar?tl(T.katki):'–'}</div></div>
+   <div class="card kpi"><div class="l">Kart komisyonu</div><div class="v num">${tl(T.kom||0)}</div><div class="d">Oranlar POS oranları ekranından</div></div>
+   <div class="card kpi"><div class="l">Net kâr</div><div class="v num ${maliyetVar&&net(T)<0?'neg':''}">${maliyetVar?tl(net(T)):'–'}</div><div class="d">${maliyetVar?`Brüt ${tl(T.brut)} · ${pct(km(T))}`:''}${T.eksik?` · <span class="neg">${T.eksik} satırda maliyet yok</span>`:''}</div></div>
+  </div>
+  <p class="hint">Kaynak: AX sisteminden gelen satış satırları, satış tarihinde geçerli fiyatlarla. Maliyet = ABS − Arçelik katkısı (paro × %85). Brüt kâr = KDV hariç satış − maliyet, net kâr = brüt kâr − kart komisyonu. İade ve iptaller düşülür. ${yon?'':'Maliyet ve kâr yalnızca yöneticilere görünür. '}Liste altı satış ve iskonto için Perakende raporuna bakın.</p>
+  ${Object.keys(S).length>1?`<div class="card"><h3>Şube toplamı</h3><div class="tw"><table><thead><tr><th>Şube</th><th class="r">Adet</th><th class="r">Ciro</th><th class="r">Maliyet</th><th class="r">Brüt kâr</th><th class="r">Komisyon</th><th class="r">Net kâr</th><th class="r">Kâr %</th></tr></thead><tbody>
+   ${Object.values(S).map(s=>`<tr><td>${esc(subeAd(s.sube))}</td><td class="r num">${Math.round(s.adet)}</td><td class="r num">${tl(s.ciro)}</td><td class="r num">${s.malli?tl(s.mal):'–'}</td><td class="r num">${s.malli?tl(s.brut):'–'}</td><td class="r num">${tl(s.kom)}</td><td class="r num ${net(s)<0?'neg':''}"><b>${s.malli?tl(net(s)):'–'}</b></td><td class="r num">${pct(km(s))}</td></tr>`).join('')}
+  </tbody></table></div></div>`:''}
+  <div class="card" style="margin-top:16px"><h3>Günlere göre</h3><div class="tw"><table><thead><tr><th>Tarih</th><th>Şube</th><th class="r">Adet</th><th class="r">Ciro</th><th class="r">Maliyet</th><th class="r">Brüt kâr</th><th class="r">Komisyon</th><th class="r">Net kâr</th><th class="r">Kâr %</th></tr></thead><tbody>
+   ${R.map(o=>`<tr><td>${fdate(o.tarih)}</td><td>${esc(subeAd(o.sube))}</td><td class="r num">${Math.round(o.adet)}</td><td class="r num">${tl(o.ciro)}</td><td class="r num">${o.malli?tl(o.mal):'–'}</td><td class="r num">${o.malli?tl(o.brut):'–'}</td><td class="r num">${tl(o.kom)}</td><td class="r num ${o.malli&&net(o)<0?'neg':''}">${o.malli?tl(net(o)):'–'}${o.eksik?`<div class="hint neg">${o.eksik} satır maliyetsiz</div>`:''}</td><td class="r num">${pct(km(o))}</td></tr>`).join('')||'<tr><td colspan="9" class="empty">Bu tarih aralığında satış yok.</td></tr>'}
+  </tbody></table></div></div>`;
+  hizliBagla();
+  $('#grx').onclick=()=>xlsxOut(R.map(o=>({Tarih:o.tarih,Şube:subeAd(o.sube),Adet:Math.round(o.adet),'Ciro (KDV dahil)':r2(o.ciro),'KDV hariç':r2(o.kdvsiz),Maliyet:o.malli?r2(o.mal):null,'Arçelik katkısı':o.malli?r2(o.katki):null,'Brüt kâr':o.malli?r2(o.brut):null,Komisyon:r2(o.kom),'Net kâr':o.malli?r2(net(o)):null,'Maliyetsiz satır':o.eksik})),'gunluk_rapor');
+};
+
+/* ===================== Perakende raporu (liste altı satış / iskonto) ===================== */
+V.prapor=async()=>{
+  const A=(await satisSatirlari()).filter(x=>x.tur==='satis_fatura'&&!iptalNotu(x));
+  const sadece=!!window._pr;
+  A.forEach(x=>{x.birim=+x.tutar/(+x.miktar||1);x.alt=x.ek_indirim_yuzde!=null&&+x.ek_indirim_yuzde>0.5;x.aciksiz=x.alt&&!String(x.fatura_notu||'').trim()});
+  const L=A.filter(x=>!sadece||x.alt);
+  const fiy=A.filter(x=>x.net_liste_toplam>0),sum=(X,k)=>X.reduce((t,x)=>t+(+x[k]||0),0);
+  const ort=fiy.length?(1-sum(fiy,'tutar')/sum(fiy,'net_liste_toplam'))*100:null,alt=A.filter(x=>x.alt),acs=A.filter(x=>x.aciksiz);
+  const kayip=alt.reduce((t,x)=>t+(+x.net_liste_toplam-+x.tutar),0);
+  const TM={};A.forEach(x=>{const k=x.temsilci||'—';const o=TM[k]=TM[k]||{n:0,t:0,lt:0,lf:0,alt:0,acs:0};o.n+=+x.miktar||1;o.t+= +x.tutar;if(x.net_liste_toplam>0){o.lt+= +x.tutar;o.lf+= +x.net_liste_toplam}if(x.alt)o.alt++;if(x.aciksiz)o.acs++});
+  $('#view').innerHTML=`
+  <div class="tabs">${hizliHtml()}<label style="display:flex;gap:6px;align-items:center;font-size:13px;margin-left:6px"><input type="checkbox" id="prs" ${sadece?'checked':''}> Sadece liste altı satışlar</label><span style="flex:1"></span><button class="btn" id="prx">Excel'e aktar</button></div>
+  <div class="grid k4">
+   <div class="card kpi"><div class="l">Satış (KDV dahil)</div><div class="v num">${tl(sum(A,'tutar'))}</div><div class="d">${A.length} satır · ${fiy.length} satırın liste fiyatı var</div></div>
+   <div class="card kpi"><div class="l">Ortalama ekstra iskonto</div><div class="v num ${ort>0?'neg':''}">${pct(ort)}</div><div class="d">Net listeye göre</div></div>
+   <div class="card kpi"><div class="l">Liste altı satış</div><div class="v num">${alt.length}</div><div class="d">Verilen iskonto ${tl(kayip)}</div></div>
+   <div class="card kpi"><div class="l">Açıklamasız liste altı</div><div class="v num ${acs.length?'neg':''}">${acs.length}</div><div class="d">Fatura notunda indirim gerekçesi yok</div></div>
+  </div>
+  <p class="hint">Net liste = liste − oliz, ekstra iskonto % = (net liste − satış) ÷ net liste. Liste ve oliz, satış tarihinin dönemindeki arcelik.com.tr fiyatından alınır (ayın 1–15'i 1. dönem, 16'sı ve sonrası 2. dönem). Ürün sitede yoksa yüklediğiniz liste fiyatı kullanılır ve satırda <span class="pill uyari">liste</span> etiketi görünür. İndirim gerekçesi AX'teki fatura notundan gelir.</p>
+  <div class="card"><h3>Temsilci özeti</h3><div class="tw"><table><thead><tr><th>Temsilci</th><th class="r">Adet</th><th class="r">Satış</th><th class="r">Ekstra iskonto</th><th class="r">Liste altı</th><th class="r">Açıklamasız</th></tr></thead><tbody>
+   ${Object.entries(TM).sort((a,b)=>b[1].t-a[1].t).map(([k,o])=>`<tr><td>${esc(k)}</td><td class="r num">${o.n}</td><td class="r num">${tl(o.t)}</td><td class="r num">${o.lf?pct((1-o.lt/o.lf)*100):'–'}</td><td class="r num">${o.alt}</td><td class="r num ${o.acs?'neg':''}">${o.acs}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">Kayıt yok</td></tr>'}
+  </tbody></table></div></div>
+  <div class="card" style="margin-top:16px"><h3>Satışlar (${L.length})</h3><div class="tw" style="max-height:62vh;overflow:auto"><table><thead><tr><th>Tarih</th><th>Şube</th><th>Temsilci</th><th>Müşteri</th><th>Ürün</th><th class="r">Adet</th><th class="r">Net liste (birim)</th><th class="r">Satış (birim)</th><th class="r">Ekstra iskonto</th><th>İndirim gerekçesi</th></tr></thead><tbody>
+   ${L.slice(0,600).map(x=>`<tr><td>${fdate(x.tarih)}</td><td>${esc(subeAd(x.sube_id))}</td><td>${esc(x.temsilci||'')}</td><td>${esc(x.cari_ad||'')}</td><td>${esc(x.urun_adi||x.urun_kisa_kodu||'')}<div class="hint num">${esc(x.madde_kodu)}</div></td><td class="r num">${x.miktar}</td>
+    <td class="r num">${x.net_liste_birim!=null?tl(x.net_liste_birim):'–'}${x.liste_kaynagi==='liste'?' <span class="pill uyari">liste</span>':''}</td><td class="r num">${tl(x.birim)}</td>
+    <td class="r num ${x.alt?'neg':''}">${x.ek_indirim_yuzde!=null?pct(+x.ek_indirim_yuzde):'–'}</td><td>${x.aciksiz?'<span class="pill kritik">Açıklama yok</span>':`<span class="hint">${esc((x.fatura_notu||'').slice(0,80))}</span>`}</td></tr>`).join('')||'<tr><td colspan="10" class="empty">Bu tarih aralığında satış yok.</td></tr>'}
+  </tbody></table></div>${L.length>600?'<p class="hint">İlk 600 satır gösteriliyor; tamamı için Excel\'e aktarın.</p>':''}</div>`;
+  hizliBagla();$('#prs').onchange=e=>{window._pr=e.target.checked;render()};
+  $('#prx').onclick=()=>xlsxOut(L.map(x=>({Tarih:x.tarih,Şube:subeAd(x.sube_id),Temsilci:x.temsilci,Müşteri:x.cari_ad,Sipariş:x.siparis_no,'Madde kodu':x.madde_kodu,Ürün:x.urun_adi||x.urun_kisa_kodu,Adet:+x.miktar,'Site liste':+x.site_liste||null,'Site oliz':+x.site_oliz||null,'Net liste (birim)':x.net_liste_birim!=null?+x.net_liste_birim:null,'Liste kaynağı':x.liste_kaynagi,'Satış (birim)':r2(x.birim),'Satış toplam':+x.tutar,'Ekstra iskonto %':x.ek_indirim_yuzde!=null?+x.ek_indirim_yuzde:null,'Fatura notu':x.fatura_notu})),'perakende_raporu');
+};
+
+/* ===================== Arçelik ödeme planı (Yetkili Satıcı Ekstresi → DBS) ===================== */
+const arCarsamba=ds=>{const d=new Date(ds+'T00:00');d.setDate(d.getDate()+(3-d.getDay()+7)%7);return iso(d)};
+const arTur=a=>{const s=normUser(a);if(/fatura/.test(s)&&!/komisyon|yansitma/.test(s))return'fatura';if(/dbs/.test(s))return'dbs';if(/sanal pos|odero/.test(s)&&!/komisyon|yansitma/.test(s))return'pos';if(/havale/.test(s))return'havale';if(/hakedi|fiyat farki|kira|erken odeme|prim/.test(s))return'hakedis';return'diger'};
+const AR_TUR={fatura:'Fatura',pos:'Sanal POS',dbs:'DBS',havale:'Havale',hakedis:'Hakediş / prim',diger:'Diğer'};
+const arAnahtar=l=>(l.mahsup_no||'')+'|'+(l.borc>0?'B':'A')+'|'+l.mahsup_tarihi;
+function arPlan(e,L){if(!e)return null;let bas=+e.acilis;const W={};
+  L.forEach(l=>{if(l.vade<=e.ekstre_tarihi){bas+=l.borc-l.alacak;return}const w=arCarsamba(l.vade);const b=W[w]=W[w]||{w,d:0,c:0,satir:[]};b.d+=l.borc;b.c+=l.alacak;b.satir.push(l)});
+  let bak=bas;const hafta=Object.values(W).sort((a,b)=>a.w.localeCompare(b.w)).map(b=>{const on=bak+b.d-b.c;const pay=Math.max(0,r2(on));bak=Math.abs(on-pay)<0.005?0:on-pay;return{...b,pay,devir:bak}});
+  return{bas,hafta,byW:Object.fromEntries(hafta.map(h=>[h.w,h]))}}
+function arOku(wb){const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:null,blankrows:false});
+  const hi=rows.findIndex(r=>r&&r.some(c=>/^mahsup tar/.test(normUser(c))));if(hi<0)throw new Error("Bu dosya Arçelik ekstresine benzemiyor ('Mahsup Tarihi' başlığı bulunamadı).");
+  const H=rows[hi].map(c=>normUser(c)),col=k=>H.findIndex(h=>h.startsWith(k));
+  const C={bayi:col('bayi'),md:col('mahsup tar'),td:col('tahsilat tar'),vd:col('valor'),no:col('mahsup no'),ac:col('aciklama'),od:col('odeme'),b:col('borc'),a:col('alacak'),k:col('kalan')};
+  if([C.md,C.td,C.b,C.a].some(i=>i<0))throw new Error('Ekstrede Mahsup Tarihi, Tahsilat Tarihi, Borç veya Alacak sütunu bulunamadı.');
+  let acilis=null;for(let i=0;i<hi;i++){const t=(rows[i]||[]).map(x=>x==null?'':String(x)).join(' ');const m=t.match(/Kalan\s*=\s*(-?[\d.]+(?:,\d+)?)/i);if(m){acilis=num(m[1]);break}}
+  const L=[];let bayi=null,md=null,td=null,son=null,atla=0;
+  for(let i=hi+1;i<rows.length;i++){const r=rows[i]||[],g=k=>C[k]>=0?r[C[k]]:null;
+    if(/^toplam/.test(normUser(g('bayi'))))break;if(g('bayi'))bayi=String(g('bayi')).trim();
+    const m1=normDate(g('md')),t1=normDate(g('td'));if(m1)md=m1;if(t1)td=t1;const no=g('no'),ac=g('ac');if(no==null&&ac==null)continue;
+    let d=num(g('b')),c=num(g('a'));d=isNaN(d)?0:d;c=isNaN(c)?0:c;if(!md||!td||(!d&&!c)){atla++;continue}
+    const k=num(g('k'));if(!isNaN(k))son=r2(k);
+    L.push({mahsup_tarihi:md,vade:td,valor:normDate(g('vd')),mahsup_no:no==null?null:String(no).trim(),aciklama:ac==null?'':String(ac).trim(),odeme:g('od')==null?null:String(g('od')).trim(),tur:arTur(ac),borc:r2(d),alacak:r2(c),kalan:isNaN(k)?null:k})}
+  if(!L.length)throw new Error('Ekstrede hareket satırı bulunamadı.');
+  const sb_=L.reduce((s,l)=>s+l.borc,0),sa=L.reduce((s,l)=>s+l.alacak,0);
+  if(acilis==null&&L[0].kalan!=null)acilis=L[0].kalan-L[0].borc+L[0].alacak;if(acilis==null)acilis=0;
+  const hesap=acilis+sb_-sa,kapanis=son!=null?son:hesap,tarih=L.reduce((m,l)=>l.mahsup_tarihi>m?l.mahsup_tarihi:m,L[0].mahsup_tarihi),bas=L.reduce((m,l)=>l.mahsup_tarihi<m?l.mahsup_tarihi:m,L[0].mahsup_tarihi);
+  return{L,bayi,acilis:r2(acilis),kapanis:r2(kapanis),hesap:r2(hesap),tamam:Math.abs(hesap-kapanis)<1,tarih,bas,sb:sb_,sa,atla}}
+V.odeme=async()=>{
+  const {data:E,error}=await sb.from('arcelik_ekstreler').select('*').order('created_at',{ascending:false}).limit(12);if(error)throw error;
+  const cur=(E||[])[0],prev=(E||[])[1],sat=id=>hepsi(()=>sb.from('arcelik_ekstre_satirlari').select('*').eq('ekstre_id',id).order('id'));
+  const nm=l=>({...l,borc:+l.borc,alacak:+l.alacak});
+  const [CL,PL]=await Promise.all([cur?sat(cur.id):[],prev?sat(prev.id):[]]).then(([a,b])=>[a.map(nm),b.map(nm)]);
+  const head=`<div class="tabs"><span style="flex:1"></span>${cur?'<button class="btn" id="arx">Excel\'e aktar</button>':''}${isYon()?'<button class="btn p" id="aru">Ekstre yükle</button>':''}</div>
+   <p class="hint">Arçelik'ten alınan <b>Yetkili Satıcı Ekstresi</b>'ni yükleyin. DBS her çarşamba, o güne kadar vadesi (tahsilat tarihi) gelmiş borçlardan vadesi gelmiş alacaklar (POS, havale, hakediş) düşüldükten sonra kalan tutarı çeker; plan bu kurala göre hesaplanır. Her yüklemede plan yenilenir ve önceki ekstreye göre farklar gösterilir.</p>`;
+  if(!cur){$('#view').innerHTML=head+'<div class="card empty">Henüz ekstre yüklenmedi. '+(isYon()?'Sağ üstteki “Ekstre yükle” ile Arçelik ekstresini seçin.':'Yöneticiniz ekstre yüklediğinde plan burada görünür.')+'</div>';const u=$('#aru');if(u)u.onclick=arYukle;return}
+  const P=arPlan(cur,CL),PP=arPlan(prev,PL),bugun=today(),tumu=!!window._arA;
+  const sekiz=(()=>{const d=new Date();d.setDate(d.getDate()+56);return iso(d)})();
+  const gelecek=P.hafta.filter(h=>h.w>=bugun),sira=gelecek.find(h=>h.pay>0),in8=gelecek.filter(h=>h.w<=sekiz).reduce((s,h)=>s+h.pay,0);
+  const eski=Math.round((new Date(bugun)-new Date(cur.ekstre_tarihi))/864e5);
+  const goster=tumu?P.hafta:gelecek,oncP=w=>PP?(PP.byW[w]?PP.byW[w].pay:0):null;
+  const aylar={};P.hafta.forEach(h=>{const m=h.w.slice(0,7);aylar[m]=(aylar[m]||0)+h.pay});
+  let D=null;if(prev){const Pm=new Map(PL.map(l=>[arAnahtar(l),l])),Cm=new Map(CL.map(l=>[arAnahtar(l),l]));D={yeni:[],tasinan:[],kalkan:[]};
+    Cm.forEach((l,k)=>{const p=Pm.get(k);if(!p){if(l.mahsup_tarihi>prev.ekstre_tarihi||l.vade>prev.ekstre_tarihi)D.yeni.push(l)}else if(p.vade!==l.vade)D.tasinan.push({...l,eski:p.vade})});
+    Pm.forEach((l,k)=>{if(!Cm.has(k)&&l.vade>cur.ekstre_tarihi)D.kalkan.push(l)})}
+  const satirT=(X,ek)=>X.slice(0,40).map(l=>`<tr><td>${fdate(l.vade)}${ek?`<div class="hint">önce ${fdate(l.eski)}</div>`:''}</td><td>${esc(AR_TUR[l.tur]||l.tur)}</td><td class="hint">${esc(l.aciklama)}</td><td class="r num">${l.borc?tl(l.borc):''}</td><td class="r num pos">${l.alacak?tl(l.alacak):''}</td></tr>`).join('')+(X.length>40?`<tr><td colspan="5" class="hint">… ve ${X.length-40} satır daha</td></tr>`:'');
+  const dTab=(b,X,ek)=>X.length?`<h3 style="margin:14px 0 8px">${b} (${X.length})</h3><div class="tw"><table><thead><tr><th>Vade</th><th>Tür</th><th>Açıklama</th><th class="r">Borç</th><th class="r">Alacak</th></tr></thead><tbody>${satirT(X,ek)}</tbody></table></div>`:'';
+  $('#view').innerHTML=head+`
+  ${eski>7?`<div class="card" style="border-color:var(--warn);background:var(--warnbg);margin-bottom:14px">Son yüklenen ekstre ${eski} gün önceye ait (${fdate(cur.ekstre_tarihi)}). Güncel plan için yeni ekstre yükleyin.</div>`:''}
+  <div class="grid k4">
+   <div class="card kpi"><div class="l">Ekstre bakiyesi</div><div class="v num">${tl(cur.kapanis)}</div><div class="d">${fdate(cur.ekstre_tarihi)} itibarıyla</div></div>
+   <div class="card kpi"><div class="l">Vadesi gelmiş durum</div><div class="v num ${P.bas>0?'neg':'pos'}">${tl(Math.abs(P.bas))}</div><div class="d">${P.bas>0.005?'Vadesi geçmiş borç':P.bas<-0.005?'Alacaklısınız (sonraki ödemelerden düşer)':'Borç / alacak yok'}</div></div>
+   <div class="card kpi"><div class="l">Sıradaki DBS ödemesi</div><div class="v num">${sira?tl(sira.pay):'—'}</div><div class="d">${sira?new Date(sira.w+'T00:00').toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'})+' Çarşamba':'Planlı ödeme yok'}</div></div>
+   <div class="card kpi"><div class="l">Önümüzdeki 8 hafta</div><div class="v num">${tl(in8)}</div><div class="d">Toplam DBS çekimi</div></div>
+  </div>
+  <div class="grid k2" style="margin-top:16px">
+   <div class="card"><h3>Çarşamba ödemeleri <label style="float:right;font-size:13px;font-weight:400;display:flex;gap:6px;align-items:center"><input type="checkbox" id="arA" ${tumu?'checked':''}> Geçmiş haftaları da göster</label></h3>
+    <p class="hint" style="margin-top:0">Satıra tıklayınca o haftayı oluşturan hareketler açılır.${PP?` “Önceki ekstreye göre”, ${fdate(prev.ekstre_tarihi)} tarihli ekstreye göre o haftanın ödemesindeki değişimdir.`:''}</p>
+    <div class="tw"><table><thead><tr><th>Çarşamba</th><th class="r">Ödenecek (DBS)</th>${PP?'<th class="r">Önceki ekstreye göre</th>':''}<th class="r">Vadesi gelen borç</th><th class="r">Düşen alacak</th><th class="r">Devreden alacak</th></tr></thead><tbody>
+    ${goster.map(h=>{const pp=oncP(h.w),df=pp==null?null:r2(h.pay-pp);return `<tr data-arw="${h.w}" style="cursor:pointer${h.w<bugun?';opacity:.6':''}"><td>${fdate(h.w)}</td><td class="r num"><b>${tl(h.pay)}</b></td>${PP?`<td class="r num ${df>0?'neg':df<0?'pos':''}">${!df?'—':(df>0?'+':'')+tl(df)}</td>`:''}<td class="r num">${tl(h.d)}</td><td class="r num">${h.c?tl(h.c):'—'}</td><td class="r num">${h.devir<0?tl(-h.devir):'—'}</td></tr>
+     <tr class="hidden" id="arw-${h.w}"><td colspan="${PP?6:5}" style="background:var(--sunk)"><div class="tw"><table><thead><tr><th>Vade</th><th>Tür</th><th>Açıklama</th><th class="r">Borç</th><th class="r">Alacak</th></tr></thead><tbody>${satirT(h.satir)}</tbody></table></div></td></tr>`}).join('')||`<tr><td colspan="6" class="empty">Planlı ödeme yok</td></tr>`}
+    </tbody><tfoot><tr><td><b>Toplam</b></td><td class="r num"><b>${tl(goster.reduce((s,h)=>s+h.pay,0))}</b></td><td colspan="${PP?4:3}"></td></tr></tfoot></table></div></div>
+   <div class="card"><h3>Aylara göre</h3><div class="tw"><table><thead><tr><th>Ay</th><th class="r">DBS ödemesi</th></tr></thead><tbody>
+    ${Object.keys(aylar).sort().filter(m=>tumu||m>=bugun.slice(0,7)).map(m=>`<tr><td>${esc(ayAd(m))}</td><td class="r num">${tl(aylar[m])}</td></tr>`).join('')}
+    </tbody></table></div>
+    <h3 style="margin-top:18px">Yüklenen ekstreler</h3><div class="tw"><table><thead><tr><th>Ekstre tarihi</th><th class="r">Satır</th><th class="r">Bakiye</th><th></th></tr></thead><tbody>
+    ${(E||[]).map((e,i)=>`<tr><td><b>${fdate(e.ekstre_tarihi)}</b>${i===0?' <span class="pill basarili">Güncel</span>':''}<div class="hint">${esc(e.dosya||'')}</div></td><td class="r num">${e.satir}</td><td class="r num">${tl(e.kapanis)}</td><td>${isYon()?`<button class="btn s" data-arsil="${e.id}">Sil</button>`:''}</td></tr>`).join('')}
+    </tbody></table></div></div>
+  </div>
+  ${D?`<div class="card" style="margin-top:16px"><h3>Önceki ekstreye göre değişenler <span class="hint" style="font-weight:400">${fdate(prev.ekstre_tarihi)} → ${fdate(cur.ekstre_tarihi)}</span></h3>
+   ${!D.yeni.length&&!D.tasinan.length&&!D.kalkan.length?'<div class="empty">Değişiklik yok.</div>':''}${dTab('Vadesi değişen',D.tasinan,true)}${dTab(`Yeni hareketler · net ${tl(D.yeni.reduce((s,l)=>s+l.borc-l.alacak,0))}`,D.yeni)}${dTab('Önceki ekstrede olup artık olmayan',D.kalkan)}</div>`:''}`;
+  $('#arA').onchange=e=>{window._arA=e.target.checked;render()};
+  document.querySelectorAll('[data-arw]').forEach(r=>r.onclick=()=>$('#arw-'+r.dataset.arw).classList.toggle('hidden'));
+  const u=$('#aru');if(u)u.onclick=arYukle;
+  document.querySelectorAll('[data-arsil]').forEach(b=>b.onclick=async()=>{if(!confirm('Bu ekstre ve satırları silinsin mi?'))return;const {error}=await sb.from('arcelik_ekstreler').delete().eq('id',b.dataset.arsil);toast(error?error.message:'Ekstre silindi');render()});
+  $('#arx').onclick=()=>{const ws=XLSX.utils.json_to_sheet(goster.map(h=>({Çarşamba:h.w,'Vadesi gelen borç':r2(h.d),'Düşen alacak':r2(h.c),'Ödenecek (DBS)':h.pay,'Devreden alacak':h.devir<0?r2(-h.devir):0}))),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'DBS plani');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(CL.map(l=>({'Mahsup tarihi':l.mahsup_tarihi,'Vade (tahsilat)':l.vade,'Mahsup no':l.mahsup_no,Tür:AR_TUR[l.tur],Açıklama:l.aciklama,Ödeme:l.odeme,Borç:l.borc,Alacak:l.alacak}))),'Ekstre');
+    XLSX.writeFile(wb,`arcelik_odeme_plani_${cur.ekstre_tarihi}.xlsx`)};
+};
+async function arYukle(){const inp=document.createElement('input');inp.type='file';inp.accept='.xlsx,.xls,.csv';
+  inp.onchange=async()=>{const f=inp.files[0];let p;try{toast('Ekstre okunuyor…');p=arOku(XLSX.read(await f.arrayBuffer()))}catch(e){return toast(e.message||'Dosya okunamadı')}
+    const T={};p.L.forEach(l=>{const k=T[l.tur]=T[l.tur]||{n:0,d:0,c:0};k.n++;k.d+=l.borc;k.c+=l.alacak});
+    const {data:dup}=await sb.from('arcelik_ekstreler').select('id').eq('ekstre_tarihi',p.tarih).eq('kapanis',p.kapanis).limit(1);
+    const ok=await onay('Arçelik ekstresi yükle',`<p class="hint" style="margin:0 0 10px">${esc(f.name)} · Bayi ${esc(p.bayi||'—')} · ${fdate(p.bas)} – ${fdate(p.tarih)} · ${p.L.length} hareket${p.atla?` · <span class="neg">${p.atla} satır okunamadı</span>`:''}</p>
+      <div class="tw"><table><tbody><tr><td>Devir</td><td class="r num">${tl(p.acilis)}</td></tr><tr><td>Borç (+)</td><td class="r num">${tl(p.sb)}</td></tr><tr><td>Alacak (−)</td><td class="r num">${tl(p.sa)}</td></tr><tr><td><b>Kalan</b></td><td class="r num"><b>${tl(p.kapanis)}</b></td></tr></tbody></table></div>
+      <p style="margin:10px 0" class="${p.tamam?'pos':'neg'}">${p.tamam?'✓ Devir + borç − alacak, ekstredeki kalan ile tutuyor.':`Hesaplanan kalan (${tl(p.hesap)}) ekstredeki kalan ile tutmuyor; dosyada eksik satır olabilir. Yine de yükleyebilirsiniz.`}</p>
+      <div class="tw"><table><thead><tr><th>Tür</th><th class="r">Adet</th><th class="r">Borç</th><th class="r">Alacak</th></tr></thead><tbody>${Object.entries(T).map(([k,v])=>`<tr><td>${esc(AR_TUR[k])}</td><td class="r num">${v.n}</td><td class="r num">${v.d?tl(v.d):''}</td><td class="r num">${v.c?tl(v.c):''}</td></tr>`).join('')}</tbody></table></div>
+      ${dup&&dup.length?'<p class="hint">Aynı tarihli ve aynı bakiyeli bir ekstre zaten yüklü; tekrar yüklemeye gerek olmayabilir.</p>':''}`,'Yükle');
+    if(!ok)return;
+    const {data:e,error}=await sb.from('arcelik_ekstreler').insert({ekstre_tarihi:p.tarih,bayi:p.bayi,bas:p.bas,acilis:p.acilis,kapanis:p.kapanis,satir:p.L.length,dosya:f.name}).select('id').single();if(error)return toast(error.message);
+    for(let i=0;i<p.L.length;i+=500){const {error:e2}=await sb.from('arcelik_ekstre_satirlari').insert(p.L.slice(i,i+500).map(l=>({...l,ekstre_id:e.id})));if(e2){await sb.from('arcelik_ekstreler').delete().eq('id',e.id);return toast('Hata: '+e2.message)}}
+    toast('Ekstre yüklendi');window._arA=false;render()};
+  inp.click()}
 
 V.denetim=async()=>{
   const [a,s]=await Promise.all([sb.rpc('denetim_kontrolleri',{p_tarih:$('#fbit').value||today()}),sb.from('denetim_ayarlari').select('*').single()]);
