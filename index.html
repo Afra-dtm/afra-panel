@@ -154,6 +154,21 @@ dialog h3{font-size:17px;letter-spacing:-.015em}
 .alert .a{margin-left:auto;text-align:right;white-space:nowrap;font-weight:550}
 .hint{color:var(--muted);font-size:12.5px;line-height:1.55}
 p.hint{max-width:90ch}
+/* şube kasaları */
+.kasalar{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.ktile{padding:16px 18px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:10px;min-width:0}
+.ktile:last-child{border-right:0}
+.ktile .ad{font-weight:600;font-size:13.5px;color:var(--ink2)}
+.ktile .tut{font-size:26px;font-weight:650;letter-spacing:-.03em;line-height:1.1}
+.ktile dl{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin:0;font-size:13px}
+.ktile dt{color:var(--muted)}.ktile dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ktile .alt{font-size:12.5px;color:var(--muted);margin-top:auto}
+.ktile .alt a{cursor:pointer}
+.ktile.ktop{background:var(--ink);color:#fff}.ktile.ktop .ad,.ktile.ktop dt,.ktile.ktop .alt{color:rgba(255,255,255,.7)}
+:root[data-theme="dark"] .ktile.ktop{background:#2b333c;color:#fff}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .ktile.ktop{background:#2b333c;color:#fff}}
+.ktile.ktop .pos{color:#7fe0b8}.ktile.ktop .neg{color:#ff9d94}
+@media (max-width:900px){.ktile{border-right:0;border-bottom:1px solid var(--line)}.ktile:last-child{border-bottom:0}}
 .poscell{width:70px;min-height:32px;padding:4px 8px;text-align:right;border-radius:var(--r-sm)}
 .poscell.dolu{background:var(--sunk)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -423,7 +438,8 @@ V.ozet=async()=>{
   const bek=sum(S,'bekleyen')+sum(S,'yolda');
   const krit=A.filter(a=>a.seviye==='kritik').length;
   const days=[...new Set(K.map(r=>r.tarih))].sort();
-  $('#view').innerHTML=`
+  const KS=await subeKasalari();
+  $('#view').innerHTML=`${KS?KS+'<div style="height:16px"></div>':''}
   <div class="grid k4">
     <div class="card kpi"><div class="l">Kasa girişi</div><div class="v num">${tl(sum(K,'toplam_giris'))}</div><div class="d">Çıkış: ${tl(sum(K,'toplam_cikis'))}</div></div>
     <div class="card kpi"><div class="l">Satış (fatura)</div><div class="v num">${tl(ciro)}</div><div class="d">Tahsilat: ${tl(tah)}</div></div>
@@ -438,6 +454,7 @@ V.ozet=async()=>{
   ${SUBELER.filter(s=>!$('#fsube').value||s.id===$('#fsube').value).map(s=>{const k=K.filter(r=>r.sube_id===s.id),v=S.filter(r=>r.sube_id===s.id);
    return `<tr><td>${esc(s.ad)}</td><td class="r num">${tl(sum(k,'toplam_giris'))}</td><td class="r num">${tl(sum(k,'toplam_cikis'))}</td><td class="r num">${tl(sum(k,'nakit_net'))}</td><td class="r num">${sum(v,'toplam')}</td><td class="r num">${sum(v,'bekleyen')+sum(v,'yolda')}</td><td class="r">${A.filter(a=>a.sube_id===s.id).length}</td></tr>`}).join('')}
   </tbody></table></div></div>`;
+  subeKasalariBagla();
   $('#alist').innerHTML=alertList(A.sort((a,b)=>rank(a)-rank(b)).slice(0,7));
   const agg=d=>K.filter(r=>r.tarih===d);
   chart($('#c1'),{type:'bar',data:{labels:days.map(fdate),datasets:[
@@ -504,6 +521,39 @@ async function axIncele(batch){
     d.close();toast(k==='reddet'?'Aktarım reddedildi':`Kasaya işlendi: ${res.satis} satış, ${res.odeme} ödeme`);render()});
 }
 
+/* ---------- Şube kasaları (günlük işlemden, yalnızca nakit) ---------- */
+async function subeKasalari(){
+  if(!izin('islem'))return '';
+  const gun=window._kgun||($('#fbit').value&&$('#fbit').value<today()?$('#fbit').value:today());
+  const fs=$('#fsube').value;
+  const [O,{data:DV=[]}]=await Promise.all([hepsi(()=>{let r=sb.from('v_gunluk_islem_ozet').select('sube_id,tarih,nakit_giris,nakit_cikis,nakit_net').lte('tarih',gun).order('tarih');return fs?r.eq('sube_id',fs):r}),sb.from('gunluk_islem_devir').select('*')]);
+  window._KDV=DV;
+  const ss=SUBELER.filter(x=>(!fs||x.id===fs)&&(x.ax_bayi_kodu||DV.some(d=>d.sube_id===x.id)||O.some(o=>o.sube_id===x.id)));
+  if(!ss.length)return '';
+  const K=ss.map(x=>{const d=DV.find(v=>v.sube_id===x.id),R=O.filter(o=>o.sube_id===x.id&&(!d||o.tarih>=d.tarih));
+    const once=d&&gun<d.tarih,bu=R.find(o=>o.tarih===gun)||{};
+    const devir=once?null:(d?+d.tutar:0)+R.filter(o=>o.tarih<gun).reduce((a,o)=>a+ +o.nakit_net,0);
+    const g=once?0:+bu.nakit_giris||0,c=once?0:+bu.nakit_cikis||0;return {x,d,once,devir,g,c,kasa:once?null:devir+g-c}});
+  const T=K.filter(k=>!k.once).reduce((a,k)=>({devir:a.devir+k.devir,g:a.g+k.g,c:a.c+k.c,kasa:a.kasa+k.kasa}),{devir:0,g:0,c:0,kasa:0});
+  const satir=(dv,g,c)=>`<dl><dt>Devir</dt><dd>${tl(dv)}</dd><dt>+ Nakit giriş</dt><dd class="pos">${tl(g)}</dd><dt>− Nakit çıkış</dt><dd class="neg">${tl(c)}</dd></dl>`;
+  return `<div class="card" id="kasacard"><h3>Şube kasaları <span class="hint" style="font-weight:400">${gun===today()?'bugün':fdate(gun)} gün sonu · yalnızca nakit</span>
+    <span style="margin-left:auto;display:flex;gap:6px;align-items:center"><input class="ctl" type="date" id="kgun" value="${gun}" max="${today()}" aria-label="Kasa günü" style="min-height:32px;padding:4px 8px">${gun!==today()?'<button class="btn s" id="kbugun">Bugün</button>':''}</span></h3>
+   <div class="kasalar">
+    ${K.length>1?`<div class="ktile ktop"><div class="ad">Toplam (${K.filter(k=>!k.once).length} kasa)</div><div class="tut num">${tl(T.kasa)}</div>${satir(T.devir,T.g,T.c)}<div class="alt">Tüm şubelerin nakit kasası</div></div>`:''}
+    ${K.map(k=>`<div class="ktile"><div class="ad">${esc(k.x.ad)} kasası</div><div class="tut num ${k.kasa<0?'neg':''}">${k.once?'–':tl(k.kasa)}</div>
+      ${k.once?`<p class="hint" style="margin:0">Açılış bakiyesi ${fdate(k.d.tarih)} tarihinden itibaren geçerli.</p>`:satir(k.devir,k.g,k.c)}
+      <div class="alt">${k.d?`Açılış: ${fdate(k.d.tarih)} · ${tl(k.d.tutar)}`:'Açılış bakiyesi girilmedi'}${isYon()?` · <a data-acilis="${k.x.id}">${k.d?'değiştir':'gir'}</a>`:''}</div></div>`).join('')}
+   </div>
+   <p class="hint" style="margin:12px 0 0">Kasa = devir + nakit satış, tahsilat ve kasa girişleri − nakit iptal, gider ve kasa çıkışları. Bankaya yatırılan ya da teslim edilen nakit için Günlük işlem ekranından "Kasa çıkış" girin.</p></div>`;
+}
+function subeKasalariBagla(){const c=$('#kasacard');if(!c)return;
+  c.querySelector('#kgun').onchange=e=>{window._kgun=e.target.value||null;render()};
+  const b=c.querySelector('#kbugun');if(b)b.onclick=()=>{window._kgun=null;render()};
+  c.querySelectorAll('[data-acilis]').forEach(a=>a.onclick=()=>kasaAcilis(a.dataset.acilis))}
+async function kasaAcilis(sid){const m=(window._KDV||[]).find(d=>d.sube_id===sid)||{};
+  const o=await form(`${subeAd(sid)} — kasa açılış bakiyesi`,[{k:'tarih',l:'Bu tarihten itibaren',t:'date',d:m.tarih||today(),req:true},{k:'tutar',l:'O gün başında kasadaki nakit (₺)',t:'number',d:m.tutar??0,req:true}]);
+  if(!o)return;const {error}=await sb.from('gunluk_islem_devir').upsert({sube_id:sid,tarih:o.tarih,tutar:normNum(o.tutar),updated_at:new Date().toISOString()});toast(error?error.message:'Açılış bakiyesi kaydedildi');render()}
+
 /* ---------- Günlük işlem (elle giriş, AX'ten bağımsız) ---------- */
 const ITUR={satis:['Satış','ok'],tahsilat:['Tahsilat','bilgi'],iptal:['İptal / iade','kritik'],gider:['Gider','uyari'],kasa_giris:['Kasa giriş','ok'],kasa_cikis:['Kasa çıkış','kritik']};
 const KASA_TUR=t=>t==='kasa_giris'||t==='kasa_cikis';
@@ -519,8 +569,9 @@ V.islem=async()=>{
     hepsi(()=>q('v_gunluk_islem_ozet').order('tarih',{ascending:false})),
     sb.from('gunluk_islem_devir').select('*')]);
   const top=t=>R.filter(r=>r.tur===t).reduce((a,r)=>a+ +r.tutar,0);
-  const sonBakiye=SUBELER.map(sb_=>{const o=O.find(x=>x.sube_id===sb_.id);return o?{s:sb_,b:+o.nakit_bakiye,t:o.tarih}:null}).filter(Boolean).filter(x=>!$('#fsube').value||x.s.id===$('#fsube').value);
   const benimSube=ME.sube_id||$('#fsube').value||SUBELER[0]?.id;
+  const KS=await subeKasalari();
+  const kartTop=R.filter(r=>(r.tur==='satis'||r.tur==='tahsilat')&&KARTLI_ODEME(r.odeme_tipi)).reduce((a,r)=>a+ +r.tutar,0);
   const subeSec=isYon()||SUBELER.length>1;
   $('#view').innerHTML=`
   <div class="card" id="igir" style="margin-bottom:16px"><h3>Yeni işlem</h3>
@@ -537,14 +588,14 @@ V.islem=async()=>{
     <label class="f" style="grid-column:span 2">Açıklama<input class="ctl" name="aciklama"></label>
     <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn p" type="submit" id="ikaydet">İşlemi kaydet</button><span class="hint">Kaydı giren olarak <b>${esc(ME.ad_soyad||ME.kullanici_adi)}</b> yazılır ve değiştirilemez. Kendi kaydınızı aynı gün içinde düzeltebilir ya da silebilirsiniz.</span></div>
    </form></div>
+  ${KS?KS+'<div style="height:16px"></div>':''}
   <div class="grid k4">
-   <div class="card kpi"><div class="l">Nakit kasa</div><div class="v num">${sonBakiye.length?tl(sonBakiye.reduce((a,x)=>a+x.b,0)):'–'}</div><div class="d">${sonBakiye.length?sonBakiye.map(x=>`${esc(x.s.ad.replace(' Mağaza',''))}: ${tl(x.b)}`).join('<br>'):'Henüz kayıt yok'}</div></div>
+   <div class="card kpi"><div class="l">Kart ve Ödero</div><div class="v num">${tl(kartTop)}</div><div class="d">Kredi kartı ve Ödero ile satış / tahsilat</div></div>
    <div class="card kpi"><div class="l">Satış</div><div class="v num">${tl(top('satis'))}</div><div class="d">${R.filter(r=>r.tur==='satis').length} kayıt</div></div>
    <div class="card kpi"><div class="l">Tahsilat</div><div class="v num">${tl(top('tahsilat'))}</div><div class="d">${R.filter(r=>r.tur==='tahsilat').length} kayıt</div></div>
    <div class="card kpi"><div class="l">İptal ve gider</div><div class="v num ${top('iptal')+top('gider')?'neg':''}">${tl(top('iptal')+top('gider'))}</div><div class="d">İptal ${tl(top('iptal'))} · Gider ${tl(top('gider'))}<br>Kasa giriş ${tl(top('kasa_giris'))} · Kasa çıkış ${tl(top('kasa_cikis'))}</div></div>
   </div>
-  <div class="card" style="margin-top:16px"><h3>Günlük özet ${isYon()?'<button class="btn s" id="idevir" style="margin-left:auto">Kasa başlangıç bakiyesi</button>':''}</h3>
-   ${DV.length?`<p class="hint" style="margin-top:-4px">Başlangıç bakiyesi: ${DV.map(d=>`${esc(subeAd(d.sube_id))} ${tl(d.tutar)} (${fdate(d.tarih)})`).join(', ')}</p>`:isYon()?'<p class="hint" style="margin-top:-4px">Nakit kasanın doğru görünmesi için her şubenin başlangıç bakiyesini girin.</p>':''}
+  <div class="card" style="margin-top:16px"><h3>Günlük özet</h3>
    <div class="tw"><table><thead><tr><th>Tarih</th><th>Şube</th><th class="r">Satış</th><th class="r">Tahsilat</th><th class="r">İptal</th><th class="r">Gider</th><th class="r">Kasa giriş</th><th class="r">Kasa çıkış</th><th class="r">Kart</th><th class="r">Ödero</th><th class="r">Nakit net</th><th class="r">Nakit kasa</th></tr></thead><tbody>
    ${O.map(o=>`<tr><td>${fdate(o.tarih)}</td><td>${esc(subeAd(o.sube_id))}</td><td class="r num">${tl(o.satis||0)}</td><td class="r num">${tl(o.tahsilat||0)}</td><td class="r num ${o.iptal?'neg':''}">${tl(o.iptal||0)}</td><td class="r num ${o.gider?'neg':''}">${tl(o.gider||0)}</td><td class="r num">${tl(o.kasa_giris||0)}</td><td class="r num ${o.kasa_cikis?'neg':''}">${tl(o.kasa_cikis||0)}</td><td class="r num">${tl(o.kart||0)}</td><td class="r num">${tl(o.odero||0)}</td><td class="r num ${o.nakit_net<0?'neg':''}">${tl(o.nakit_net)}</td><td class="r num" style="font-weight:600">${tl(o.nakit_bakiye)}</td></tr>`).join('')||'<tr><td colspan="12" class="empty">Bu aralıkta işlem yok</td></tr>'}
    </tbody></table></div></div>
@@ -580,9 +631,7 @@ V.islem=async()=>{
   $('#view').querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{window._ist=b.dataset.st;render()});
   $('#iexp').onclick=()=>xlsxOut(R.map(r=>({Tarih:r.tarih,Şube:subeAd(r.sube_id),Tür:ITUR[r.tur][0],Ödeme:(IODEME.find(x=>x[0]===r.odeme_tipi)||[])[1],Kart:r.kart,Taksit:r.taksit,
     Müşteri:r.musteri,'Gider kalemi':r.gider_kalemi,Açıklama:r.aciklama,Tutar:isaret(r)*r.tutar,Giren:r.giren_ad,'Giriş zamanı':new Date(r.created_at).toLocaleString('tr-TR'),Düzelten:r.guncelleyen_ad})),'gunluk_islem');
-  if(isYon())$('#idevir').onclick=async()=>{const sid=$('#fsube').value||SUBELER[0]?.id;const m=DV.find(d=>d.sube_id===sid)||{};
-    const o=await form('Nakit kasa başlangıç bakiyesi',[{k:'sube_id',l:'Şube',t:'select',o:SUBELER.map(x=>[x.id,x.ad]),d:sid,full:true},{k:'tarih',l:'Bu tarihten itibaren',t:'date',d:m.tarih||today(),req:true},{k:'tutar',l:'Kasadaki nakit (₺)',t:'number',d:m.tutar??0,req:true}]);
-    if(!o)return;const {error}=await sb.from('gunluk_islem_devir').upsert({sube_id:o.sube_id,tarih:o.tarih,tutar:normNum(o.tutar),updated_at:new Date().toISOString()});toast(error?error.message:'Başlangıç bakiyesi kaydedildi');render()};
+  subeKasalariBagla();
 };
 async function islemDuzenle(id){const r=(window._IR||[]).find(x=>x.id===id);if(!r)return;
   const o=await form(`${ITUR[r.tur][0]} kaydını düzelt`,[{k:'tarih',l:'Tarih',t:'date',req:true},{k:'tutar',l:'Tutar (₺)',t:'number',req:true},{k:'odeme_tipi',l:'Ödeme tipi',t:'select',o:IODEME},
