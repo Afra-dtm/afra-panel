@@ -50,7 +50,14 @@ svg.i{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .lside{background:var(--side);padding:48px clamp(24px,5vw,72px);display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid var(--line)}
 .lside .wm{font-size:clamp(56px,8vw,112px);font-weight:700;letter-spacing:-.045em;line-height:.9;color:var(--ink)}
 .lside .wm span{display:block;color:var(--brand)}
-.lside p{max-width:34ch;color:var(--ink2);font-size:16px;margin:22px 0 0}
+.lside p{max-width:36ch;color:var(--ink2);font-size:16px;margin:22px 0 0}
+.lkicker{font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--brand);margin-bottom:14px}
+.vitrin{display:block;width:100%;max-width:440px;height:auto;margin-top:34px}
+.vitrin .ap{fill:var(--panel);stroke:var(--ink2);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.vitrin .ac{fill:var(--sunk)}
+.vitrin .floor{stroke:var(--brand);stroke-width:3}
+.lstores{display:flex;flex-wrap:wrap;gap:6px;margin-top:18px}
+.lstores span{font-size:12px;font-weight:550;color:var(--ink2);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
 .lside ul{list-style:none;margin:0;padding:0;display:grid;gap:10px;color:var(--ink2);font-size:13.5px}
 .lside li{display:flex;gap:10px;align-items:center}
 .lmain{display:grid;place-items:center;padding:32px 16px;background:var(--panel)}
@@ -148,9 +155,12 @@ p.hint{max-width:90ch}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (max-width:900px){
   #login{grid-template-columns:1fr}
-  .lside{padding:28px 20px;border-right:0;border-bottom:1px solid var(--line)}
+  .lside{padding:28px 20px;border-right:0;border-bottom:1px solid var(--line);gap:22px}
   .lside ul{display:none}
-  .lside .wm{font-size:56px}
+  .lside .wm{font-size:48px}
+  .lside p{font-size:14.5px;margin-top:14px}
+  .vitrin{max-width:300px;margin-top:20px}
+  .lstores{margin-top:14px}
   #app{grid-template-columns:1fr}
   aside{position:fixed;inset:0 auto 0 0;width:260px;z-index:50;transform:translateX(-102%);transition:transform .2s;box-shadow:0 0 40px rgba(0,0,0,.25)}
   aside:not(.open){box-shadow:none}
@@ -172,16 +182,27 @@ p.hint{max-width:90ch}
 
 <section id="login" class="hidden">
   <div class="lside">
-    <div class="logo"><b>A</b> AFRA Panel</div>
+    <div class="logo"><b>A</b> Afra Dayanıklı Tüketim</div>
     <div>
-      <div class="wm">AFRA<span>Panel</span></div>
-      <p>AX sistemindeki kasa, sevkiyat ve satışlarınızı her sabah tek ekranda kontrol edin.</p>
+      <div class="lkicker">Beyaz eşya · Arçelik yetkili satıcı</div>
+      <div class="wm">Mağaza<span>paneli</span></div>
+      <p>Parseller ve Güneşli mağazalarının kasası, teslimatları ve satışları her sabah tek ekranda.</p>
+      <svg class="vitrin" viewBox="0 0 440 170" role="img" aria-label="Mağaza vitrini: buzdolabı, çamaşır makinesi, fırın ve bulaşık makinesi">
+        <g class="ap">
+          <rect x="8" y="8" width="84" height="152" rx="7"/><path d="M8 62h84"/><path d="M80 24v24M80 76v40"/>
+          <rect x="112" y="64" width="92" height="96" rx="7"/><path d="M112 86h92"/><circle cx="158" cy="126" r="27"/><circle cx="158" cy="126" r="18" class="ac"/><path d="M124 75h22"/><circle cx="190" cy="75" r="4"/>
+          <rect x="224" y="64" width="92" height="96" rx="7"/><path d="M224 84h92"/><rect x="236" y="96" width="68" height="46" rx="5" class="ac"/><path d="M248 104h44"/><circle cx="240" cy="74" r="3.5"/><circle cx="254" cy="74" r="3.5"/><circle cx="300" cy="74" r="3.5"/>
+          <rect x="336" y="64" width="92" height="96" rx="7"/><path d="M336 82h92"/><path d="M362 92h40"/><circle cx="416" cy="73" r="3"/><path d="M348 73h30"/>
+        </g>
+        <path class="floor" d="M0 164.5h440"/>
+      </svg>
     </div>
     <ul>
-      <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M2.5 10h19M7 15h3"/></svg>Dünkü kasa onayınıza hazır gelir</li>
-      <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>Günün sevkiyatları randevu saatiyle listelenir</li>
-      <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6l8-3z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>Farklar bağımsız kontrolle yakalanır</li>
+      <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M2.5 10h19M7 15h3"/></svg>Dünkü kasa: nakit, kart, taksit ve Ödero tahsilatları onayınıza hazır</li>
+      <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>Bugünün teslimat ve montaj randevuları, depo ve iş emri durumuyla</li>
+      <li><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12l-8 8-9-9V4h7l10 8z"/><circle cx="7.5" cy="8.5" r="1.5"/></svg>Etiket fiyatları: arcelik.com.tr fiyatları ayda iki kez güncellenir</li>
     </ul>
+    <div class="lstores"><span>Parseller</span><span>Güneşli</span><span>Kurumsal satış</span><span>İnternet satışları</span></div>
   </div>
   <div class="lmain">
   <div class="lcard">
