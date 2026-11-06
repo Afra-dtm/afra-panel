@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AFRA Panel – Finans Takip</title>
-<link rel="manifest" href="/manifest.webmanifest">
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#c8102e">
-<link rel="icon" type="image/png" href="/icons/favicon-64.png">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/favicon-64.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AFRA Panel">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -345,7 +345,7 @@ $('#menu').onclick=()=>$('#side').classList.toggle('open');
 let BOOTING=false;
 sb.auth.onAuthStateChange((ev,s)=>{if(!s){ME=null;['#app','#mfa'].forEach(x=>$(x).classList.add('hidden'));$('#login').classList.remove('hidden');return}
   if(ev==='TOKEN_REFRESHED'||ev==='USER_UPDATED'||ev==='MFA_CHALLENGE_VERIFIED'&&ME)return;setTimeout(()=>boot(s.user),0)});
-try{if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('/sw.js')}catch(e){}
+try{if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js')}catch(e){}
 
 /* İki adımlı doğrulama (yöneticiler) */
 async function ikiAdim(){
@@ -1282,7 +1282,7 @@ function kullaniciAdiBilgi(ad,eski,ka,ben){const d=document.createElement('dialo
    <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 14px;background:var(--sunk);border-radius:var(--r-md);padding:14px 16px;font-size:15px"><span class="hint">Eski</span><span class="num" style="text-decoration:line-through;color:var(--muted)">${esc(eski)}</span><span class="hint">Yeni</span><b class="num" style="user-select:all">${esc(ka)}</b></div>
    <div class="acts"><button class="btn p">Tamam</button></div>`;
   document.body.appendChild(d);d.showModal();d.onclose=()=>d.remove();d.querySelector('button').onclick=()=>d.close()}
-function girisBilgisi(ad,ka,sifre){const d=document.createElement('dialog');const metin=`AFRA Panel giriş bilgileriniz\nAdres: ${location.origin}\nKullanıcı adı: ${ka}\nŞifre: ${sifre}`;
+function girisBilgisi(ad,ka,sifre){const d=document.createElement('dialog');const metin=`AFRA Panel giriş bilgileriniz\nAdres: ${new URL('./',location.href).href.replace(/\/$/,'')}\nKullanıcı adı: ${ka}\nŞifre: ${sifre}`;
   d.innerHTML=`<h3 style="margin:0 0 6px">${esc(ad)} oluşturuldu</h3><p class="hint" style="margin:0 0 16px">Bu bilgileri kişiye iletin. Şifre bir daha gösterilmez; unutulursa Kullanıcılar ekranından yenisini verebilirsiniz.</p>
    <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 14px;background:var(--sunk);border-radius:var(--r-md);padding:14px 16px;font-size:15px"><span class="hint">Kullanıcı adı</span><b class="num" style="user-select:all">${esc(ka)}</b><span class="hint">Şifre</span><b class="num" style="user-select:all">${esc(sifre)}</b></div>
    <div class="acts"><button class="btn" id="gbkopya">Kopyala</button><button class="btn p" id="gbkapat">Tamam</button></div>`;
