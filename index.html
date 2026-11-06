@@ -899,9 +899,9 @@ V.kullanicilar=async()=>{
 };
 function kullaniciDuzenle(id){const p=(window._KU||[]).find(x=>x.id===id);if(!p)return;const ben=p.id===ME.id;
   const d=document.createElement('dialog');d.style.width='min(620px,calc(100vw - 32px))';
-  d.innerHTML=`<form method="dialog" id="kdf"><h3 style="margin:0 0 4px">${esc(p.ad_soyad||p.kullanici_adi)}</h3><p class="hint num" style="margin:0 0 16px">Kullanıcı adı: <b>${esc(p.kullanici_adi)}</b></p>
+  d.innerHTML=`<form method="dialog" id="kdf"><h3 style="margin:0 0 4px">${esc(p.ad_soyad||p.kullanici_adi)}</h3><p class="hint num" style="margin:0 0 16px">Kullanıcı adı: <b id="kdka">${esc(p.kullanici_adi)}</b> <span id="kdkanot"></span></p>
    <div class="form">
-    <label class="f">Ad soyad<input class="ctl" name="ad_soyad" value="${esc(p.ad_soyad||'')}" required></label>
+    <label class="f">Ad soyad <span style="font-weight:400;color:var(--muted)">(kullanıcı adı buna göre otomatik belirlenir)</span><input class="ctl" name="ad_soyad" value="${esc(p.ad_soyad||'')}" required autocomplete="off"></label>
     <label>Rol<select class="ctl" name="rol" ${ben?'disabled':''}><option value="sube" ${p.rol!=='yonetici'?'selected':''}>Kullanıcı</option><option value="yonetici" ${p.rol==='yonetici'?'selected':''}>Yönetici</option></select></label>
     <label>Yetkili birim (şube)<select class="ctl" name="sube_id"><option value="">– Şube –</option>${SUBELER.map(x=>`<option value="${x.id}" ${x.id===p.sube_id?'selected':''}>${esc(x.ad)}</option>`).join('')}</select></label>
     <div class="f" id="kdyet" style="grid-column:1/-1" ${p.rol==='yonetici'?'hidden':''}><div style="font-size:12.5px;color:var(--ink2);font-weight:500;margin-bottom:8px">Görebileceği ekranlar</div>${yetkiKutulari(yetkiListesi(p))}</div>
@@ -913,6 +913,10 @@ function kullaniciDuzenle(id){const p=(window._KU||[]).find(x=>x.id===id);if(!p)
     <span style="display:flex;gap:8px"><button class="btn" value="cancel" formnovalidate>Vazgeç</button><button class="btn p" type="submit" id="kdok">Kaydet</button></span></div></form>`;
   document.body.appendChild(d);d.showModal();d.onclose=()=>d.remove();hazirBagla(d);
   const f=d.querySelector('#kdf');
+  let tm;f.ad_soyad.oninput=()=>{clearTimeout(tm);const v=f.ad_soyad.value.trim();const ka=d.querySelector('#kdka'),nt=d.querySelector('#kdkanot');
+    if(!v||v===(p.ad_soyad||'')){ka.textContent=p.kullanici_adi;nt.textContent='';return}
+    nt.textContent='…';tm=setTimeout(async()=>{try{const r=await yonet({islem:'kullanici_adi_oner',ad_soyad:v,id});ka.textContent=r.kullanici_adi||p.kullanici_adi;
+      nt.textContent=r.kullanici_adi&&r.kullanici_adi!==p.kullanici_adi?`(şu an: ${p.kullanici_adi})`:''}catch(e){nt.textContent=''}},350)};
   f.rol.onchange=()=>{const y=f.rol.value==='yonetici';d.querySelector('#kdyet').hidden=y;d.querySelector('#kdyon').hidden=!y};
   d.querySelector('#kdrast').onclick=()=>f.sifre.value=rastgeleSifre();
   const sil=d.querySelector('#kdsil');if(sil)sil.onclick=async()=>{if(!confirm(`"${p.kullanici_adi}" kalıcı olarak silinsin mi? Girdiği kayıtlar silinmez.`))return;try{await yonet({islem:'sil',id});d.close();toast('Kullanıcı silindi');render()}catch(e){toast(e.message)}};
@@ -923,10 +927,16 @@ function kullaniciDuzenle(id){const p=(window._KU||[]).find(x=>x.id===id);if(!p)
     const sifre=f.sifre.value.trim();if(sifre&&sifre.length<6)return toast('Şifre en az 6 karakter olmalı');
     const btn=d.querySelector('#kdok');btn.disabled=true;
     try{
-      const {error}=await sb.from('profiller').update({ad_soyad:f.ad_soyad.value.trim(),rol,sube_id:f.sube_id.value||null,yetkiler:rol==='yonetici'?null:yet}).eq('id',id);if(error)throw error;
+      const yeniAd=f.ad_soyad.value.trim();let adSonuc=null;
+      if(yeniAd!==(p.ad_soyad||''))adSonuc=await yonet({islem:'ad_degistir',id,ad_soyad:yeniAd});
+      const {error}=await sb.from('profiller').update({rol,sube_id:f.sube_id.value||null,yetkiler:rol==='yonetici'?null:yet}).eq('id',id);if(error)throw error;
+      if(ben&&adSonuc){ME.ad_soyad=yeniAd;ME.kullanici_adi=adSonuc.kullanici_adi;$('#uname').textContent=yeniAd;$('#uav').textContent=yeniAd.split(/\s+/).map(w=>w[0]).slice(0,2).join('').toLocaleUpperCase('tr')}
       const aktif=f.aktif.value==='1';if(!ben&&aktif!==!!p.aktif)await yonet({islem:'durum',id,aktif});
       if(sifre)await yonet({islem:'sifre',id,sifre});
-      d.close();render();if(sifre)girisBilgisi(f.ad_soyad.value.trim(),p.kullanici_adi,sifre);else toast('Kullanıcı kaydedildi')
+      const ka=adSonuc?.kullanici_adi||p.kullanici_adi;d.close();render();
+      if(sifre)girisBilgisi(yeniAd,ka,sifre);
+      else if(adSonuc?.degisti)kullaniciAdiBilgi(yeniAd,adSonuc.eski,ka,ben);
+      else toast('Kullanıcı kaydedildi')
     }catch(err){btn.disabled=false;toast(err.message)}};
 }
 const rastgeleSifre=()=>{const h='abcdefghjkmnpqrstuvwxyz',H='ABCDEFGHJKLMNPQRSTUVWXYZ',r='23456789';const c=a=>a[crypto.getRandomValues(new Uint32Array(1))[0]%a.length];return c(H)+c(h)+c(h)+c(h)+'-'+c(r)+c(r)+c(r)+c(r)};
@@ -958,6 +968,11 @@ function kullaniciEkle(){
     try{const r=await yonet({islem:'olustur',ad_soyad:f.ad_soyad.value.trim(),sifre:f.sifre.value,rol:f.rol.value,sube_id:f.sube_id.value||null,yetkiler:yet});
       const sifre=f.sifre.value;d.close();render();girisBilgisi(f.ad_soyad.value.trim(),r.kullanici_adi,sifre)}catch(err){btn.disabled=false;toast(err.message)}};
 }
+function kullaniciAdiBilgi(ad,eski,ka,ben){const d=document.createElement('dialog');
+  d.innerHTML=`<h3 style="margin:0 0 6px">Kullanıcı adı değişti</h3><p class="hint" style="margin:0 0 16px">${esc(ad)} ${ben?'bundan sonra':'bir sonraki girişinde'} yeni kullanıcı adıyla girecek. Şifre ve iki adımlı doğrulama aynen kaldı.</p>
+   <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 14px;background:var(--sunk);border-radius:var(--r-md);padding:14px 16px;font-size:15px"><span class="hint">Eski</span><span class="num" style="text-decoration:line-through;color:var(--muted)">${esc(eski)}</span><span class="hint">Yeni</span><b class="num" style="user-select:all">${esc(ka)}</b></div>
+   <div class="acts"><button class="btn p">Tamam</button></div>`;
+  document.body.appendChild(d);d.showModal();d.onclose=()=>d.remove();d.querySelector('button').onclick=()=>d.close()}
 function girisBilgisi(ad,ka,sifre){const d=document.createElement('dialog');const metin=`AFRA Panel giriş bilgileriniz\nAdres: ${location.origin}\nKullanıcı adı: ${ka}\nŞifre: ${sifre}`;
   d.innerHTML=`<h3 style="margin:0 0 6px">${esc(ad)} oluşturuldu</h3><p class="hint" style="margin:0 0 16px">Bu bilgileri kişiye iletin. Şifre bir daha gösterilmez; unutulursa Kullanıcılar ekranından yenisini verebilirsiniz.</p>
    <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 14px;background:var(--sunk);border-radius:var(--r-md);padding:14px 16px;font-size:15px"><span class="hint">Kullanıcı adı</span><b class="num" style="user-select:all">${esc(ka)}</b><span class="hint">Şifre</span><b class="num" style="user-select:all">${esc(sifre)}</b></div>
