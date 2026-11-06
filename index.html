@@ -533,7 +533,6 @@ V.islem=async()=>{
     <label data-g="kart">Kart<select class="ctl" name="kart"><option value="">–</option>${IKARTLAR().map(k=>`<option>${k}</option>`).join('')}</select></label>
     <label data-g="kart">Taksit<select class="ctl" name="taksit">${TAKSITLER.map(t=>`<option value="${t}">${t===1?'Tek çekim':t+' taksit'}</option>`).join('')}</select></label>
     <label data-g="musteri">Müşteri<input class="ctl" name="musteri"></label>
-    <label data-g="urun">Ürün / madde kodu<input class="ctl" name="urun" placeholder="Örn. 7296520186 buzdolabı"></label>
     <label data-g="gider">Gider kalemi<select class="ctl" name="gider_kalemi">${GIDER_KALEM.map(g=>`<option>${g}</option>`).join('')}</select></label>
     <label class="f" style="grid-column:span 2">Açıklama<input class="ctl" name="aciklama"></label>
     <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn p" type="submit" id="ikaydet">İşlemi kaydet</button><span class="hint">Kaydı giren olarak <b>${esc(ME.ad_soyad||ME.kullanici_adi)}</b> yazılır ve değiştirilemez. Kendi kaydınızı aynı gün içinde düzeltebilir ya da silebilirsiniz.</span></div>
@@ -550,10 +549,10 @@ V.islem=async()=>{
    ${O.map(o=>`<tr><td>${fdate(o.tarih)}</td><td>${esc(subeAd(o.sube_id))}</td><td class="r num">${tl(o.satis||0)}</td><td class="r num">${tl(o.tahsilat||0)}</td><td class="r num ${o.iptal?'neg':''}">${tl(o.iptal||0)}</td><td class="r num ${o.gider?'neg':''}">${tl(o.gider||0)}</td><td class="r num">${tl(o.kasa_giris||0)}</td><td class="r num ${o.kasa_cikis?'neg':''}">${tl(o.kasa_cikis||0)}</td><td class="r num">${tl(o.kart||0)}</td><td class="r num">${tl(o.odero||0)}</td><td class="r num ${o.nakit_net<0?'neg':''}">${tl(o.nakit_net)}</td><td class="r num" style="font-weight:600">${tl(o.nakit_bakiye)}</td></tr>`).join('')||'<tr><td colspan="12" class="empty">Bu aralıkta işlem yok</td></tr>'}
    </tbody></table></div></div>
   <div class="card" style="margin-top:16px"><h3>Kayıtlar (${R.length})<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">${[['','Tümü'],...Object.entries(ITUR).map(([k,[l]])=>[k,l])].map(([k,l])=>`<button class="tab ${st===k?'on':''}" data-st="${k}">${l}</button>`).join('')}<button class="btn s" id="iexp">Excel'e aktar</button></span></h3>
-   <div class="tw"><table><thead><tr><th>Tarih</th><th>Şube</th><th>Tür</th><th>Ödeme</th><th>Müşteri / ürün</th><th>Açıklama</th><th class="r">Tutar</th><th>Giren</th><th></th></tr></thead><tbody>
+   <div class="tw"><table><thead><tr><th>Tarih</th><th>Şube</th><th>Tür</th><th>Ödeme</th><th>Müşteri / gider kalemi</th><th>Açıklama</th><th class="r">Tutar</th><th>Giren</th><th></th></tr></thead><tbody>
    ${R.map(r=>{const duz=isYon()||(r.giren_id===ME.id&&r.created_at.slice(0,10)===today());return `<tr><td>${fdate(r.tarih)}</td><td>${esc(subeAd(r.sube_id))}</td><td><span class="pill ${ITUR[r.tur][1]}">${ITUR[r.tur][0]}</span></td>
     <td>${esc((IODEME.find(x=>x[0]===r.odeme_tipi)||[])[1]||r.odeme_tipi)}${r.kart?`<div class="hint">${esc(r.kart)} · ${r.taksit>1?r.taksit+' taksit':'tek çekim'}</div>`:''}</td>
-    <td>${esc(r.musteri||'')}${r.urun?`<div class="hint">${esc(r.urun)}</div>`:''}${r.gider_kalemi?`<div class="hint">${esc(r.gider_kalemi)}</div>`:''}</td>
+    <td>${esc(r.musteri||'')}${r.gider_kalemi?`<div class="hint">${esc(r.gider_kalemi)}</div>`:''}</td>
     <td class="hint">${esc(r.aciklama||'')}</td>
     <td class="r num ${isaret(r)<0?'neg':''}">${isaret(r)<0?'−':''}${tl(r.tutar)}</td>
     <td><div>${esc(r.giren_ad)}</div><div class="hint">${new Date(r.created_at).toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${r.guncelleyen_ad?` · düzelten: ${esc(r.guncelleyen_ad)}`:''}</div></td>
@@ -564,7 +563,6 @@ V.islem=async()=>{
   const alanlar=()=>{const t=window._itur||'satis',od=f.odeme_tipi.value;
     f.querySelectorAll('[data-g="kart"]').forEach(x=>x.classList.toggle('hidden',!((t==='satis'||t==='tahsilat')&&KARTLI_ODEME(od))));
     f.querySelector('[data-g="gider"]').classList.toggle('hidden',t!=='gider');
-    f.querySelector('[data-g="urun"]').classList.toggle('hidden',!(t==='satis'||t==='iptal'));
     f.querySelector('[data-g="musteri"]').classList.toggle('hidden',t==='gider'||KASA_TUR(t));
     f.querySelector('[data-g="odeme"]').classList.toggle('hidden',KASA_TUR(t));
     f.aciklama.placeholder=t==='kasa_giris'?'Örn. bankadan çekilen, merkezden gelen nakit':t==='kasa_cikis'?'Örn. bankaya yatırılan, merkeze gönderilen nakit':'';
@@ -576,13 +574,12 @@ V.islem=async()=>{
     const t=window._itur||'satis',kartli=(t==='satis'||t==='tahsilat')&&KARTLI_ODEME(d.odeme_tipi);if(KASA_TUR(t)){d.odeme_tipi='nakit';if(!d.aciklama)return toast('Kasa giriş / çıkışın nedenini açıklamaya yazın')}
     if(kartli&&!d.kart)return toast('Kart seçin');
     const row={sube_id:d.sube_id,tarih:d.tarih,tur:t,odeme_tipi:d.odeme_tipi,tutar,aciklama:d.aciklama||null,
-      musteri:t==='gider'||KASA_TUR(t)?null:(d.musteri||null),urun:(t==='satis'||t==='iptal')?(d.urun||null):null,madde_kodu:((d.urun||'').match(/\b\d{8,12}\b/)||[])[0]||null,
-      gider_kalemi:t==='gider'?d.gider_kalemi:null,kart:kartli?d.kart:null,taksit:kartli?+d.taksit:null};
+      musteri:t==='gider'||KASA_TUR(t)?null:(d.musteri||null),gider_kalemi:t==='gider'?d.gider_kalemi:null,kart:kartli?d.kart:null,taksit:kartli?+d.taksit:null};
     $('#ikaydet').disabled=true;const {error}=await sb.from('gunluk_islemler').insert(row);$('#ikaydet').disabled=false;
     if(error)return toast('Kaydedilemedi: '+error.message);toast(`${ITUR[t][0]} kaydedildi: ${tl(tutar)}`);render()};
   $('#view').querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{window._ist=b.dataset.st;render()});
   $('#iexp').onclick=()=>xlsxOut(R.map(r=>({Tarih:r.tarih,Şube:subeAd(r.sube_id),Tür:ITUR[r.tur][0],Ödeme:(IODEME.find(x=>x[0]===r.odeme_tipi)||[])[1],Kart:r.kart,Taksit:r.taksit,
-    Müşteri:r.musteri,Ürün:r.urun,'Gider kalemi':r.gider_kalemi,Açıklama:r.aciklama,Tutar:isaret(r)*r.tutar,Giren:r.giren_ad,'Giriş zamanı':new Date(r.created_at).toLocaleString('tr-TR'),Düzelten:r.guncelleyen_ad})),'gunluk_islem');
+    Müşteri:r.musteri,'Gider kalemi':r.gider_kalemi,Açıklama:r.aciklama,Tutar:isaret(r)*r.tutar,Giren:r.giren_ad,'Giriş zamanı':new Date(r.created_at).toLocaleString('tr-TR'),Düzelten:r.guncelleyen_ad})),'gunluk_islem');
   if(isYon())$('#idevir').onclick=async()=>{const sid=$('#fsube').value||SUBELER[0]?.id;const m=DV.find(d=>d.sube_id===sid)||{};
     const o=await form('Nakit kasa başlangıç bakiyesi',[{k:'sube_id',l:'Şube',t:'select',o:SUBELER.map(x=>[x.id,x.ad]),d:sid,full:true},{k:'tarih',l:'Bu tarihten itibaren',t:'date',d:m.tarih||today(),req:true},{k:'tutar',l:'Kasadaki nakit (₺)',t:'number',d:m.tutar??0,req:true}]);
     if(!o)return;const {error}=await sb.from('gunluk_islem_devir').upsert({sube_id:o.sube_id,tarih:o.tarih,tutar:normNum(o.tutar),updated_at:new Date().toISOString()});toast(error?error.message:'Başlangıç bakiyesi kaydedildi');render()};
@@ -590,8 +587,8 @@ V.islem=async()=>{
 async function islemDuzenle(id){const r=(window._IR||[]).find(x=>x.id===id);if(!r)return;
   const o=await form(`${ITUR[r.tur][0]} kaydını düzelt`,[{k:'tarih',l:'Tarih',t:'date',req:true},{k:'tutar',l:'Tutar (₺)',t:'number',req:true},{k:'odeme_tipi',l:'Ödeme tipi',t:'select',o:IODEME},
     ...((r.tur==='satis'||r.tur==='tahsilat')?[{k:'kart',l:'Kart (kredi kartı / Ödero)',t:'select',o:[['','–'],...IKARTLAR().map(k=>[k,k])]},{k:'taksit',l:'Taksit',t:'select',o:TAKSITLER.map(t=>[t,t===1?'Tek çekim':t+' taksit']),d:1}]:[]),
-    ...(KASA_TUR(r.tur)?[]:[{k:'musteri',l:'Müşteri'},{k:'urun',l:'Ürün / madde kodu'}]),{k:'aciklama',l:'Açıklama',t:'textarea'}].filter(x=>!(KASA_TUR(r.tur)&&x.k==='odeme_tipi')),{...r,taksit:r.taksit||1});if(!o)return;
-  const u={tarih:o.tarih,tutar:normNum(o.tutar),aciklama:o.aciklama};if(!KASA_TUR(r.tur))Object.assign(u,{odeme_tipi:o.odeme_tipi,musteri:o.musteri,urun:o.urun});
+    ...(KASA_TUR(r.tur)?[]:[{k:'musteri',l:'Müşteri'}]),{k:'aciklama',l:'Açıklama',t:'textarea'}].filter(x=>!(KASA_TUR(r.tur)&&x.k==='odeme_tipi')),{...r,taksit:r.taksit||1});if(!o)return;
+  const u={tarih:o.tarih,tutar:normNum(o.tutar),aciklama:o.aciklama};if(!KASA_TUR(r.tur))Object.assign(u,{odeme_tipi:o.odeme_tipi,musteri:o.musteri});
   if(r.tur==='satis'||r.tur==='tahsilat'){if(KARTLI_ODEME(o.odeme_tipi)){if(!o.kart)return toast('Kart seçin');u.kart=o.kart;u.taksit=+o.taksit||1}else{u.kart=null;u.taksit=null}}
   if(!(u.tutar>0))return toast('Tutar sıfırdan büyük olmalı');
   const {error,count}=await sb.from('gunluk_islemler').update(u,{count:'exact'}).eq('id',id);
