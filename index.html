@@ -275,7 +275,7 @@ p.hint{max-width:90ch}
       <button class="nav" id="sifrem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg><span>Şifremi değiştir</span></button>
       <button class="nav" id="tema"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/></svg><span>Koyu / açık tema</span></button>
       <button class="nav" id="cikis"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h5a1 1 0 011 1v14a1 1 0 01-1 1h-5M10 16l-4-4 4-4M6 12h10"/></svg><span>Çıkış yap</span></button>
-      <div class="hint" id="surum" style="padding:6px 8px 0;font-size:11.5px">Sürüm 09.11.2026 · 17:25</div>
+      <div class="hint" id="surum" style="padding:6px 8px 0;font-size:11.5px">Sürüm 09.11.2026 · 18:30</div>
     </div>
   </aside>
   <main>
@@ -651,69 +651,91 @@ async function islemDuzenle(id){const r=(window._IR||[]).find(x=>x.id===id);if(!
 async function islemSil(id){const r=(window._IR||[]).find(x=>x.id===id);if(!r||!confirm(`${ITUR[r.tur][0]} kaydı (${tl(r.tutar)}) silinsin mi?`))return;
   const {error,count}=await sb.from('gunluk_islemler').delete({count:'exact'}).eq('id',id);toast(error?error.message:count===0?'Bu kaydı silme yetkiniz yok':'Kayıt silindi');render()}
 
+const SEVK_ALAN={sube_id:'Şube',tarih:'Satış tarihi',siparis_no:'Sipariş no',irsaliye_no:'İrsaliye no',musteri:'Müşteri',adres:'Adres',urun_kodu:'Ürün kodu',urun_adi:'Ürün',adet:'Adet',tutar:'Tutar',durum:'Durum',planlanan_tarih:'Planlanan teslim',teslim_tarihi:'Teslim tarihi',teslim_eden:'Teslim eden',aciklama:'Not',randevu_saati:'Teslim saati'};
+const sevkDeger=(k,v)=>v==null||v===''?'–':k==='sube_id'?subeAd(v):/tarih/.test(k)?fdate(v):k==='durum'?(LBL[v]||v):k==='tutar'?tl(v):String(v);
+const zaman=t=>new Date(t).toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
 V.sevk=async()=>{
   const st=window._sst||'acik';
-  let r=q('sevkiyatlar').order('tarih',{ascending:false}).order('created_at',{ascending:false}).limit(1000);
-  if(st==='acik')r=r.in('durum',['bekliyor','planlandi','yolda']);else if(st==='manuel')r=r.eq('kaynak','manuel');else if(st!=='tumu')r=r.eq('durum',st);
-  const {data:S=[]}=await r;
   const benimSube=ME.sube_id||$('#fsube').value||SUBELER[0]?.id,subeSec=isYon()||SUBELER.length>1,on=window._sgOn||{};
+  const sekmeler=[['acik','Açık'],['bekliyor','Bekliyor'],['planlandi','Planlandı'],['yolda','Yolda'],['teslim_edildi','Teslim'],['iade','İade'],['manuel','Elle girilen'],['tumu','Tümü'],['gecmis','Düzeltme ve silme']];
+  let S=[],G=[];
+  if(st==='gecmis'){
+    let g=sb.from('sevkiyat_gecmis').select('*').order('zaman',{ascending:false}).limit(500);const fs=$('#fsube').value;if(fs)g=g.eq('sube_id',fs);
+    ({data:G=[]}=await g);
+    const ids=[...new Set(G.filter(g=>g.islem!=='silme').map(g=>g.sevkiyat_id))];
+    const [{data:T=[]},{data:A=[]}]=await Promise.all([sb.from('sevkiyatlar').select('teslim_eden').not('teslim_eden','is',null).limit(1000),
+      ids.length?sb.from('sevkiyatlar').select('id,musteri,urun_adi,adet,tarih').in('id',ids.slice(0,200)):Promise.resolve({data:[]})]);
+    S=T;window._SADI=Object.fromEntries(A.map(a=>[a.id,a]));
+  }else{
+    let r=q('sevkiyatlar').order('tarih',{ascending:false}).order('created_at',{ascending:false}).limit(1000);
+    if(st==='acik')r=r.in('durum',['bekliyor','planlandi','yolda']);else if(st==='manuel')r=r.eq('kaynak','manuel');else if(st!=='tumu')r=r.eq('durum',st);
+    ({data:S=[]}=await r);
+  }
   const bugun=S.filter(s=>s.kaynak==='manuel'&&s.olusturan===ME.id&&String(s.created_at).slice(0,10)===today());
   $('#view').innerHTML=`
-  <div class="card" style="margin-bottom:16px"><h3>Elle sevkiyat girişi<span class="hint" style="margin-left:auto;font-weight:400">AX sisteminde olmayan ya da beklemeden takibe alınacak sevkiyatlar</span></h3>
+  <div class="card" style="margin-bottom:16px"><h3>Elle sevkiyat girişi<span class="hint" style="margin-left:auto;font-weight:400">Teslim tarihi: bugün, ${fdate(today())}</span></h3>
    <form id="sgform" class="form f4" autocomplete="off">
     ${subeSec?`<label>Şube<select class="ctl" name="sube_id" required>${SUBELER.map(x=>`<option value="${x.id}" ${x.id===(on.sube_id||benimSube)?'selected':''}>${esc(x.ad)}</option>`).join('')}</select></label>`:`<input type="hidden" name="sube_id" value="${benimSube||''}">`}
-    <label>Satış tarihi<input class="ctl" type="date" name="tarih" value="${on.tarih||today()}" ${isYon()?'':`max="${today()}"`} required></label>
+    <label>Satış tarihi<input class="ctl" type="date" name="tarih" value="${on.tarih||today()}" max="${today()}" required></label>
     <label>Müşteri<input class="ctl" name="musteri" required value="${esc(on.musteri||'')}"></label>
     <label>Sipariş no<input class="ctl" name="siparis_no" value="${esc(on.siparis_no||'')}" placeholder="Varsa"></label>
     <label style="grid-column:span 2">Ürün<input class="ctl" name="urun_adi" required placeholder="Örn. Arçelik 9 kg çamaşır makinesi"></label>
     <label>Adet<input class="ctl num" name="adet" inputmode="numeric" value="1" required></label>
-    <label>Teslim tarihi<input class="ctl" type="date" name="planlanan_tarih" value="${on.planlanan_tarih||''}"></label>
-    <label>Teslim eden<input class="ctl" name="teslim_eden" list="teslimciler" value="${esc(on.teslim_eden||'')}" placeholder="Biliniyorsa"></label>
-    <label style="grid-column:span 3">Not<input class="ctl" name="aciklama" placeholder="Örn. eski cihaz alınacak, montaj yapılacak"></label>
-    <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn p" type="submit" id="sgkaydet">Sevkiyatı kaydet</button><button class="btn" type="button" id="sgdevam">Kaydet, aynı müşteriye ürün ekle</button><span class="hint">Kaydı giren olarak <b>${esc(ME.ad_soyad||ME.kullanici_adi)}</b> yazılır. Kendi girdiğiniz sevkiyatın durumunu güncelleyebilir, aynı gün içinde silebilirsiniz.</span></div>
+    <label>Teslim eden<input class="ctl" name="teslim_eden" list="teslimciler" required value="${esc(on.teslim_eden||'')}"></label>
+    <label style="grid-column:span 4">Not<input class="ctl" name="aciklama" placeholder="Örn. eski cihaz alındı, montaj yapıldı"></label>
+    <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn p" type="submit" id="sgkaydet">Sevkiyatı kaydet</button><button class="btn" type="button" id="sgdevam">Kaydet, aynı müşteriye ürün ekle</button><span class="hint">Kaydı giren olarak <b>${esc(ME.ad_soyad||ME.kullanici_adi)}</b> yazılır. Sonradan yapılan her düzeltme ve silme, yapanın adıyla kayda geçer.</span></div>
    </form><datalist id="teslimciler">${[...new Set(S.map(x=>x.teslim_eden).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'tr')).map(x=>`<option value="${esc(x)}">`).join('')}</datalist>
    ${bugun.length?`<div class="hint" style="margin-top:10px">Bugün girdiğiniz: <b>${bugun.length}</b> sevkiyat</div>`:''}
   </div>
-  <div class="tabs">${[['acik','Açık'],['bekliyor','Bekliyor'],['planlandi','Planlandı'],['yolda','Yolda'],['teslim_edildi','Teslim'],['iade','İade'],['manuel','Elle girilen'],['tumu','Tümü']].map(([k,l])=>`<button class="tab ${k===st?'on':''}" data-s="${k}">${l}</button>`).join('')}
-   <span style="flex:1"></span><button class="btn" id="simp">İçe aktar</button><button class="btn" id="sexp">Excel'e aktar</button></div>
-  <div class="card"><div class="tw"><table><thead><tr><th>Sipariş / Randevu</th><th>Şube</th><th>Sipariş / İrsaliye</th><th>Müşteri</th><th>Ürün</th><th class="r">Adet</th><th class="r">Tutar</th><th>Durum</th><th>Gün</th><th></th></tr></thead><tbody>
-  ${S.map(s=>{const g=Math.round((new Date(today())-new Date(s.tarih))/864e5);const acik=['bekliyor','planlandi','yolda'].includes(s.durum);const benim=isYon()||s.olusturan===ME.id;
-   const sil=isYon()||(s.kaynak==='manuel'&&s.olusturan===ME.id&&String(s.created_at).slice(0,10)===today());
-   return `<tr><td>${fdate(s.tarih)}${s.planlanan_tarih?`<div class="hint">📅 ${fdate(s.planlanan_tarih)} ${esc(s.randevu_saati||'')}</div>`:''}${s.depo_tipi?`<div><span class="pill ${s.depo_tipi==='MAĞAZA'?'kritik':'bilgi'}">${esc(s.depo_tipi)}</span> <span class="hint">${esc(s.depo||'')}</span></div>`:''}${s.is_emri_durumu?`<div class="hint">İE: ${esc(s.is_emri_durumu)}</div>`:''}${s.kaynak==='manuel'?`<div class="hint">Elle · ${esc(s.giren_ad||'')}</div>`:''}</td><td>${esc(subeAd(s.sube_id))}</td><td>${esc(s.siparis_no||'–')}<div class="hint">${esc(s.irsaliye_no||'')}</div></td><td>${esc(s.musteri||'')}${s.telefon?`<div class="hint">${esc(s.telefon)}</div>`:''}<div class="hint">${esc(s.adres||'')}</div>${s.aciklama?`<div class="hint">📝 ${esc(s.aciklama)}</div>`:''}</td><td>${esc(s.urun_adi||s.urun_kodu||'')}</td>
-   <td class="r num">${s.adet}</td><td class="r num">${tl(s.tutar)}</td><td>${benim?`<select class="ctl" style="min-height:30px;padding:3px 6px" onchange="setDurum('${s.id}',this.value)">${['bekliyor','planlandi','yolda','teslim_edildi','iade','iptal'].map(d=>`<option value="${d}" ${d===s.durum?'selected':''}>${LBL[d]}</option>`).join('')}</select>`:pill(s.durum)}${s.teslim_eden?`<div class="hint">Teslim eden: ${esc(s.teslim_eden)}${s.teslim_tarihi?' · '+fdate(s.teslim_tarihi):''}</div>`:''}</td>
-   <td class="num ${acik&&g>3?'neg':''}">${acik?g:''}</td><td style="white-space:nowrap">${benim?`<button class="btn s" onclick='editSevk(${JSON.stringify(s.id)})'>Düzenle</button>`:''}${sil?` <button class="btn s" onclick='silSevk(${JSON.stringify(s.id)})'>Sil</button>`:''}</td></tr>`}).join('')||'<tr><td colspan="10" class="empty">Kayıt yok</td></tr>'}
-  </tbody></table></div></div>`;
+  <div class="tabs">${sekmeler.map(([k,l])=>`<button class="tab ${k===st?'on':''}" data-s="${k}">${l}</button>`).join('')}
+   <span style="flex:1"></span>${st==='gecmis'?'':'<button class="btn" id="simp">İçe aktar</button>'}<button class="btn" id="sexp">Excel'e aktar</button></div>
+  ${st==='gecmis'?sevkGecmisTablo(G):`<div class="card"><div class="tw"><table><thead><tr><th>Satış / Randevu</th><th>Şube</th><th>Sipariş / İrsaliye</th><th>Müşteri</th><th>Ürün</th><th class="r">Adet</th><th class="r">Tutar</th><th>Teslim</th><th>Gün</th><th></th></tr></thead><tbody>
+  ${S.map(s=>{const g=Math.round((new Date(today())-new Date(s.tarih))/864e5);const acik=['bekliyor','planlandi','yolda'].includes(s.durum);const elle=s.kaynak==='manuel';
+   const duz=isYon()||(!elle&&s.olusturan===ME.id)||(elle&&s.olusturan===ME.id&&String(s.created_at).slice(0,10)===today());
+   const sonra=s.guncelleme_zamani&&String(s.guncelleme_zamani).slice(0,10)!==String(s.created_at).slice(0,10);
+   return `<tr><td>${fdate(s.tarih)}${s.planlanan_tarih?`<div class="hint">📅 ${fdate(s.planlanan_tarih)} ${esc(s.randevu_saati||'')}</div>`:''}${s.depo_tipi?`<div><span class="pill ${s.depo_tipi==='MAĞAZA'?'kritik':'bilgi'}">${esc(s.depo_tipi)}</span> <span class="hint">${esc(s.depo||'')}</span></div>`:''}${s.is_emri_durumu?`<div class="hint">İE: ${esc(s.is_emri_durumu)}</div>`:''}${elle?`<div class="hint">Elle · ${esc(s.giren_ad||'')}</div>`:''}${s.guncelleyen_ad?`<div class="hint" ${sonra?'style="color:var(--bad)" title="Girildiği günden sonra düzeltildi"':''}>Düzelten: ${esc(s.guncelleyen_ad)} · ${zaman(s.guncelleme_zamani)}</div>`:''}</td><td>${esc(subeAd(s.sube_id))}</td><td>${esc(s.siparis_no||'–')}<div class="hint">${esc(s.irsaliye_no||'')}</div></td><td>${esc(s.musteri||'')}${s.telefon?`<div class="hint">${esc(s.telefon)}</div>`:''}<div class="hint">${esc(s.adres||'')}</div>${s.aciklama?`<div class="hint">📝 ${esc(s.aciklama)}</div>`:''}</td><td>${esc(s.urun_adi||s.urun_kodu||'')}</td>
+   <td class="r num">${s.adet}</td><td class="r num">${elle?'':tl(s.tutar)}</td><td>${elle||s.durum==='teslim_edildi'?`<div>${s.teslim_tarihi?fdate(s.teslim_tarihi):pill(s.durum)}</div>`:pill(s.durum)}${s.teslim_eden?`<div class="hint">${esc(s.teslim_eden)}</div>`:''}</td>
+   <td class="num ${acik&&g>3?'neg':''}">${acik?g:''}</td><td style="white-space:nowrap">${duz?`<button class="btn s" onclick='editSevk(${JSON.stringify(s.id)})'>Düzenle</button>`:''}${duz&&(elle||isYon())?` <button class="btn s" onclick='silSevk(${JSON.stringify(s.id)})'>Sil</button>`:''}</td></tr>`}).join('')||'<tr><td colspan="10" class="empty">Kayıt yok</td></tr>'}
+  </tbody></table></div></div>`}`;
   window._S=S;window._sgOn=null;
   document.querySelectorAll('.tab[data-s]').forEach(t=>t.onclick=()=>{window._sst=t.dataset.s;render()});
   const f=$('#sgform');
   const kaydet=async devam=>{if(!f.reportValidity())return;const d=Object.fromEntries(new FormData(f));
     const adet=Math.round(normNum(d.adet));
-    if(!(adet>0))return toast('Adet en az 1 olmalı');if(!d.sube_id)return toast('Şube seçin');
-    const row={sube_id:d.sube_id,tarih:d.tarih,musteri:d.musteri.trim(),urun_adi:d.urun_adi.trim(),adet,
-      planlanan_tarih:d.planlanan_tarih||null,teslim_eden:(d.teslim_eden||'').trim()||null,siparis_no:d.siparis_no||null,aciklama:d.aciklama||null,durum:d.planlanan_tarih?'planlandi':'bekliyor'};
+    if(!(adet>0))return toast('Adet en az 1 olmalı');if(!d.sube_id)return toast('Şube seçin');if(!(d.teslim_eden||'').trim())return toast('Teslim edeni yazın');
+    const row={sube_id:d.sube_id,tarih:d.tarih,musteri:d.musteri.trim(),urun_adi:d.urun_adi.trim(),adet,teslim_eden:d.teslim_eden.trim(),siparis_no:d.siparis_no||null,aciklama:d.aciklama||null,durum:'teslim_edildi',teslim_tarihi:today()};
     $('#sgkaydet').disabled=$('#sgdevam').disabled=true;const {error}=await sb.from('sevkiyatlar').insert(row);$('#sgkaydet').disabled=$('#sgdevam').disabled=false;
     if(error)return toast('Kaydedilemedi: '+error.message);
     toast(`Sevkiyat kaydedildi: ${row.musteri} · ${row.urun_adi}`);
-    if(devam)window._sgOn={sube_id:row.sube_id,tarih:row.tarih,musteri:row.musteri,planlanan_tarih:d.planlanan_tarih,teslim_eden:d.teslim_eden,siparis_no:d.siparis_no};
+    if(devam)window._sgOn={sube_id:row.sube_id,tarih:row.tarih,musteri:row.musteri,teslim_eden:row.teslim_eden,siparis_no:d.siparis_no};
     await render();if(devam)$('#sgform')?.urun_adi.focus()};
   f.onsubmit=e=>{e.preventDefault();kaydet(false)};
   $('#sgdevam').onclick=()=>kaydet(true);
-  $('#sexp').onclick=()=>xlsxOut(S.map(s=>({Tarih:s.tarih,Şube:subeAd(s.sube_id),Sipariş:s.siparis_no,İrsaliye:s.irsaliye_no,Müşteri:s.musteri,Adres:s.adres,Ürün:s.urun_adi,Adet:s.adet,Tutar:+s.tutar,Durum:LBL[s.durum],'Teslim planı':s.planlanan_tarih,'Teslim saati':s.randevu_saati,Teslim:s.teslim_tarihi,'Teslim eden':s.teslim_eden,Not:s.aciklama,Kaynak:s.kaynak==='manuel'?'Elle':'AX',Giren:s.giren_ad})),'sevkiyat');
+  if(st==='gecmis'){$('#sexp').onclick=()=>xlsxOut(G.map(g=>({Zaman:zaman(g.zaman),İşlem:g.islem==='silme'?'Silme':'Düzeltme',Yapan:g.yapan_ad,Şube:subeAd(g.sube_id),Müşteri:(g.islem==='silme'?g.eski:null)?.musteri||'',Ürün:(g.islem==='silme'?g.eski:null)?.urun_adi||'',
+    Değişiklik:g.islem==='silme'?'Kayıt silindi':Object.keys(g.yeni||{}).map(k=>`${SEVK_ALAN[k]||k}: ${sevkDeger(k,g.eski?.[k])} → ${sevkDeger(k,g.yeni[k])}`).join('; ')})),'sevkiyat_degisiklik');return}
+  $('#sexp').onclick=()=>xlsxOut(S.map(s=>({'Satış tarihi':s.tarih,Şube:subeAd(s.sube_id),Sipariş:s.siparis_no,İrsaliye:s.irsaliye_no,Müşteri:s.musteri,Ürün:s.urun_adi,Adet:s.adet,Tutar:s.kaynak==='manuel'?null:+s.tutar,Durum:LBL[s.durum],'Teslim tarihi':s.teslim_tarihi,'Teslim eden':s.teslim_eden,Not:s.aciklama,Kaynak:s.kaynak==='manuel'?'Elle':'AX',Giren:s.giren_ad,Düzelten:s.guncelleyen_ad,'Düzeltme zamanı':s.guncelleme_zamani?zaman(s.guncelleme_zamani):''})),'sevkiyat');
   $('#simp').onclick=()=>importFile('sevkiyatlar',{tarih:['tarih','date'],siparis_no:['sipariş','siparis','sipariş no'],irsaliye_no:['irsaliye','irsaliye no'],musteri:['müşteri','musteri','cari'],adres:['adres'],urun_kodu:['ürün kodu','urun kodu','madde'],urun_adi:['ürün','urun','ürün adı'],adet:['adet','miktar'],tutar:['tutar'],durum:['durum']});
 };
-async function silSevk(id){const s=(window._S||[]).find(x=>x.id===id);if(!s||!confirm(`${s.musteri||''} · ${s.urun_adi||''} sevkiyatı silinsin mi?`))return;
+function sevkGecmisTablo(G){
+  return `<div class="card"><div class="tw"><table><thead><tr><th>Zaman</th><th>İşlem</th><th>Yapan</th><th>Şube</th><th>Sevkiyat</th><th>Ne değişti</th></tr></thead><tbody>
+  ${G.map(g=>{const sil=g.islem==='silme',e=g.eski||{};const kayit=sil?e:null;
+   return `<tr><td class="num">${zaman(g.zaman)}</td><td><span class="pill ${sil?'kritik':'uyari'}">${sil?'Silindi':'Düzeltildi'}</span></td><td>${esc(g.yapan_ad||'')}</td><td>${esc(subeAd(g.sube_id))}</td>
+   <td>${sil?`${esc(e.musteri||'')}<div class="hint">${esc(e.urun_adi||'')} · ${e.adet||''} adet</div><div class="hint">Satış ${fdate(e.tarih)}${e.teslim_tarihi?' · teslim '+fdate(e.teslim_tarihi):''}${e.teslim_eden?' · '+esc(e.teslim_eden):''}</div><div class="hint">${e.kaynak==='manuel'?'Elle · '+esc(e.giren_ad||''):'AX'}</div>`:(a=>a?`${esc(a.musteri||'')}<div class="hint">${esc(a.urun_adi||'')} · ${a.adet} adet · satış ${fdate(a.tarih)}</div>`:'<span class="hint">–</span>')(window._SADI?.[g.sevkiyat_id])}</td>
+   <td>${sil?'<span class="hint">Kayıt silindi</span>':Object.keys(g.yeni||{}).map(k=>`<div><b>${esc(SEVK_ALAN[k]||k)}:</b> <span class="hint" style="text-decoration:line-through">${esc(sevkDeger(k,e[k]))}</span> → ${esc(sevkDeger(k,g.yeni[k]))}</div>`).join('')}</td></tr>`}).join('')||'<tr><td colspan="6" class="empty">Düzeltilen ya da silinen sevkiyat yok</td></tr>'}
+  </tbody></table></div></div>`}
+async function silSevk(id){const s=(window._S||[]).find(x=>x.id===id);if(!s||!confirm(`${s.musteri||''} · ${s.urun_adi||''} sevkiyatı silinsin mi? Silme işlemi adınızla kayda geçer.`))return;
   const {error,count}=await sb.from('sevkiyatlar').delete({count:'exact'}).eq('id',id);toast(error?error.message:count===0?'Bu kaydı silme yetkiniz yok (yalnızca kendi girdiğiniz sevkiyatı, aynı gün silebilirsiniz)':'Sevkiyat silindi');render()}
 const sevkFields=()=>[subeField(),{k:'tarih',l:'Sipariş tarihi',t:'date',d:today(),req:true},{k:'siparis_no',l:'Sipariş no'},{k:'irsaliye_no',l:'İrsaliye no'},{k:'musteri',l:'Müşteri',full:true},{k:'adres',l:'Adres',t:'textarea'},
   {k:'urun_kodu',l:'Ürün kodu'},{k:'urun_adi',l:'Ürün adı'},{k:'adet',l:'Adet',t:'number',d:1},{k:'tutar',l:'Tutar (₺)',t:'number'},
   {k:'durum',l:'Durum',t:'select',o:['bekliyor','planlandi','yolda','teslim_edildi','iade','iptal']},{k:'planlanan_tarih',l:'Planlanan teslim',t:'date'},{k:'teslim_tarihi',l:'Teslim tarihi',t:'date'},{k:'teslim_eden',l:'Teslim eden',list:'teslimciler'},{k:'aciklama',l:'Not',t:'textarea'}];
-async function editSevk(id){const s=id?window._S.find(x=>x.id===id):{};const o=await form(id?'Sevkiyatı düzenle':'Yeni sevkiyat',sevkFields(),s);if(!o)return;
+const elleSevkFields=()=>[subeField(),{k:'tarih',l:'Satış tarihi',t:'date',req:true},{k:'musteri',l:'Müşteri',req:true},{k:'siparis_no',l:'Sipariş no'},{k:'urun_adi',l:'Ürün',req:true},{k:'adet',l:'Adet',t:'number',req:true},
+  {k:'teslim_eden',l:'Teslim eden',req:true,list:'teslimciler'},...(isYon()?[{k:'teslim_tarihi',l:'Teslim tarihi',t:'date',req:true}]:[]),{k:'aciklama',l:'Not',t:'textarea'}];
+async function editSevk(id){const s=id?window._S.find(x=>x.id===id):{};const elle=s.kaynak==='manuel';
+  const o=await form(id?(elle?'Elle girilen sevkiyatı düzelt':'Sevkiyatı düzenle'):'Yeni sevkiyat',elle?elleSevkFields():sevkFields(),s);if(!o)return;
   if(o.durum==='teslim_edildi'&&!o.teslim_tarihi)o.teslim_tarihi=today();if(o.tutar!=null)o.tutar=normNum(o.tutar);if(o.adet!=null)o.adet=Math.round(normNum(o.adet))||1;
-  if(id){const {error,count}=await sb.from('sevkiyatlar').update(o,{count:'exact'}).eq('id',id);toast(error?error.message:count===0?'Bu kaydı yalnızca kaydı giren kişi ya da yönetici değiştirebilir':'Güncellendi');render()}else save('sevkiyatlar',o)}
-async function setDurum(id,d){const s=(window._S||[]).find(x=>x.id===id)||{};const u={durum:d};
-  if(d==='teslim_edildi'){u.teslim_tarihi=today();
-    if(s.kaynak==='manuel'&&!s.teslim_eden){const o=await form('Teslim bilgisi',[{k:'teslim_eden',l:'Teslim eden',req:true,list:'teslimciler'},{k:'teslim_tarihi',l:'Teslim tarihi',t:'date',req:true}],{teslim_tarihi:today()});
-      if(!o||!(o.teslim_eden||'').trim()){toast('Teslim edildi demek için teslim edeni yazın');return render()}
-      u.teslim_eden=o.teslim_eden.trim();u.teslim_tarihi=o.teslim_tarihi||today()}}
+  if(elle&&!(o.teslim_eden||'').trim())return toast('Teslim edeni yazın');
+  if(id){const {error,count}=await sb.from('sevkiyatlar').update(o,{count:'exact'}).eq('id',id);toast(error?error.message:count===0?'Bu kaydı düzeltme yetkiniz yok':'Düzeltildi, adınızla kayda geçti');render()}else save('sevkiyatlar',o)}
+async function setDurum(id,d){const u={durum:d};if(d==='teslim_edildi')u.teslim_tarihi=today();
   const {error,count}=await sb.from('sevkiyatlar').update(u,{count:'exact'}).eq('id',id);toast(error?error.message:count===0?'Bu kaydı yalnızca kaydı giren kişi ya da yönetici değiştirebilir':'Durum güncellendi');render()}
 
 V.finans=async()=>{
