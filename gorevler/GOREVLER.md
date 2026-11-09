@@ -126,32 +126,35 @@ ADIM 5 — Bitir: sekmeyi kapat. Herhangi bir kayıt "fark" ya da "hata" ise bil
 
 ---
 
-## GÖREV 4 — Arçelik Fiyat Taraması (ayın 1–3 ve 16–18'i, 14:41)
+## GÖREV 4 — Arçelik Fiyat Taraması (haftalık; pazartesi, salı, çarşamba 14:41)
 
-Cron: `CRON_TZ=Europe/Istanbul 41 14 1-3,16-18 * *`
+Cron: `CRON_TZ=Europe/Istanbul 41 14 * * 1-3`
 
-> 1–3 ve 16–18 kasıtlıdır: ayın 1'i pazar/tatil olabilir ya da bilgisayar kapalı olabilir. İlk başarılı gün dönemi "tamam" yapar, sonraki günler boşa geçer.
+> Haftada bir çekim yeterli; pazartesi, salı ve çarşamba çalışması telafi içindir (bilgisayar kapalıysa ertesi gün dener). Haftanın ilk başarılı çalışması kaydı `tamam` yapar, sonrakiler boşa geçer. Dönem kodu ISO haftadır (`select bu_hafta()` → ör. `2026-W46`), `yari = 0`. Satış & Marj hesabı her satışı, satış tarihinde ya da öncesinde çekilen en son haftanın fiyatıyla karşılaştırır (`web_donem_at`).
 
 ```
-GÖREV: Afra Dayanıklı Tüketim (Arçelik bayisi) için arcelik.com.tr'deki tüm ürün fiyatlarını çek ve AFRA Panel'in Supabase veritabanına (proje drgnnlewwnwshwvpoljy) o ayın DÖNEMİ olarak kaydet. 1. dönem = ayın 1'i, 2. dönem = ayın 16'sı. Tüm iletişim Türkçe. arcelik.com.tr'de hiçbir şeye tıklama, sepete ekleme, form doldurma; sadece oku.
+GÖREV: Afra Dayanıklı Tüketim (Arçelik bayisi) için arcelik.com.tr'deki tüm ürün fiyatlarını çek ve AFRA Panel'in Supabase veritabanına (proje drgnnlewwnwshwvpoljy) BU HAFTANIN fiyatı olarak kaydet. Fiyatlar her hafta bir kez çekilir (ISO hafta, pazartesi–pazar). Görev pazartesi, salı ve çarşamba çalışır; haftanın ilk başarılı çalışması yeterlidir, sonrakiler boşa geçer. Tüm iletişim Türkçe. arcelik.com.tr'de hiçbir şeye tıklama, sepete ekleme, form doldurma; sadece oku.
 
-1) DÖNEM (Türkiye saati): bugün ayın 1-3'ü ise YARI=1; 16-18'i ise YARI=2. DONEM='YYYY-MM'.
-- execute_sql: select durum, urun_sayisi from web_fiyat_donemleri where donem='DONEM' and yari=YARI;  durum 'tamam' ise HİÇBİR ŞEY YAPMA, bildirim gönderme, kısa bir son mesajla bitir.
+1) HAFTA:
+- execute_sql: select bu_hafta();  (DONEM, ör. '2026-W46'). YARI = 0 (haftalık kayıt).
+- select durum, urun_sayisi from web_fiyat_donemleri where donem='DONEM' and yari=0;  durum 'tamam' ise HİÇBİR ŞEY YAPMA, bildirim gönderme, kısa bir son mesajla bitir.
 - Anahtar: select value from app_secrets where name='fiyat_key';  (KEY)
 
 2) TARAMA: built-in-browser becerisini yükle; Claude_Browser araçlarını tek ToolSearch ile yükle (sorgu "mcp__remote-devices__Claude_Browser__"). preview_start ile https://www.arcelik.com.tr/buzdolabi aç (site izni istenirse request_access ile "site").
-- Afra-dtm/afra-panel deposundaki gorevler/arcelik_fiyat_tarama.js dosyasının içeriğini al (GitHub'dan ya da depo klonundan), __KEY__, __DONEM__ ve __YARI__ yerlerine değerleri koy (KEY ve DONEM tırnak içinde metin, YARI sayı) ve javascript_tool ile o sekmede AYNEN çalıştır. Hemen 'basladi' döner. Veriyi sohbete kopyalama.
+- Afra-dtm/afra-panel deposundaki gorevler/arcelik_fiyat_tarama.js dosyasının içeriğini al (GitHub'dan ya da depo klonundan), __KEY__, __DONEM__ ve __YARI__ yerlerine değerleri koy (KEY ve DONEM tırnak içinde metin, YARI sayı olarak 0) ve javascript_tool ile o sekmede AYNEN çalıştır. Hemen 'basladi' döner. Veriyi sohbete kopyalama.
 - Her 30-40 sn'de bir kısa çağrıyla durumu oku: ({state:__WF.state, done:__WF.done, cats:__WF.cats, items:__WF.items.size, err:__WF.err.length, error:__WF.error, result:__WF.result}). state 'bitti' ya da 'hata' olana kadar bekle (genelde 10-25 dk; en fazla 45 dk). Tek çağrı 45 sn'yi aşmasın. Sekmeyi kapatma, başka sayfaya gitme.
 
 3) KONTROL VE BİLDİRİM:
-- state='bitti' ise: select durum, urun_sayisi, notu from web_fiyat_donemleri where donem='DONEM' and yari=YARI;  durum 'tamam' olmalı.
-- Önceki tamam dönemle karşılaştır:
-  with cur as (select w.* from web_fiyatlari w join web_fiyat_donemleri d on d.id=w.donem_id where d.donem='DONEM' and d.yari=YARI),
-       prev as (select w.* from web_fiyatlari w where w.donem_id=(select id from web_fiyat_donemleri where durum='tamam' and (donem,yari)<('DONEM',YARI) order by donem desc, yari desc limit 1))
-  select (select count(*) from cur) urun, (select count(*) from cur c join prev p using(kod) where c.satis_fiyati<>p.satis_fiyati) degisen,
+- state='bitti' ise: select durum, urun_sayisi, notu, cekim_tarihi from web_fiyat_donemleri where donem='DONEM' and yari=0;  durum 'tamam' olmalı.
+- Bir önceki tamam çekimle karşılaştır:
+  with c0 as (select id from web_fiyat_donemleri where donem='DONEM' and yari=0),
+       p0 as (select id from web_fiyat_donemleri where durum='tamam' and id <> (select id from c0) order by cekim_tarihi desc, id desc limit 1),
+       cur as (select w.* from web_fiyatlari w where w.donem_id=(select id from c0)),
+       prev as (select w.* from web_fiyatlari w where w.donem_id=(select id from p0))
+  select (select count(*) from cur) urun, (select count(*) from prev) onceki_urun, (select count(*) from cur c join prev p using(kod) where c.satis_fiyati<>p.satis_fiyati) degisen,
     (select count(*) from cur c join prev p using(kod) where c.satis_fiyati>p.satis_fiyati) artan, (select count(*) from cur c join prev p using(kod) where c.satis_fiyati<p.satis_fiyati) dusen,
     (select count(*) from cur c where not exists(select 1 from prev p where p.kod=c.kod)) yeni, (select count(*) from prev p where not exists(select 1 from cur c where c.kod=p.kod)) kalkan;
-- Bildirim (PushNotification varsa): "Arçelik fiyatları çekildi — <Ay Yıl> YARI. dönem: X ürün, Y ürünün fiyatı değişti (Z arttı, W düştü), N yeni ürün. AFRA Panel → Arçelik Fiyatları". Ürün sayısı önceki dönemin %80'inden azsa uyarı ekle.
-- state='hata' ya da tarayıcıya ulaşılamıyorsa: "Arçelik fiyat taraması yapılamadı: <neden>. Görev yarın tekrar deneyecek." Başarısız dönemi 'tamam' YAPMA.
+- Bildirim (PushNotification varsa): "Arçelik fiyatları çekildi — <hafta no>. hafta: X ürün, Y ürünün fiyatı değişti (Z arttı, W düştü), N yeni ürün. AFRA Panel → Arçelik Fiyatları". Ürün sayısı önceki çekimin %80'inden azsa uyarı ekle.
+- state='hata' ya da tarayıcıya ulaşılamıyorsa: "Arçelik fiyat taraması yapılamadı: <neden>. Görev yarın tekrar deneyecek." (Çarşambaysa: "Bu hafta fiyat çekilemedi; bilgisayar açıkken bu sohbete 'fiyatları çek' yazabilirsiniz.") Başarısız haftayı 'tamam' YAPMA.
 - Sekmeyi kapat. Kendi SQL'inle hiçbir tabloya yazma; kayıtları betikteki ingest_web_fiyat fonksiyonu yapar.
 ```

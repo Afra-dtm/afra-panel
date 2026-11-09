@@ -1,6 +1,6 @@
-// AFRA Panel — arcelik.com.tr fiyat taraması (ayda 2 kez: 1. dönem ayın 1'i, 2. dönem ayın 16'sı)
+// AFRA Panel — arcelik.com.tr fiyat taraması (haftada bir; __DONEM__ = ISO hafta 'YYYY-Www', __YARI__ = 0)
 // arcelik.com.tr'de açık bir sekmede javascript ile çalıştırılır. Sitede hiçbir şeye tıklamaz, yalnızca okur.
-// __KEY__, __DONEM__ ('YYYY-MM'), __YARI__ (1|2) yer tutucularını doldurun. Durum: window.__WF
+// __KEY__, __DONEM__ ('YYYY-Www', select bu_hafta()), __YARI__ (0) yer tutucularını doldurun. Durum: window.__WF
 (() => {
   const KEY = '__KEY__', DONEM = '__DONEM__', YARI = __YARI__;
   const SB = 'https://drgnnlewwnwshwvpoljy.supabase.co/rest/v1/rpc/ingest_web_fiyat';

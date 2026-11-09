@@ -275,7 +275,7 @@ p.hint{max-width:90ch}
       <button class="nav" id="sifrem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg><span>Şifremi değiştir</span></button>
       <button class="nav" id="tema"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/></svg><span>Koyu / açık tema</span></button>
       <button class="nav" id="cikis"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h5a1 1 0 011 1v14a1 1 0 01-1 1h-5M10 16l-4-4 4-4M6 12h10"/></svg><span>Çıkış yap</span></button>
-      <div class="hint" id="surum" style="padding:6px 8px 0;font-size:11.5px">Sürüm 09.11.2026 · 16:30</div>
+      <div class="hint" id="surum" style="padding:6px 8px 0;font-size:11.5px">Sürüm 09.11.2026 · 18:00</div>
     </div>
   </aside>
   <main>
@@ -727,7 +727,7 @@ V.marj=async()=>{
    <div class="card kpi"><div class="l">Kâr (ABS'ye göre)</div><div class="v num ${kar<0?'neg':''}">${maliyetli.length?tl(kar):'–'}</div><div class="d">${maliyetli.length?`%${(kar/netSat*100).toFixed(2)} · `:''}${maliyetli.length}/${sat.length} satırın ABS fiyatı var</div></div>
    <div class="card kpi"><div class="l">İade / iptal</div><div class="v num">${tl(sum(A.filter(x=>x.tur==='iade'),'tutar'))}</div></div>
   </div>
-  <p class="hint">Net liste = arcelik.com.tr liste fiyatı − sitedeki oliz (satış tarihinin dönemi: ayın 1–15'i 1. dönem, 16'sı ve sonrası 2. dönem). Ek indirim = net listenin altında verilen indirim. Kâr = KDV hariç satış − ABS alış fiyatı × adet (ABS ve paro, "Arçelik Fiyatları" ekranından yüklenir).</p>
+  <p class="hint">Net liste = arcelik.com.tr liste fiyatı − sitedeki oliz (satış tarihinde ya da hemen öncesinde çekilen haftalık site fiyatı). Ek indirim = net listenin altında verilen indirim. Kâr = KDV hariç satış − ABS alış fiyatı × adet (ABS ve paro, "Arçelik Fiyatları" ekranından yüklenir).</p>
   <div class="card"><h3>Satış temsilcisi özeti</h3><div class="tw"><table><thead><tr><th>Temsilci</th><th class="r">Adet</th><th class="r">Satış</th><th class="r">Ek indirim</th><th class="r">Kâr</th><th class="r">Kâr %</th></tr></thead><tbody>
    ${Object.entries(temsil).sort((a,b)=>b[1].t-a[1].t).map(([k,o])=>`<tr><td>${esc(k)}</td><td class="r num">${o.n}</td><td class="r num">${tl(o.t)}</td><td class="r num">${o.lf?((1-o.lt/o.lf)*100).toFixed(2)+'%':'–'}</td><td class="r num">${o.m?tl(o.k):'–'}</td><td class="r num">${o.m?(o.k/o.m*100).toFixed(2)+'%':'–'}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">Kayıt yok</td></tr>'}
   </tbody></table></div></div>
@@ -744,9 +744,9 @@ V.marj=async()=>{
 
 /* ---------- Arçelik fiyatları ve maliyet ---------- */
 V.fiyat=async()=>{
-  const {data:D=[]}=await sb.from('web_fiyat_donemleri').select('*').order('donem',{ascending:false}).order('yari',{ascending:false});
+  const {data:D=[]}=await sb.from('web_fiyat_donemleri').select('*').order('cekim_tarihi',{ascending:false}).order('id',{ascending:false});
   const tam=D.filter(d=>d.durum==='tamam');const sec=window._fd&&tam.find(d=>d.id==window._fd)||tam[0];
-  const onceki=sec?tam.find(d=>d.donem<sec.donem||(d.donem===sec.donem&&d.yari<sec.yari)):null;
+  const onceki=sec?tam.find(d=>d.id!==sec.id&&(d.cekim_tarihi<sec.cekim_tarihi||(d.cekim_tarihi===sec.cekim_tarihi&&d.id<sec.id))):null;
   const q=(window._fq||'').trim();
   const W=sec?await hepsi(()=>sb.from('web_fiyatlari').select('kod,ad,marka,kategori,liste_fiyati,satis_fiyati,url').eq('donem_id',sec.id).order('kategori').order('kod')):[];
   const P={};if(onceki)(await hepsi(()=>sb.from('web_fiyatlari').select('kod,satis_fiyati').eq('donem_id',onceki.id).order('kod'))).forEach(x=>P[x.kod]=+x.satis_fiyati);
@@ -754,10 +754,12 @@ V.fiyat=async()=>{
   const deg=W.filter(w=>P[w.kod]!=null&&P[w.kod]!=+w.satis_fiyati),art=deg.filter(w=>+w.satis_fiyati>P[w.kod]),yeni=onceki?W.filter(w=>P[w.kod]==null):[];
   const kalkan=onceki?Object.keys(P).filter(k=>!W.some(w=>w.kod===k)).length:0;
   const nq=normUser(q);const L=W.filter(w=>!q||normUser(w.kod+' '+w.ad+' '+w.kategori).includes(nq)).filter(w=>window._fs!=='deg'||(P[w.kod]!=null&&P[w.kod]!=+w.satis_fiyati));
-  const ad=d=>`${new Date(d.donem+'-01T00:00').toLocaleDateString('tr-TR',{month:'long',year:'numeric'})} · ${d.yari}. dönem`;
+  const haftaAraligi=k=>{const [y,w]=k.split('-W').map(Number);const j4=new Date(Date.UTC(y,0,4));const pzt=new Date(j4);pzt.setUTCDate(j4.getUTCDate()-((j4.getUTCDay()+6)%7)+(w-1)*7);const paz=new Date(pzt);paz.setUTCDate(pzt.getUTCDate()+6);
+    const f=(d,o)=>d.toLocaleDateString('tr-TR',{timeZone:'UTC',...o});return pzt.getUTCMonth()===paz.getUTCMonth()?`${f(pzt,{day:'numeric'})}–${f(paz,{day:'numeric',month:'long',year:'numeric'})}`:`${f(pzt,{day:'numeric',month:'long'})} – ${f(paz,{day:'numeric',month:'long',year:'numeric'})}`};
+  const ad=d=>/W/.test(d.donem)?`${+d.donem.split('W')[1]}. hafta · ${haftaAraligi(d.donem)}`:`${new Date(d.donem+'-01T00:00').toLocaleDateString('tr-TR',{month:'long',year:'numeric'})} · ${d.yari}. dönem`;
   $('#view').innerHTML=`
   <div class="grid k4">
-   <div class="card kpi"><div class="l">Dönem</div><div class="v" style="font-size:17px">${sec?ad(sec):'Henüz yok'}</div><div class="d">${sec?fdate((sec.tamamlanma||sec.created_at).slice(0,10)):'Ayın 1–3 ve 16–18\'inde otomatik çekilir'}</div></div>
+   <div class="card kpi"><div class="l">Fiyat haftası</div><div class="v" style="font-size:17px">${sec?ad(sec):'Henüz yok'}</div><div class="d">${sec?`Çekim: ${fdate(sec.cekim_tarihi)} · her hafta otomatik çekilir`:'Her hafta otomatik çekilir'}</div></div>
    <div class="card kpi"><div class="l">Ürün</div><div class="v num">${W.length}</div><div class="d">${onceki?`önceki: ${ad(onceki)}`:'karşılaştırılacak önceki dönem yok'}</div></div>
    <div class="card kpi"><div class="l">Fiyatı değişen</div><div class="v num">${onceki?deg.length:'–'}</div><div class="d">${onceki?`${art.length} arttı · ${deg.length-art.length} düştü`:''}</div></div>
    <div class="card kpi"><div class="l">Yeni / kalkan</div><div class="v num">${onceki?`${yeni.length} / ${kalkan}`:'–'}</div></div>
