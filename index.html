@@ -275,7 +275,7 @@ p.hint{max-width:90ch}
       <button class="nav" id="sifrem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg><span>Şifremi değiştir</span></button>
       <button class="nav" id="tema"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/></svg><span>Koyu / açık tema</span></button>
       <button class="nav" id="cikis"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h5a1 1 0 011 1v14a1 1 0 01-1 1h-5M10 16l-4-4 4-4M6 12h10"/></svg><span>Çıkış yap</span></button>
-      <div class="hint" id="surum" style="padding:6px 8px 0;font-size:11.5px">Sürüm 09.11.2026 · 17:20</div>
+      <div class="hint" id="surum" style="padding:6px 8px 0;font-size:11.5px">Sürüm 09.11.2026 · 17:25</div>
     </div>
   </aside>
   <main>
@@ -427,7 +427,7 @@ function form(title,fields,vals={}){return new Promise(res=>{
   $('#dbody').innerHTML=fields.map(f=>{const v=vals[f.k]??f.d??'';const cls=f.full?'f':'';
     if(f.t==='select')return `<label class="${cls}">${f.l}<select class="ctl" name="${f.k}" ${f.req?'required':''}>${f.o.map(o=>{const[val,lab]=Array.isArray(o)?o:[o,LBL[o]||o];return `<option value="${esc(val)}" ${val==v?'selected':''}>${esc(lab)}</option>`}).join('')}</select></label>`;
     if(f.t==='textarea')return `<label class="f">${f.l}<textarea class="ctl" name="${f.k}" rows="2">${esc(v)}</textarea></label>`;
-    return `<label class="${cls}">${f.l}<input class="ctl" name="${f.k}" type="${f.t||'text'}" ${f.t==='number'?'step="0.01"':''} value="${esc(v)}" ${f.req?'required':''}></label>`}).join('');
+    return `<label class="${cls}">${f.l}<input class="ctl" name="${f.k}" type="${f.t||'text'}" ${f.list?`list="${f.list}" autocomplete="off"`:''} ${f.t==='number'?'step="0.01"':''} value="${esc(v)}" ${f.req?'required':''}></label>`}).join('');
   const d=$('#dlg');d.returnValue='';d.showModal();
   d.onclose=()=>{if(d.returnValue!=='ok')return res(null);const o={};new FormData($('#dform')).forEach((v,k)=>o[k]=v===''?null:v);res(o)};
 })}
@@ -668,9 +668,10 @@ V.sevk=async()=>{
     <label style="grid-column:span 2">Ürün<input class="ctl" name="urun_adi" required placeholder="Örn. Arçelik 9 kg çamaşır makinesi"></label>
     <label>Adet<input class="ctl num" name="adet" inputmode="numeric" value="1" required></label>
     <label>Teslim tarihi<input class="ctl" type="date" name="planlanan_tarih" value="${on.planlanan_tarih||''}"></label>
-    <label style="grid-column:span 4">Not<input class="ctl" name="aciklama" placeholder="Örn. eski cihaz alınacak, montaj yapılacak"></label>
+    <label>Teslim eden<input class="ctl" name="teslim_eden" list="teslimciler" value="${esc(on.teslim_eden||'')}" placeholder="Biliniyorsa"></label>
+    <label style="grid-column:span 3">Not<input class="ctl" name="aciklama" placeholder="Örn. eski cihaz alınacak, montaj yapılacak"></label>
     <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn p" type="submit" id="sgkaydet">Sevkiyatı kaydet</button><button class="btn" type="button" id="sgdevam">Kaydet, aynı müşteriye ürün ekle</button><span class="hint">Kaydı giren olarak <b>${esc(ME.ad_soyad||ME.kullanici_adi)}</b> yazılır. Kendi girdiğiniz sevkiyatın durumunu güncelleyebilir, aynı gün içinde silebilirsiniz.</span></div>
-   </form>
+   </form><datalist id="teslimciler">${[...new Set(S.map(x=>x.teslim_eden).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'tr')).map(x=>`<option value="${esc(x)}">`).join('')}</datalist>
    ${bugun.length?`<div class="hint" style="margin-top:10px">Bugün girdiğiniz: <b>${bugun.length}</b> sevkiyat</div>`:''}
   </div>
   <div class="tabs">${[['acik','Açık'],['bekliyor','Bekliyor'],['planlandi','Planlandı'],['yolda','Yolda'],['teslim_edildi','Teslim'],['iade','İade'],['manuel','Elle girilen'],['tumu','Tümü']].map(([k,l])=>`<button class="tab ${k===st?'on':''}" data-s="${k}">${l}</button>`).join('')}
@@ -679,7 +680,7 @@ V.sevk=async()=>{
   ${S.map(s=>{const g=Math.round((new Date(today())-new Date(s.tarih))/864e5);const acik=['bekliyor','planlandi','yolda'].includes(s.durum);const benim=isYon()||s.olusturan===ME.id;
    const sil=isYon()||(s.kaynak==='manuel'&&s.olusturan===ME.id&&String(s.created_at).slice(0,10)===today());
    return `<tr><td>${fdate(s.tarih)}${s.planlanan_tarih?`<div class="hint">📅 ${fdate(s.planlanan_tarih)} ${esc(s.randevu_saati||'')}</div>`:''}${s.depo_tipi?`<div><span class="pill ${s.depo_tipi==='MAĞAZA'?'kritik':'bilgi'}">${esc(s.depo_tipi)}</span> <span class="hint">${esc(s.depo||'')}</span></div>`:''}${s.is_emri_durumu?`<div class="hint">İE: ${esc(s.is_emri_durumu)}</div>`:''}${s.kaynak==='manuel'?`<div class="hint">Elle · ${esc(s.giren_ad||'')}</div>`:''}</td><td>${esc(subeAd(s.sube_id))}</td><td>${esc(s.siparis_no||'–')}<div class="hint">${esc(s.irsaliye_no||'')}</div></td><td>${esc(s.musteri||'')}${s.telefon?`<div class="hint">${esc(s.telefon)}</div>`:''}<div class="hint">${esc(s.adres||'')}</div>${s.aciklama?`<div class="hint">📝 ${esc(s.aciklama)}</div>`:''}</td><td>${esc(s.urun_adi||s.urun_kodu||'')}</td>
-   <td class="r num">${s.adet}</td><td class="r num">${tl(s.tutar)}</td><td>${benim?`<select class="ctl" style="min-height:30px;padding:3px 6px" onchange="setDurum('${s.id}',this.value)">${['bekliyor','planlandi','yolda','teslim_edildi','iade','iptal'].map(d=>`<option value="${d}" ${d===s.durum?'selected':''}>${LBL[d]}</option>`).join('')}</select>`:pill(s.durum)}</td>
+   <td class="r num">${s.adet}</td><td class="r num">${tl(s.tutar)}</td><td>${benim?`<select class="ctl" style="min-height:30px;padding:3px 6px" onchange="setDurum('${s.id}',this.value)">${['bekliyor','planlandi','yolda','teslim_edildi','iade','iptal'].map(d=>`<option value="${d}" ${d===s.durum?'selected':''}>${LBL[d]}</option>`).join('')}</select>`:pill(s.durum)}${s.teslim_eden?`<div class="hint">Teslim eden: ${esc(s.teslim_eden)}${s.teslim_tarihi?' · '+fdate(s.teslim_tarihi):''}</div>`:''}</td>
    <td class="num ${acik&&g>3?'neg':''}">${acik?g:''}</td><td style="white-space:nowrap">${benim?`<button class="btn s" onclick='editSevk(${JSON.stringify(s.id)})'>Düzenle</button>`:''}${sil?` <button class="btn s" onclick='silSevk(${JSON.stringify(s.id)})'>Sil</button>`:''}</td></tr>`}).join('')||'<tr><td colspan="10" class="empty">Kayıt yok</td></tr>'}
   </tbody></table></div></div>`;
   window._S=S;window._sgOn=null;
@@ -689,26 +690,31 @@ V.sevk=async()=>{
     const adet=Math.round(normNum(d.adet));
     if(!(adet>0))return toast('Adet en az 1 olmalı');if(!d.sube_id)return toast('Şube seçin');
     const row={sube_id:d.sube_id,tarih:d.tarih,musteri:d.musteri.trim(),urun_adi:d.urun_adi.trim(),adet,
-      planlanan_tarih:d.planlanan_tarih||null,siparis_no:d.siparis_no||null,aciklama:d.aciklama||null,durum:d.planlanan_tarih?'planlandi':'bekliyor'};
+      planlanan_tarih:d.planlanan_tarih||null,teslim_eden:(d.teslim_eden||'').trim()||null,siparis_no:d.siparis_no||null,aciklama:d.aciklama||null,durum:d.planlanan_tarih?'planlandi':'bekliyor'};
     $('#sgkaydet').disabled=$('#sgdevam').disabled=true;const {error}=await sb.from('sevkiyatlar').insert(row);$('#sgkaydet').disabled=$('#sgdevam').disabled=false;
     if(error)return toast('Kaydedilemedi: '+error.message);
     toast(`Sevkiyat kaydedildi: ${row.musteri} · ${row.urun_adi}`);
-    if(devam)window._sgOn={sube_id:row.sube_id,tarih:row.tarih,musteri:row.musteri,planlanan_tarih:d.planlanan_tarih,siparis_no:d.siparis_no};
+    if(devam)window._sgOn={sube_id:row.sube_id,tarih:row.tarih,musteri:row.musteri,planlanan_tarih:d.planlanan_tarih,teslim_eden:d.teslim_eden,siparis_no:d.siparis_no};
     await render();if(devam)$('#sgform')?.urun_adi.focus()};
   f.onsubmit=e=>{e.preventDefault();kaydet(false)};
   $('#sgdevam').onclick=()=>kaydet(true);
-  $('#sexp').onclick=()=>xlsxOut(S.map(s=>({Tarih:s.tarih,Şube:subeAd(s.sube_id),Sipariş:s.siparis_no,İrsaliye:s.irsaliye_no,Müşteri:s.musteri,Adres:s.adres,Ürün:s.urun_adi,Adet:s.adet,Tutar:+s.tutar,Durum:LBL[s.durum],'Teslim planı':s.planlanan_tarih,'Teslim saati':s.randevu_saati,Teslim:s.teslim_tarihi,Not:s.aciklama,Kaynak:s.kaynak==='manuel'?'Elle':'AX',Giren:s.giren_ad})),'sevkiyat');
+  $('#sexp').onclick=()=>xlsxOut(S.map(s=>({Tarih:s.tarih,Şube:subeAd(s.sube_id),Sipariş:s.siparis_no,İrsaliye:s.irsaliye_no,Müşteri:s.musteri,Adres:s.adres,Ürün:s.urun_adi,Adet:s.adet,Tutar:+s.tutar,Durum:LBL[s.durum],'Teslim planı':s.planlanan_tarih,'Teslim saati':s.randevu_saati,Teslim:s.teslim_tarihi,'Teslim eden':s.teslim_eden,Not:s.aciklama,Kaynak:s.kaynak==='manuel'?'Elle':'AX',Giren:s.giren_ad})),'sevkiyat');
   $('#simp').onclick=()=>importFile('sevkiyatlar',{tarih:['tarih','date'],siparis_no:['sipariş','siparis','sipariş no'],irsaliye_no:['irsaliye','irsaliye no'],musteri:['müşteri','musteri','cari'],adres:['adres'],urun_kodu:['ürün kodu','urun kodu','madde'],urun_adi:['ürün','urun','ürün adı'],adet:['adet','miktar'],tutar:['tutar'],durum:['durum']});
 };
 async function silSevk(id){const s=(window._S||[]).find(x=>x.id===id);if(!s||!confirm(`${s.musteri||''} · ${s.urun_adi||''} sevkiyatı silinsin mi?`))return;
   const {error,count}=await sb.from('sevkiyatlar').delete({count:'exact'}).eq('id',id);toast(error?error.message:count===0?'Bu kaydı silme yetkiniz yok (yalnızca kendi girdiğiniz sevkiyatı, aynı gün silebilirsiniz)':'Sevkiyat silindi');render()}
 const sevkFields=()=>[subeField(),{k:'tarih',l:'Sipariş tarihi',t:'date',d:today(),req:true},{k:'siparis_no',l:'Sipariş no'},{k:'irsaliye_no',l:'İrsaliye no'},{k:'musteri',l:'Müşteri',full:true},{k:'adres',l:'Adres',t:'textarea'},
   {k:'urun_kodu',l:'Ürün kodu'},{k:'urun_adi',l:'Ürün adı'},{k:'adet',l:'Adet',t:'number',d:1},{k:'tutar',l:'Tutar (₺)',t:'number'},
-  {k:'durum',l:'Durum',t:'select',o:['bekliyor','planlandi','yolda','teslim_edildi','iade','iptal']},{k:'planlanan_tarih',l:'Planlanan teslim',t:'date'},{k:'teslim_tarihi',l:'Teslim tarihi',t:'date'},{k:'aciklama',l:'Not',t:'textarea'}];
+  {k:'durum',l:'Durum',t:'select',o:['bekliyor','planlandi','yolda','teslim_edildi','iade','iptal']},{k:'planlanan_tarih',l:'Planlanan teslim',t:'date'},{k:'teslim_tarihi',l:'Teslim tarihi',t:'date'},{k:'teslim_eden',l:'Teslim eden',list:'teslimciler'},{k:'aciklama',l:'Not',t:'textarea'}];
 async function editSevk(id){const s=id?window._S.find(x=>x.id===id):{};const o=await form(id?'Sevkiyatı düzenle':'Yeni sevkiyat',sevkFields(),s);if(!o)return;
   if(o.durum==='teslim_edildi'&&!o.teslim_tarihi)o.teslim_tarihi=today();if(o.tutar!=null)o.tutar=normNum(o.tutar);if(o.adet!=null)o.adet=Math.round(normNum(o.adet))||1;
   if(id){const {error,count}=await sb.from('sevkiyatlar').update(o,{count:'exact'}).eq('id',id);toast(error?error.message:count===0?'Bu kaydı yalnızca kaydı giren kişi ya da yönetici değiştirebilir':'Güncellendi');render()}else save('sevkiyatlar',o)}
-async function setDurum(id,d){const u={durum:d};if(d==='teslim_edildi')u.teslim_tarihi=today();const {error,count}=await sb.from('sevkiyatlar').update(u,{count:'exact'}).eq('id',id);toast(error?error.message:count===0?'Bu kaydı yalnızca kaydı giren kişi ya da yönetici değiştirebilir':'Durum güncellendi');render()}
+async function setDurum(id,d){const s=(window._S||[]).find(x=>x.id===id)||{};const u={durum:d};
+  if(d==='teslim_edildi'){u.teslim_tarihi=today();
+    if(s.kaynak==='manuel'&&!s.teslim_eden){const o=await form('Teslim bilgisi',[{k:'teslim_eden',l:'Teslim eden',req:true,list:'teslimciler'},{k:'teslim_tarihi',l:'Teslim tarihi',t:'date',req:true}],{teslim_tarihi:today()});
+      if(!o||!(o.teslim_eden||'').trim()){toast('Teslim edildi demek için teslim edeni yazın');return render()}
+      u.teslim_eden=o.teslim_eden.trim();u.teslim_tarihi=o.teslim_tarihi||today()}}
+  const {error,count}=await sb.from('sevkiyatlar').update(u,{count:'exact'}).eq('id',id);toast(error?error.message:count===0?'Bu kaydı yalnızca kaydı giren kişi ya da yönetici değiştirebilir':'Durum güncellendi');render()}
 
 V.finans=async()=>{
   const [c,b]=await Promise.all([q('cari_hareketler').order('tarih',{ascending:false}).limit(1000),(()=>{let r=sb.from('v_cari_bakiye').select('*').order('bakiye',{ascending:false});const s=$('#fsube').value;return s?r.eq('sube_id',s):r})()]);
