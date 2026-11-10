@@ -198,6 +198,12 @@ p.hint{max-width:90ch}
   .card{padding:16px}.tw{margin:0 -16px;padding:0 16px}
   .kpi .v{font-size:21px}
 }
+.umenu{position:relative}.ubtn{gap:8px;padding-left:6px}.ubtn .car{width:16px;height:16px;opacity:.6}.av.sm{width:26px;height:26px;font-size:11px}
+.upanel{position:absolute;right:0;top:calc(100% + 6px);min-width:250px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(15,23,32,.16);padding:8px;z-index:60}
+.upanel .who{padding:6px 8px 10px;border-bottom:1px solid var(--line);margin-bottom:6px}.upanel .who .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.uitem{display:flex;align-items:center;gap:10px;width:100%;min-height:38px;padding:6px 10px;border:0;background:none;border-radius:8px;color:var(--ink);font:inherit;font-size:13.5px;cursor:pointer;text-align:left}
+.uitem:hover,.uitem:focus-visible{background:var(--sunk)}.uitem .i{width:18px;height:18px;color:var(--muted)}.uitem.cik{color:var(--bad)}.uitem.cik .i{color:var(--bad)}
+@media (max-width:760px){#uname2{display:none}.upanel{left:0;right:auto}}
 </style>
 </head>
 <body>
@@ -245,7 +251,7 @@ p.hint{max-width:90ch}
     <div class="logo"><b>A</b> İki adımlı doğrulama</div>
     <div id="mfabody" style="margin-top:16px"></div>
     <div id="mfamsg" class="hint" style="margin-top:10px"></div>
-    <button class="btn" style="margin-top:14px;width:100%" onclick="sb.auth.signOut()">Çıkış yap</button>
+    <button class="btn" style="margin-top:14px;width:100%" onclick="cikisYap()">Çıkış yap</button>
   </div>
 </section>
 
@@ -274,11 +280,7 @@ p.hint{max-width:90ch}
     <button class="nav yon" data-v="yonetim"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V9l5-4 5 4v12M13 21V12h8v9M2 21h20M7 13h2M7 17h2"/></svg><span>Şubeler</span></button>
     <button class="nav yon" data-v="kullanicilar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c1.9.8 3.1 2.5 3.5 5.2"/></svg><span>Kullanıcılar</span></button>
     <div class="foot">
-      <div class="who"><div class="av" id="uav">A</div><div><div class="n" id="uname"></div><div class="r" id="urol"></div></div></div>
-      <button class="nav" id="sifrem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg><span>Şifremi değiştir</span></button>
-      <button class="nav" id="tema"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/></svg><span>Koyu / açık tema</span></button>
-      <button class="nav" id="cikis"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h5a1 1 0 011 1v14a1 1 0 01-1 1h-5M10 16l-4-4 4-4M6 12h10"/></svg><span>Çıkış yap</span></button>
-      <div class="hint" id="surum" style="padding:6px 8px 0;font-size:11.5px">Sürüm 10.11.2026 · 11:30</div>
+      <div class="hint" id="surum" style="padding:6px 8px 0;font-size:11.5px">Sürüm 10.11.2026 · 11:25</div>
     </div>
   </aside>
   <main>
@@ -286,6 +288,15 @@ p.hint{max-width:90ch}
       <button class="btn mtop" id="menu" aria-label="Menüyü aç"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       <div class="tt"><h1 id="title">Genel bakış</h1><div class="sub" id="subt"></div></div>
       <button class="btn" id="yenile" title="Verileri yeniden yükle" aria-label="Yenile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7"/></svg><span>Yenile</span></button>
+      <div class="umenu" id="umenu">
+        <button class="btn ubtn" id="ubtn" aria-haspopup="true" aria-expanded="false" aria-controls="upanel"><span class="av sm" id="uav2">A</span><span id="uname2"></span><svg class="i car" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="upanel hidden" id="upanel" role="menu">
+          <div class="who"><div class="av" id="uav">A</div><div style="min-width:0"><div class="n" id="uname"></div><div class="r"><span id="urol"></span> · <span id="ukadi"></span></div></div></div>
+          <button class="uitem" id="sifrem" role="menuitem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg><span>Şifremi değiştir</span></button>
+          <button class="uitem" id="tema" role="menuitem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/></svg><span>Koyu / açık tema</span></button>
+          <button class="uitem cik" id="cikis" role="menuitem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h5a1 1 0 011 1v14a1 1 0 01-1 1h-5M10 16l-4-4 4-4M6 12h10"/></svg><span>Çıkış yap</span></button>
+        </div>
+      </div>
       <div class="fbar" role="group" aria-label="Filtreler">
         <select class="ctl" id="fsube" aria-label="Şube"></select><span class="sep"></span>
         <input class="ctl" type="date" id="fbas" aria-label="Başlangıç tarihi"><span class="sep"></span>
@@ -336,7 +347,19 @@ $('#lform').onsubmit=async e=>{e.preventDefault();$('#lmsg').textContent='Giriş
   const {error}=await sb.auth.signInWithPassword({email:normUser($('#luser').value)+'@'+DOMAIN,password:$('#lpass').value});
   $('#lbtn').disabled=false;
   $('#lmsg').textContent=error?(/banned/i.test(error.message)?'Hesabınız pasif durumda. Yöneticinize başvurun.':'Kullanıcı adı veya şifre hatalı.'):'';};
-$('#cikis').onclick=()=>sb.auth.signOut();
+// Çıkış: sunucuda oturumu kapatmayı dener; olmasa da bu cihazdaki oturumu her durumda siler ve giriş ekranına döner
+async function cikisYap(){const b=$('#cikis');if(b)b.disabled=true;
+  try{await Promise.race([sb.auth.signOut(),new Promise(r=>setTimeout(r,4000))])}catch(e){}
+  try{await sb.auth.signOut({scope:'local'})}catch(e){}
+  try{Object.keys(localStorage).filter(k=>k.startsWith('sb-')).forEach(k=>localStorage.removeItem(k))}catch(e){}
+  location.replace(location.pathname)}
+$('#cikis').onclick=cikisYap;
+const uPanel=(ac)=>{const p=$('#upanel'),ac2=ac??p.classList.contains('hidden');p.classList.toggle('hidden',!ac2);$('#ubtn').setAttribute('aria-expanded',ac2)};
+$('#ubtn').onclick=e=>{e.stopPropagation();uPanel()};
+document.addEventListener('click',e=>{if(!$('#umenu').contains(e.target))uPanel(false)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')uPanel(false)});
+$('#upanel').addEventListener('click',e=>{if(e.target.closest('.uitem'))uPanel(false)});
+function uOzet(){$('#uav2').textContent=$('#uav').textContent;$('#uname2').textContent=($('#uname').textContent||'').split(/\s+/)[0];$('#ukadi').textContent=ME?.kullanici_adi||''}
 async function yonet(body){const {data,error}=await sb.functions.invoke('kullanici-yonet',{body});
   if(error){let m=error.message;try{m=(await error.context.json()).error||m}catch(e){}throw new Error(m)}return data}
 $('#sifrem').onclick=async()=>{const o=await form('Şifremi değiştir',[{k:'s1',l:'Yeni şifre',t:'password',req:true,full:true},{k:'s2',l:'Yeni şifre (tekrar)',t:'password',req:true,full:true}]);
@@ -384,7 +407,7 @@ async function boot(user){
   const {data:p}=await sb.from('profiller').select('*').eq('id',user.id).single();
   ME=p||{rol:'sube',email:user.email};
   $('#login').classList.add('hidden');$('#mfa').classList.add('hidden');$('#app').classList.remove('hidden');
-  $('#uname').textContent=ME.ad_soyad||ME.kullanici_adi;$('#uav').textContent=(ME.ad_soyad||ME.kullanici_adi||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toLocaleUpperCase('tr');$('#urol').textContent=isYon()?'Yönetici':'Şube kullanıcısı';
+  $('#uname').textContent=ME.ad_soyad||ME.kullanici_adi;$('#uav').textContent=(ME.ad_soyad||ME.kullanici_adi||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toLocaleUpperCase('tr');$('#urol').textContent=isYon()?'Yönetici':'Şube kullanıcısı';uOzet();
   document.querySelectorAll('.yon').forEach(n=>n.classList.toggle('hidden',!isYon()));
   menuYetki();
   await loadSubeler();
@@ -1305,7 +1328,7 @@ function kullaniciDuzenle(id){const p=(window._KU||[]).find(x=>x.id===id);if(!p)
       const yeniAd=f.ad_soyad.value.trim();let adSonuc=null;
       if(yeniAd!==(p.ad_soyad||''))adSonuc=await yonet({islem:'ad_degistir',id,ad_soyad:yeniAd});
       const {error}=await sb.from('profiller').update({rol,sube_id:f.sube_id.value||null,yetkiler:rol==='yonetici'?null:yet}).eq('id',id);if(error)throw error;
-      if(ben&&adSonuc){ME.ad_soyad=yeniAd;ME.kullanici_adi=adSonuc.kullanici_adi;$('#uname').textContent=yeniAd;$('#uav').textContent=yeniAd.split(/\s+/).map(w=>w[0]).slice(0,2).join('').toLocaleUpperCase('tr')}
+      if(ben&&adSonuc){ME.ad_soyad=yeniAd;ME.kullanici_adi=adSonuc.kullanici_adi;$('#uname').textContent=yeniAd;$('#uav').textContent=yeniAd.split(/\s+/).map(w=>w[0]).slice(0,2).join('').toLocaleUpperCase('tr');uOzet()}
       const aktif=f.aktif.value==='1';if(!ben&&aktif!==!!p.aktif)await yonet({islem:'durum',id,aktif});
       if(sifre)await yonet({islem:'sifre',id,sifre});
       const ka=adSonuc?.kullanici_adi||p.kullanici_adi;d.close();render();
