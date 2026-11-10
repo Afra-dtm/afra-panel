@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://drgnnlewwnwshwvpoljy.supabase.co wss://drgnnlewwnwshwvpoljy.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0B3F3B">
+<meta name="theme-color" content="#c8102e">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/favicon-64.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -302,6 +302,22 @@ table.matrix thead th:first-child,table.matrix tfoot td:first-child{background:v
 .menu button:hover{background:var(--surface-2)}
 code{font-family:var(--mono);font-size:12px;background:var(--surface-2);padding:1px 5px;border-radius:4px}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(12px);opacity:.6}}}
+/* === AFRA Panel renkleri (düzen Afra Finans'la aynı; yalnızca renkler) === */
+:root{--bg:#eef1f4;--surface-2:#f5f7f9;--line:#dde3e9;--line-2:#e9edf1;--ink:#1f2933;--ink-2:#3e4c59;--ink-3:#6b7785;--accent:#c8102e;--accent-2:#fbe4e8}
+.side{background:#e6eaee;background-image:none;color:#3e4c59;border-right:1px solid #dde3e9}
+.side-brand .mark,.solo-brand .mark{background:#c8102e;color:#fff}
+.side-brand b{color:#1f2933}.side-brand span{color:#6b7785}
+.nav-h{color:#6b7785}.nav-i{color:#3e4c59}
+.nav-i:hover{background:rgba(31,41,51,.07);color:#1f2933}
+.nav-i[aria-current="page"]{background:#fff;color:#1f2933;box-shadow:inset 3px 0 0 #c8102e}
+.nav-i[aria-current="page"] svg{color:#c8102e}
+.side-foot{border-top-color:#d5dce3;color:#6b7785}
+.auth-side{background:#8c0b20;background-image:radial-gradient(120% 80% at 0% 0%,#c8102e 0%,rgba(200,16,46,0) 60%),radial-gradient(90% 70% at 100% 100%,#5e0715 0%,rgba(94,7,21,0) 70%);color:#fdf1f3}
+.auth-brand .mark{background:#fff;color:#c8102e}
+.auth-brand span{color:#f3c4cc}.auth-hero p{color:#f8dce0}.auth-chip{color:#fdf1f3}.auth-note{color:#eeb5be}
+@media (prefers-color-scheme:dark){:root{--bg:#111418;--surface:#191e24;--surface-2:#1f252c;--line:#2d353e;--line-2:#252c34;--ink:#e8ecf0;--ink-2:#aab4bf;--ink-3:#7a8693;--accent:#f0596f;--accent-2:#3a1a20;--on-accent:#1a0b0e}
+ .side{background:#161b20;color:#aab4bf;border-right-color:#2d353e}.side-brand b{color:#fff}.nav-i{color:#c3ccd5}.nav-i:hover{background:rgba(255,255,255,.07);color:#fff}
+ .nav-i[aria-current="page"]{background:rgba(255,255,255,.1);color:#fff}.side-foot{border-top-color:#2d353e}}
 </style>
 </head>
 <body>
