@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://drgnnlewwnwshwvpoljy.supabase.co wss://drgnnlewwnwshwvpoljy.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script>if(window.top!==window.self){try{window.top.location=window.self.location}catch(e){}document.documentElement.style.display='none'}</script>
 <title>AFRA Panel – Finans Takip</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#c8102e">
@@ -12,9 +15,9 @@
 <meta name="apple-mobile-web-app-title" content="AFRA Panel">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" integrity="sha384-GFr3yTh5lJznCbZfpTtXnwboFsxqtTQoeTZCRHhE0579KrRmlCzen5AA8ohaB5ug" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
 <style>
 :root{
   --bg:#eef1f4;--panel:#ffffff;--sunk:#f5f7f9;--ink:#1f2933;--ink2:#3e4c59;--muted:#6b7785;--line:#dde3e9;--line2:#e9edf1;
@@ -275,7 +278,7 @@ p.hint{max-width:90ch}
       <button class="nav" id="sifrem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg><span>Şifremi değiştir</span></button>
       <button class="nav" id="tema"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/></svg><span>Koyu / açık tema</span></button>
       <button class="nav" id="cikis"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h5a1 1 0 011 1v14a1 1 0 01-1 1h-5M10 16l-4-4 4-4M6 12h10"/></svg><span>Çıkış yap</span></button>
-      <div class="hint" id="surum" style="padding:6px 8px 0;font-size:11.5px">Sürüm 09.11.2026 · 18:30</div>
+      <div class="hint" id="surum" style="padding:6px 8px 0;font-size:11.5px">Sürüm 10.11.2026 · 11:30</div>
     </div>
   </aside>
   <main>
@@ -337,7 +340,7 @@ $('#cikis').onclick=()=>sb.auth.signOut();
 async function yonet(body){const {data,error}=await sb.functions.invoke('kullanici-yonet',{body});
   if(error){let m=error.message;try{m=(await error.context.json()).error||m}catch(e){}throw new Error(m)}return data}
 $('#sifrem').onclick=async()=>{const o=await form('Şifremi değiştir',[{k:'s1',l:'Yeni şifre',t:'password',req:true,full:true},{k:'s2',l:'Yeni şifre (tekrar)',t:'password',req:true,full:true}]);
-  if(!o)return;if(o.s1!==o.s2)return toast('Şifreler aynı değil');if(String(o.s1).length<6)return toast('Şifre en az 6 karakter olmalı');
+  if(!o)return;if(o.s1!==o.s2)return toast('Şifreler aynı değil');if(String(o.s1).length<8)return toast('Şifre en az 8 karakter olmalı');
   const {error}=await sb.auth.updateUser({password:o.s1});toast(error?error.message:'Şifreniz değiştirildi')};
 $('#tema').onclick=()=>{const r=document.documentElement,c=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=c;try{localStorage.setItem('tema',c)}catch(e){}};
 try{const t=localStorage.getItem('tema');if(t)document.documentElement.dataset.theme=t}catch(e){}
@@ -1278,7 +1281,7 @@ function kullaniciDuzenle(id){const p=(window._KU||[]).find(x=>x.id===id);if(!p)
     <label>Yetkili birim (şube)<select class="ctl" name="sube_id"><option value="">– Şube –</option>${SUBELER.map(x=>`<option value="${x.id}" ${x.id===p.sube_id?'selected':''}>${esc(x.ad)}</option>`).join('')}</select></label>
     <div class="f" id="kdyet" style="grid-column:1/-1" ${p.rol==='yonetici'?'hidden':''}><div style="font-size:12.5px;color:var(--ink2);font-weight:500;margin-bottom:8px">Görebileceği ekranlar</div>${yetkiKutulari(yetkiListesi(p))}</div>
     <p class="hint" id="kdyon" style="grid-column:1/-1;margin:0" ${p.rol==='yonetici'?'':'hidden'}>Yöneticiler tüm şubeleri ve ekranları görür.</p>
-    <label>Yeni şifre <span style="font-weight:400;color:var(--muted)">(değiştirmeyecekseniz boş bırakın)</span><div style="display:flex;gap:6px"><input class="ctl num" name="sifre" minlength="6" autocomplete="new-password" style="flex:1;min-width:0"><button type="button" class="btn" id="kdrast">Rastgele</button></div></label>
+    <label>Yeni şifre <span style="font-weight:400;color:var(--muted)">(değiştirmeyecekseniz boş bırakın)</span><div style="display:flex;gap:6px"><input class="ctl num" name="sifre" minlength="8" autocomplete="new-password" style="flex:1;min-width:0"><button type="button" class="btn" id="kdrast">Rastgele</button></div></label>
     <label>Durum<select class="ctl" name="aktif" ${ben?'disabled':''}><option value="1" ${p.aktif?'selected':''}>Aktif</option><option value="0" ${p.aktif?'':'selected'}>Pasif (giriş yapamaz)</option></select></label>
    </div>
    <div class="acts" style="justify-content:space-between"><span style="display:flex;gap:8px;flex-wrap:wrap">${ben?'':`<button type="button" class="btn" id="kdsil" style="color:var(--bad)">Kullanıcıyı sil</button>`}${p.rol==='yonetici'&&!ben?`<button type="button" class="btn" id="kd2fa" title="Telefonunu kaybeden yöneticinin iki adımlı doğrulamasını sıfırlar">2FA sıfırla</button>`:''}</span>
@@ -1296,7 +1299,7 @@ function kullaniciDuzenle(id){const p=(window._KU||[]).find(x=>x.id===id);if(!p)
   f.onsubmit=async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();
     const rol=ben?p.rol:f.rol.value,yet=[...f.querySelectorAll('input[name="y"]:checked')].map(c=>c.value);
     if(rol!=='yonetici'&&!yet.length)return toast('En az bir ekran seçin');
-    const sifre=f.sifre.value.trim();if(sifre&&sifre.length<6)return toast('Şifre en az 6 karakter olmalı');
+    const sifre=f.sifre.value.trim();if(sifre&&sifre.length<8)return toast('Şifre en az 8 karakter olmalı');
     const btn=d.querySelector('#kdok');btn.disabled=true;
     try{
       const yeniAd=f.ad_soyad.value.trim();let adSonuc=null;
@@ -1311,7 +1314,7 @@ function kullaniciDuzenle(id){const p=(window._KU||[]).find(x=>x.id===id);if(!p)
       else toast('Kullanıcı kaydedildi')
     }catch(err){btn.disabled=false;toast(err.message)}};
 }
-const rastgeleSifre=()=>{const h='abcdefghjkmnpqrstuvwxyz',H='ABCDEFGHJKLMNPQRSTUVWXYZ',r='23456789';const c=a=>a[crypto.getRandomValues(new Uint32Array(1))[0]%a.length];return c(H)+c(h)+c(h)+c(h)+'-'+c(r)+c(r)+c(r)+c(r)};
+const rastgeleSifre=()=>{const h='abcdefghjkmnpqrstuvwxyz',H='ABCDEFGHJKLMNPQRSTUVWXYZ',r='23456789';const c=a=>a[crypto.getRandomValues(new Uint32Array(1))[0]%a.length];return c(H)+c(h)+c(h)+c(h)+'-'+c(r)+c(r)+c(r)+c(r)+'-'+c(h)+c(h)+c(H)+c(h)};
 const yetkiKutulari=(sec,ad='y')=>`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px 14px">${EKRANLAR.map(([k,l])=>`<label style="flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-weight:400"><input type="checkbox" name="${ad}" value="${k}" ${sec.includes(k)?'checked':''}> ${l}</label>`).join('')}</div>
   <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn s" data-hazir="vars">Varsayılan (genel bakış, kasa, işlem, sevkiyat)</button><button type="button" class="btn s" data-hazir="hepsi">Hepsini seç</button><button type="button" class="btn s" data-hazir="hic">Hiçbirini seçme</button></div>`;
 const hazirBagla=(kok,ad='y')=>kok.querySelectorAll('[data-hazir]').forEach(b=>b.onclick=()=>{const m=b.dataset.hazir;kok.querySelectorAll(`input[name="${ad}"]`).forEach(c=>c.checked=m==='hepsi'||(m==='vars'&&VARS_YETKI.includes(c.value)))});
@@ -1320,7 +1323,7 @@ function kullaniciEkle(){
   d.innerHTML=`<form method="dialog" id="kuf"><h3 style="margin:0 0 16px">Yeni kullanıcı</h3><div class="form">
    <label class="f">Ad soyad<input class="ctl" name="ad_soyad" required autocomplete="off" placeholder="Örn. Ayşe Yılmaz"></label>
    <label>Kullanıcı adı<div class="ctl num" id="kuka" style="background:var(--sunk);color:var(--muted)">Ad soyad yazınca oluşur</div></label>
-   <label>Şifre<div style="display:flex;gap:6px"><input class="ctl num" name="sifre" required minlength="6" value="${rastgeleSifre()}" style="flex:1;min-width:0"><button type="button" class="btn" id="kuyeni" title="Yeni rastgele şifre">Yenile</button></div></label>
+   <label>Şifre<div style="display:flex;gap:6px"><input class="ctl num" name="sifre" required minlength="8" value="${rastgeleSifre()}" style="flex:1;min-width:0"><button type="button" class="btn" id="kuyeni" title="Yeni rastgele şifre">Yenile</button></div></label>
    <label>Rol<select class="ctl" name="rol"><option value="sube">Şube kullanıcısı</option><option value="yonetici">Yönetici</option></select></label>
    <label>Şube<select class="ctl" name="sube_id"><option value="">– Şube –</option>${SUBELER.map(x=>`<option value="${x.id}">${esc(x.ad)}</option>`).join('')}</select></label>
    <div class="f" id="kuyet" style="grid-column:1/-1"><div style="font-size:12.5px;color:var(--ink2);font-weight:500;margin-bottom:8px">Görebileceği ekranlar</div>${yetkiKutulari(VARS_YETKI)}</div>
