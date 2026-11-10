@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AFRA Panel">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" integrity="sha384-GFr3yTh5lJznCbZfpTtXnwboFsxqtTQoeTZCRHhE0579KrRmlCzen5AA8ohaB5ug" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
@@ -203,7 +203,61 @@ p.hint{max-width:90ch}
 .upanel .who{padding:6px 8px 10px;border-bottom:1px solid var(--line);margin-bottom:6px}.upanel .who .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .uitem{display:flex;align-items:center;gap:10px;width:100%;min-height:38px;padding:6px 10px;border:0;background:none;border-radius:8px;color:var(--ink);font:inherit;font-size:13.5px;cursor:pointer;text-align:left}
 .uitem:hover,.uitem:focus-visible{background:var(--sunk)}.uitem .i{width:18px;height:18px;color:var(--muted)}.uitem.cik{color:var(--bad)}.uitem.cik .i{color:var(--bad)}
-@media (max-width:760px){#uname2{display:none}.upanel{left:0;right:auto}}
+@media (max-width:760px){.upanel{right:0;left:auto;max-width:calc(100vw - 32px)}}
+
+/* === Afra Finans düzeni (10 Kasım): yazı tipi, üst çubuk, dönem seçimi, kartlar — renkler AFRA Panel'in === */
+:root{--display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;--body:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;--shadow:0 1px 2px rgba(21,32,30,.06),0 4px 16px rgba(21,32,30,.05)}
+body{font-family:var(--body);line-height:1.5}
+h1,h2,h3,.lcard h2,.lside .wm,.logo,dialog h3,.card h3{font-family:var(--display);letter-spacing:-.01em}
+.num,.kpi .v,td.r{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+main{padding:0 28px 48px;max-width:none}
+.top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;flex-wrap:nowrap;margin:0 -28px 0;padding:12px 28px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .tt{flex:1;min-width:0;margin:0}
+.top h1{font-size:20px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
+.top .sub{font-size:12px;font-weight:500;color:var(--muted);margin-top:1px;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ubtn{border-radius:20px;padding:4px 12px 4px 4px;min-height:36px;font-size:13px;font-weight:500}
+.tbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:20px 0 20px}
+.tbar .fbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:none;border:0;padding:0}
+.tbar .fbar .ctl{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-height:36px;padding:6px 10px}
+.tbar .fbar.donemsiz .seg,.tbar .fbar.donemsiz .dnav{display:none}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:var(--panel);padding:6px 12px;font-size:13px;font-weight:500;color:var(--ink2);cursor:pointer;min-height:34px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.dnav{display:inline-flex;align-items:center;gap:6px}
+.dnav .faralik{display:inline-flex;align-items:center;gap:6px}
+.btn.dok{min-height:36px;width:36px;padding:0}
+.btn{border-radius:8px;font-weight:500}
+.ctl{border-radius:8px}
+.form .ctl,dialog .ctl{background:var(--sunk)}
+.card{border-radius:12px;padding:18px;box-shadow:var(--shadow)}
+.card h3{font-size:17px;font-weight:700;margin-bottom:14px}
+.grid.k4:has(>.kpi){gap:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+.grid.k4>.kpi{border:0;border-radius:0;box-shadow:none;background:none;padding:16px 18px}
+.grid.k4>.kpi+.kpi{border-left:1px solid var(--line2)}
+.k4>.kpi:first-child,:root[data-theme="dark"] .k4>.kpi:first-child{background:none;color:inherit;border:0}
+.k4>.kpi:first-child .l,.k4>.kpi:first-child .d,:root[data-theme="dark"] .k4>.kpi:first-child .l,:root[data-theme="dark"] .k4>.kpi:first-child .d{color:var(--muted)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .k4>.kpi:first-child{background:none;color:inherit;border:0}:root:not([data-theme="light"]) .k4>.kpi:first-child .l,:root:not([data-theme="light"]) .k4>.kpi:first-child .d{color:var(--muted)}}
+.kpi .l{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;color:var(--muted)}
+.kpi .v{font-size:22px;font-weight:500;letter-spacing:-.01em;margin-top:4px;overflow-wrap:anywhere}
+.kpi .d{font-size:12px;color:var(--ink2);margin-top:4px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--muted);background:var(--sunk)}
+td{padding:9px 10px}
+.tab{border-radius:8px}
+.empty{border:1px dashed var(--line);border-radius:8px;padding:18px}
+.card.empty{border-style:solid}
+@media (max-width:900px){
+  main{padding:0 16px 40px}
+  .top{margin:0 -16px;padding:10px 16px}
+  .top h1{font-size:18px}
+  .tbar{margin:14px 0 16px}
+  .tbar .fbar{width:100%}
+  .tbar .fbar #fsube{flex:1 1 100%}
+  .dnav{flex:1;min-width:0}.dnav .ctl{flex:1;min-width:0}
+  .grid.k4>.kpi:nth-child(3){border-left:0}.grid.k4>.kpi:nth-child(n+3){border-top:1px solid var(--line2)}
+  .kpi .v{font-size:18px}
+}
+@media (max-width:520px){.ubtn #uname2{display:none}.ubtn{padding:4px 8px 4px 4px}#yenile span{display:none}#yenile{width:38px;padding:0}}
 </style>
 </head>
 <body>
@@ -280,7 +334,7 @@ p.hint{max-width:90ch}
     <button class="nav yon" data-v="yonetim"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V9l5-4 5 4v12M13 21V12h8v9M2 21h20M7 13h2M7 17h2"/></svg><span>Şubeler</span></button>
     <button class="nav yon" data-v="kullanicilar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c1.9.8 3.1 2.5 3.5 5.2"/></svg><span>Kullanıcılar</span></button>
     <div class="foot">
-      <div class="hint" id="surum" style="padding:6px 8px 0;font-size:11.5px">Sürüm 10.11.2026 · 11:25</div>
+      <div class="hint" id="surum" style="padding:6px 8px 0;font-size:11.5px">Sürüm 10.11.2026 · 17:30</div>
     </div>
   </aside>
   <main>
@@ -297,10 +351,18 @@ p.hint{max-width:90ch}
           <button class="uitem cik" id="cikis" role="menuitem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h5a1 1 0 011 1v14a1 1 0 01-1 1h-5M10 16l-4-4 4-4M6 12h10"/></svg><span>Çıkış yap</span></button>
         </div>
       </div>
+    </div>
+    <div class="tbar">
       <div class="fbar" role="group" aria-label="Filtreler">
-        <select class="ctl" id="fsube" aria-label="Şube"></select><span class="sep"></span>
-        <input class="ctl" type="date" id="fbas" aria-label="Başlangıç tarihi"><span class="sep"></span>
-        <input class="ctl" type="date" id="fbit" aria-label="Bitiş tarihi">
+        <select class="ctl" id="fsube" aria-label="Şube"></select>
+        <div class="seg" id="dmod" role="group" aria-label="Dönem"><button type="button" data-m="gun" aria-pressed="false">Gün</button><button type="button" data-m="ay" aria-pressed="true">Ay</button><button type="button" data-m="aralik" aria-pressed="false">Aralık</button></div>
+        <div class="dnav">
+          <button type="button" class="btn dok" id="dprev" aria-label="Önceki"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+          <input class="ctl" type="date" id="fgun" aria-label="Gün">
+          <input class="ctl" type="month" id="fay" aria-label="Ay">
+          <span class="faralik" id="faralik"><input class="ctl" type="date" id="fbas" aria-label="Başlangıç tarihi"><span class="hint">–</span><input class="ctl" type="date" id="fbit" aria-label="Bitiş tarihi"></span>
+          <button type="button" class="btn dok" id="dnext" aria-label="Sonraki"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+        </div>
       </div>
     </div>
     <div id="view"></div>
@@ -359,7 +421,7 @@ $('#ubtn').onclick=e=>{e.stopPropagation();uPanel()};
 document.addEventListener('click',e=>{if(!$('#umenu').contains(e.target))uPanel(false)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')uPanel(false)});
 $('#upanel').addEventListener('click',e=>{if(e.target.closest('.uitem'))uPanel(false)});
-function uOzet(){$('#uav2').textContent=$('#uav').textContent;$('#uname2').textContent=($('#uname').textContent||'').split(/\s+/)[0];$('#ukadi').textContent=ME?.kullanici_adi||''}
+function uOzet(){$('#uav2').textContent=$('#uav').textContent;$('#uname2').textContent=$('#uname').textContent||'';$('#ukadi').textContent=ME?.kullanici_adi||''}
 async function yonet(body){const {data,error}=await sb.functions.invoke('kullanici-yonet',{body});
   if(error){let m=error.message;try{m=(await error.context.json()).error||m}catch(e){}throw new Error(m)}return data}
 $('#sifrem').onclick=async()=>{const o=await form('Şifremi değiştir',[{k:'s1',l:'Yeni şifre',t:'password',req:true,full:true},{k:'s2',l:'Yeni şifre (tekrar)',t:'password',req:true,full:true}]);
@@ -411,7 +473,7 @@ async function boot(user){
   document.querySelectorAll('.yon').forEach(n=>n.classList.toggle('hidden',!isYon()));
   menuYetki();
   await loadSubeler();
-  if(!$('#fbas').value){const d=new Date();d.setDate(d.getDate()-29);$('#fbas').value=iso(d);$('#fbit').value=today();}
+  if(!$('#fbas').value){let m='ay';try{m=localStorage.getItem('afra_donem')||'ay'}catch(e){}if(m==='aralik')m='ay';donemUygula(m,m==='gun'?today():today().slice(0,7))}
   render();
   }finally{BOOTING=false}
 }
@@ -424,6 +486,26 @@ async function loadSubeler(){
 const subeAd=id=>SUBELER.find(s=>s.id===id)?.ad||'–';
 document.querySelectorAll('.nav[data-v]').forEach(n=>n.onclick=()=>{VIEW=n.dataset.v;document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('on',x===n));$('#side').classList.remove('open');render()});
 ['#fsube','#fbas','#fbit'].forEach(s=>$(s).onchange=render);
+// Dönem seçimi: Gün / Ay / Aralık (#fbas-#fbit her zaman seçilen aralığı tutar)
+const AYLAR=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+const ayAdi=v=>{const[y,m]=v.split('-');return AYLAR[+m-1]+' '+y};
+const ayGun=v=>{const[y,m]=v.split('-').map(Number);return v+'-'+String(new Date(y,m,0).getDate()).padStart(2,'0')};
+function donemTespit(){const a=$('#fbas').value,z=$('#fbit').value;if(a&&a===z)return 'gun';if(a&&a.endsWith('-01')&&z===ayGun(a.slice(0,7)))return 'ay';return 'aralik'}
+function donemUygula(m,v){if(m==='gun'){$('#fbas').value=$('#fbit').value=v}else if(m==='ay'){$('#fbas').value=v+'-01';$('#fbit').value=ayGun(v)}window.DMOD=m;try{localStorage.setItem('afra_donem',m)}catch(e){}donemGoster()}
+function donemGoster(){const m=window.DMOD||donemTespit();window.DMOD=m;
+  $('#dmod').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));
+  $('#fgun').classList.toggle('hidden',m!=='gun');$('#fay').classList.toggle('hidden',m!=='ay');$('#faralik').classList.toggle('hidden',m!=='aralik');
+  $('#dprev').classList.toggle('hidden',m==='aralik');$('#dnext').classList.toggle('hidden',m==='aralik');
+  $('#fgun').value=$('#fbit').value;$('#fay').value=($('#fbas').value||today()).slice(0,7);
+  $('#dnext').disabled=m==='gun'?$('#fbit').value>=today():m==='ay'?$('#fay').value>=today().slice(0,7):false}
+function donemKaydir(d){const m=window.DMOD;if(m==='gun'){const x=new Date($('#fbit').value+'T12:00');x.setDate(x.getDate()+d);donemUygula('gun',iso(x))}
+  else if(m==='ay'){const[y,mo]=$('#fay').value.split('-').map(Number);const x=new Date(y,mo-1+d,1);donemUygula('ay',x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0'))}render()}
+function donemYazi(){const m=window.DMOD||donemTespit();if(m==='gun')return new Date($('#fbit').value+'T12:00').toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric',weekday:'long'});if(m==='ay')return ayAdi($('#fbas').value.slice(0,7));return fdate($('#fbas').value)+' – '+fdate($('#fbit').value)}
+$('#dmod').querySelectorAll('button').forEach(b=>b.onclick=()=>{const m=b.dataset.m;if(m==='aralik'){window.DMOD='aralik';try{localStorage.setItem('afra_donem','aralik')}catch(e){}donemGoster();return}
+  donemUygula(m,m==='gun'?($('#fbit').value>today()?today():$('#fbit').value||today()):($('#fbit').value||today()).slice(0,7));render()});
+$('#dprev').onclick=()=>donemKaydir(-1);$('#dnext').onclick=()=>donemKaydir(1);
+$('#fgun').onchange=e=>{if(e.target.value){donemUygula('gun',e.target.value);render()}};
+$('#fay').onchange=e=>{if(e.target.value){donemUygula('ay',e.target.value);render()}};
 $('#yenile').onclick=async()=>{const b=$('#yenile');if(b.disabled)return;b.disabled=true;b.querySelector('svg').style.animation='don .7s linear infinite';
   try{await loadSubeler();await render();toast('Güncel veriler yüklendi')}finally{b.disabled=false;b.querySelector('svg').style.animation=''}};
 
@@ -439,7 +521,7 @@ async function render(){
     yonetim:['Şubeler','Şube tanımları ve AX bayi kodları'],kullanicilar:['Kullanıcılar','Hesaplar, roller ve şube atamaları'],pos:['POS oranları','Kart ve taksit bazında komisyon oranları'],
     marj:['Satış ve marj','Net liste fiyatına göre ek indirim ve ABS fiyatına göre kâr'],fiyat:['Arçelik fiyatları','arcelik.com.tr dönem fiyatları, ABS ve paro'],gider:['Giderler','Aylık giderler; ödenenler mağaza kâr hesabına düşer'],grapor:['Günlük rapor','Satış, maliyet, komisyon ve net kâr'],prapor:['Perakende raporu','Net listeye göre ekstra iskonto ve liste altı satışlar'],odeme:['Arçelik ödeme','Yetkili Satıcı Ekstresi\'ne göre çarşamba DBS ödeme planı'],alis:['Alış fiyatları','AX stok alış fiyat raporu · ürün başına en yüksek alış (ABS)'],islem:['Günlük işlem','Elle girilen satış, tahsilat, iptal, gider ve kasa giriş / çıkış kayıtları (AX\'ten bağımsız)']};
   if(!izin(VIEW)){menuYetki()}
-  $('#title').textContent=T[VIEW][0];$('#subt').textContent=T[VIEW][1]+(['yonetim','kullanicilar','fiyat','gider','alis','odeme'].includes(VIEW)?'':` · ${fdate($('#fbas').value)} – ${fdate($('#fbit').value)}`);document.title=T[VIEW][0]+' · AFRA Panel';$('#view').innerHTML='<div class="empty">Yükleniyor…</div>';
+  $('#title').textContent=T[VIEW][0];const tarihsiz=['yonetim','kullanicilar','fiyat','gider','alis','odeme','pos'].includes(VIEW);donemGoster();$('.tbar .fbar').classList.toggle('donemsiz',tarihsiz);$('#subt').textContent=tarihsiz?T[VIEW][1]:donemYazi();$('#subt').title=T[VIEW][1];document.title=T[VIEW][0]+' · AFRA Panel';$('#view').innerHTML='<div class="empty">Yükleniyor…</div>';
   if(!SUBELER.length&&!['yonetim','kullanicilar','pos'].includes(VIEW)){$('#view').innerHTML=`<div class="card empty">${isYon()?'Henüz şube tanımlı değil. <br><br><button class="btn p" onclick="VIEW=\'yonetim\';render()">Şube ekle</button>':'Hesabınıza henüz bir şube atanmadı. Yöneticinizle iletişime geçin.'}</div>`;return}
   try{await V[VIEW]()}catch(e){console.error(e);$('#view').innerHTML=`<div class="card empty">Hata: ${esc(e.message)}</div>`}
   refreshBadge();
@@ -693,7 +775,7 @@ V.sevk=async()=>{
       ids.length?sb.from('sevkiyatlar').select('id,musteri,urun_adi,adet,tarih').in('id',ids.slice(0,200)):Promise.resolve({data:[]})]);
     S=T;window._SADI=Object.fromEntries(A.map(a=>[a.id,a]));
   }else{
-    let r=q('sevkiyatlar').order('tarih',{ascending:false}).order('created_at',{ascending:false}).limit(1000);
+    let r=(st==='acik'?(()=>{let x=sb.from('sevkiyatlar').select('*');const f=$('#fsube').value;return f?x.eq('sube_id',f):x})():q('sevkiyatlar')).order('tarih',{ascending:false}).order('created_at',{ascending:false}).limit(1000);
     if(st==='acik')r=r.in('durum',['bekliyor','planlandi','yolda']);else if(st==='manuel')r=r.eq('kaynak','manuel');else if(st!=='tumu')r=r.eq('durum',st);
     ({data:S=[]}=await r);
   }
@@ -895,7 +977,7 @@ function onay(baslik,html,evet='Kaydet'){return new Promise(res=>{const d=docume
   document.body.appendChild(d);d.showModal();let v=false;d.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{v=b.dataset.x==='1';d.close()});d.onclose=()=>{d.remove();res(v)}})}
 function tarihHizli(){const t=new Date(),y=new Date(t);y.setDate(t.getDate()-1);const ilk=new Date(t.getFullYear(),t.getMonth(),1),gi=new Date(t.getFullYear(),t.getMonth()-1,1),gs=new Date(t.getFullYear(),t.getMonth(),0);
   return[['Bugün',iso(t),iso(t)],['Dün',iso(y),iso(y)],['Bu ay',iso(ilk),iso(t)],['Geçen ay',iso(gi),iso(gs)]]}
-function hizliBagla(){document.querySelectorAll('[data-hz]').forEach(b=>b.onclick=()=>{const[a,z]=b.dataset.hz.split('|');$('#fbas').value=a;$('#fbit').value=z;render()})}
+function hizliBagla(){document.querySelectorAll('[data-hz]').forEach(b=>b.onclick=()=>{const[a,z]=b.dataset.hz.split('|');$('#fbas').value=a;$('#fbit').value=z;window.DMOD=donemTespit();donemGoster();render()})}
 const hizliHtml=()=>tarihHizli().map(([l,a,z])=>`<button class="btn s ${$('#fbas').value===a&&$('#fbit').value===z?'p':''}" data-hz="${a}|${z}">${l}</button>`).join('');
 async function satisSatirlari(){return hepsi(()=>{let r=sb.from('v_satis_analiz').select('*').gte('tarih',$('#fbas').value).lte('tarih',$('#fbit').value).order('tarih').order('id');
   return $('#fsube').value?r.eq('sube_id',$('#fsube').value):r})}
