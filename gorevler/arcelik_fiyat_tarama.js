@@ -1,9 +1,9 @@
-// AFRA Panel — arcelik.com.tr fiyat taraması (haftada bir; __DONEM__ = ISO hafta 'YYYY-Www', __YARI__ = 0)
+// AFRA Panel — arcelik.com.tr fiyat taraması (__DONEM__ = ay 'YYYY-MM', __YARI__ = 1 (ayın 1-15'i) ya da 2 (16'sı ve sonrası))
 // arcelik.com.tr'de açık bir sekmede javascript ile çalıştırılır. Sitede hiçbir şeye tıklamaz, yalnızca okur.
-// __KEY__, __DONEM__ ('YYYY-Www', select bu_hafta()), __YARI__ (0) yer tutucularını doldurun. Durum: window.__WF
+// __KEY__ (app_secrets.web_prices_key), __DONEM__ ('YYYY-MM'), __YARI__ (1|2) yer tutucularını doldurun. Durum: window.__WF
 (() => {
   const KEY = '__KEY__', DONEM = '__DONEM__', YARI = __YARI__;
-  const SB = 'https://drgnnlewwnwshwvpoljy.supabase.co/rest/v1/rpc/ingest_web_fiyat';
+  const SB = 'https://drgnnlewwnwshwvpoljy.supabase.co/rest/v1/rpc/ingest_web_price_snapshot';
   const APIKEY = 'sb_publishable_YpFFWDyHNFm2UF_L-Bdfyg_owoDrKbG';
   const S = window.__WF = { state: 'kategoriler', cats: 0, done: 0, pages: 0, bosSeri: 0, items: new Map(), err: [], result: null, error: null };
   const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -39,7 +39,7 @@
   };
   const send = async (rows, reset, final, note) => {
     const r = await fetch(SB, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: APIKEY },
-      body: JSON.stringify({ p_key: KEY, p_donem: DONEM, p_yari: YARI, p_rows: rows, p_reset: reset, p_final: final, p_not: note || null }) });
+      body: JSON.stringify({ p_key: KEY, p_period: DONEM, p_half: YARI, p_rows: rows, p_reset: reset, p_final: final, p_note: note || null }) });
     const j = await r.json(); if (!r.ok) throw new Error(j.message || JSON.stringify(j)); return j;
   };
   (async () => {
