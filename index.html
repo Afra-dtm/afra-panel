@@ -3908,7 +3908,7 @@ function bindSevk(){
   const di=$("#svDate");if(di)di.onchange=()=>setDate(di.value);
   app.querySelectorAll("[data-svday]").forEach(b=>b.onclick=()=>setDate(b.dataset.svday));
   on("#svUp",()=>$("#svFile").click());const f=$("#svFile");if(f)f.onchange=()=>{const x=f.files[0];f.value="";if(x)svHandleFile(x)};
-  on("#svXlsx",svExport);on("#svAdd",()=>svManualForm());
+  on("#svXlsx",svExportAsk);on("#svAdd",()=>svManualForm());
   app.querySelectorAll("[data-svedit]").forEach(b=>b.onclick=()=>svManualForm(SV.rows.find(x=>x.id===b.dataset.svedit)));
   app.querySelectorAll("[data-svdel]").forEach(b=>b.onclick=async()=>{if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Emin misiniz?";setTimeout(()=>{if(b.isConnected){b.dataset.sure="";b.textContent="Sil"}},4000);return}
     b.disabled=true;const r=SV.rows.find(x=>x.id===b.dataset.svdel);const{error}=await sb.from("shipments").delete().eq("id",r.id).eq("manual",true);
@@ -3981,16 +3981,24 @@ async function svHandleFile(file){
     if(error){btn.disabled=false;btn.textContent="Kaydet";err.textContent=errMsg(error);err.hidden=false;return}
     closeModal();toast(svDot(d)+" sevkiyatı kaydedildi ("+ins.length+" satır)");SV.date=d;SV.loadedFor=null;render()};
 }
-async function svExport(){
+function svExportAsk(){
+  sheet(`<h3>Excel indir</h3>
+    <label style="display:flex;gap:8px;align-items:center;font-size:14px;margin:8px 0"><input type="checkbox" id="sxK" style="width:auto;margin:0;flex:none;padding:0"> Kontrol ve Kontrol Eden sütunlarını ekle</label>
+    <div class="actions"><div class="right"><button type="button" class="btn" data-cancel>Vazgeç</button><button type="submit" class="btn primary">İndir</button></div></div>`,"svxForm");
+  $("#svxForm").onsubmit=e=>{e.preventDefault();const k=$("#sxK").checked;closeModal();svExport(k)};
+}
+async function svExport(withCheck){
   await loadXLSX();const rows=(SV.rows||[]).filter(r=>!SV.store||r.store===SV.store);const d=svDot(SV.date);
-  const H=["Randevu Tarihi","Satış Mağazası","Çıkış Deposu","Müşteri","Satış Siparişi","Madde Kodu / Barkod","Ürün","Satış Temsilcisi","İş Emri Durumu","Açıklama","Kontrol","Kontrol Eden","Not"];
+  const H=["Randevu Tarihi","Satış Mağazası","Çıkış Deposu","Müşteri","Madde Kodu / Barkod","Ürün","Satış Temsilcisi","Açıklama",...(withCheck?["Kontrol","Kontrol Eden"]:[]),"Not"];
   const aoa=[["GÜNLÜK SEVKİYAT KONTROLÜ — "+d+" "+parse(SV.date).toLocaleDateString("tr-TR",{weekday:"long"})+" (Randevu tarihine göre)"],[],H,
-    ...rows.map(r=>[d,r.store,r.depot||"",r.customer,r.order_no||"",r.item_code||r.barcode||"",r.product,r.rep||"",r.wo_status||"",r.description||"",r.checked?"Evet":"Hayır",r.checked_by?creatorName(r.checked_by):"",r.note||""])];
-  aoa.push([],["ÖZET"],["Mağaza","Toplam Satır","Kontrol Edilen","Elden Teslim"]);
-  ["PARSELLER","GÜNEŞLİ"].forEach(s=>{const x=rows.filter(r=>r.store===s);if(x.length)aoa.push([s,x.length,x.filter(r=>r.checked).length,x.filter(r=>r.manual).length])});
-  const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[12,12,16,26,14,16,30,18,16,50,8,16,28].map(w=>({wch:w}));ws["!autofilter"]={ref:`A3:M${3+rows.length}`};
+    ...rows.map(r=>[d,r.store,r.depot||"",r.customer,r.item_code||r.barcode||"",r.product,r.rep||"",r.description||"",...(withCheck?[r.checked?"Evet":"Hayır",r.checked_by?creatorName(r.checked_by):""]:[]),r.note||""])];
+  aoa.push([],["ÖZET"],["Mağaza","Toplam Satır",...(withCheck?["Kontrol Edilen"]:[]),"Elden Teslim"]);
+  ["PARSELLER","GÜNEŞLİ"].forEach(s=>{const x=rows.filter(r=>r.store===s);if(x.length)aoa.push([s,x.length,...(withCheck?[x.filter(r=>r.checked).length]:[]),x.filter(r=>r.manual).length])});
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[12,12,16,26,16,30,18,50,...(withCheck?[8,16]:[]),28].map(w=>({wch:w}));
+  ws["!autofilter"]={ref:`A3:${XLSX.utils.encode_col(H.length-1)}${3+rows.length}`};
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,d+" Sevkiyat");XLSX.writeFile(wb,`Sevkiyat_${d}.xlsx`);
 }
+
 
 
 /* === PERSONEL İZİN TAKİBİ === */
