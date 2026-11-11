@@ -3828,7 +3828,7 @@ function vSevk(){
   if(SV.loadedFor!==SV.date){svLoad();return`${svHead()}<div class="empty">Yükleniyor…</div>`}
   if(SV.err)return`${svHead()}<div class="banner bad"><span>${esc(SV.err)}</span></div>`;
   const all=SV.rows||[];const rows=all.filter(r=>(!SV.store||r.store===SV.store)&&(!SV.open||!r.checked));
-  const done=all.filter(r=>r.checked).length,bod=all.filter(r=>r.depot_type==="BOD").length;
+  const done=all.filter(r=>r.checked).length,bod=all.filter(r=>r.depot_type==="BOD").length,elden=all.filter(r=>r.manual).length;
   const stores=["PARSELLER","GÜNEŞLİ"].filter(s=>all.some(r=>r.store===s));
   const ageDays=r=>r.order_date?daysBetween(r.order_date,r.ship_date):0;
   const table=st=>{const list=rows.filter(r=>r.store===st);if(!list.length)return"";const sc=all.filter(r=>r.store===st);
@@ -3836,7 +3836,7 @@ function vSevk(){
     <div class="tbl-wrap"><table class="sv"><thead><tr><th class="ck">✓</th><th>Randevu tarihi</th><th>Depo</th><th>Müşteri</th><th>Ürün</th><th>Açıklama</th><th>Temsilci</th><th>Fatura</th><th>Not</th></tr></thead><tbody>
     ${list.map(r=>`<tr class="${r.checked?"done":""}"><td class="ck"><input type="checkbox" data-svck="${r.id}" ${r.checked?"checked":""} aria-label="${esc(r.customer)} ${esc(r.product)} kontrol edildi"></td>
       <td class="num">${r.ship_date?svDot(r.ship_date):""}</td>
-      <td><span class="chip ${r.depot_type==="BOD"?"xfer":"adm"}">${r.depot_type==="BOD"?"BOD":"Mağaza"}</span><div class="muted" style="font-size:11px">${esc(r.depot||"")}</div></td>
+      <td><span class="chip ${r.depot_type==="BOD"?"xfer":r.manual?"in":"adm"}">${r.depot_type==="BOD"?"BOD":r.manual?"Elden":"Mağaza"}</span><div class="muted" style="font-size:11px">${esc(r.depot||"")}</div>${r.manual?`<div class="muted" style="font-size:11px">Elle: ${esc(creatorName(r.uploaded_by)||"")}</div><button type="button" class="btn sm ghost" data-svdel="${r.id}" style="margin-top:2px;padding:2px 8px">Sil</button>`:""}</td>
       <td><b style="font-weight:600">${esc(r.customer||"")}</b>${ageDays(r)>30?`<div><span class="chip warn">${ageDays(r)} gün önceki sipariş</span></div>`:""}</td>
       <td>${esc(r.product||"")}<div class="muted num" style="font-size:11px">${esc(r.item_code||"")}</div></td>
       <td style="font-size:12px;max-width:260px;white-space:normal">${r.description?esc(r.description):'<span class="muted">—</span>'}</td>
@@ -3847,7 +3847,7 @@ function vSevk(){
   return`${svHead()}
   ${all.length?`<section class="kpis">
     <div class="kpi"><label>Kontrol</label><div class="v num ${done===all.length?"pos":""}">${done} / ${all.length}</div><div class="s">${done===all.length?"Tümü kontrol edildi":all.length-done+" satır bekliyor"}</div></div>
-    <div class="kpi"><label>Depo</label><div class="v num">${bod} BOD</div><div class="s">${all.length-bod} satır mağaza deposundan</div></div>
+    <div class="kpi"><label>Depo</label><div class="v num">${bod} BOD</div><div class="s">${all.length-bod-elden} satır mağaza deposundan${elden?` · ${elden} elden`:""}</div></div>
     <div class="kpi"><label>Müşteri</label><div class="v num">${new Set(all.map(r=>r.store+"|"+r.customer)).size}</div><div class="s">${stores.map(s=>(s==="PARSELLER"?"Parseller ":"Güneşli ")+all.filter(r=>r.store===s).length).join(" · ")} satır</div></div>
     <div class="kpi"><label>Toplam tutar</label><div class="v num">${TL(all.reduce((s,r)=>s+(r.amount||0),0))}</div><div class="s">${all.filter(r=>!r.invoice_no).length} satırda fatura yok</div></div>
   </section>
@@ -3856,14 +3856,46 @@ function vSevk(){
     <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="svOpen" style="width:auto;margin:0;flex:none;padding:0" ${SV.open?"checked":""}> Sadece kontrol edilmeyenler</label>
   </div>
   ${stores.map(table).join("")||'<div class="empty">Filtreye uyan satır yok.</div>'}`
-  :`<div class="empty">${svDot(SV.date)} tarihi için sevkiyat yüklenmemiş.${S.isAdmin?" “Excel yükle” ile o günün sevkiyat dosyasını ekleyin.":""}</div>`}`;
+  :`<div class="empty">${svDot(SV.date)} tarihi için sevkiyat yüklenmemiş.${S.isAdmin?" “Excel yükle” ile o günün sevkiyat dosyasını ekleyin.":""} Mağazada elden verilen ürünler için “Elle ekle”yi kullanın.</div>`}`;
+}
+function svStoresForMe(){
+  if(S.isAdmin)return["PARSELLER","GÜNEŞLİ"];
+  return["PARSELLER","GÜNEŞLİ"].filter(st=>{const id=svArea(st);return id&&S.userAreas.some(u=>u.user_id===S.me.id&&u.area_id===id)});
+}
+function svManualForm(){
+  const stores=svStoresForMe();if(!stores.length){toast("Mağaza yetkiniz yok");return}
+  const def=SV.store&&stores.includes(SV.store)?SV.store:stores[0];
+  sheet(`<h3>Elle sevkiyat ekle</h3>
+    <div class="muted" style="font-size:13px;margin:-4px 0 8px">Mağazada elden verilen ürünler için. AX aktarımı ve Excel yükleme bu satırlara dokunmaz.</div>
+    <div class="field"><label for="smD">Teslim tarihi</label><input id="smD" type="date" value="${SV.date}" required></div>
+    <div class="field"><label for="smS">Mağaza</label><select id="smS">${stores.map(s=>`<option value="${s}" ${s===def?"selected":""}>${s==="PARSELLER"?"Parseller":"Güneşli"}</option>`).join("")}</select></div>
+    <div class="field"><label for="smC">Müşteri</label><input id="smC" required autocomplete="off"></div>
+    <div class="field"><label for="smP">Ürün</label><input id="smP" required autocomplete="off"></div>
+    <div class="field"><label for="smI">Madde kodu (isteğe bağlı)</label><input id="smI" autocomplete="off" inputmode="numeric"></div>
+    <div class="field"><label for="smF">Fatura no (isteğe bağlı)</label><input id="smF" autocomplete="off"></div>
+    <div class="field"><label for="smA">Açıklama</label><input id="smA" autocomplete="off"></div>
+    <div class="field"><label for="smN">Not</label><input id="smN" autocomplete="off"></div>
+    <label style="display:flex;gap:6px;align-items:center;font-size:13px;margin:6px 0"><input type="checkbox" id="smK" style="width:auto;margin:0;flex:none;padding:0" checked> Kontrol edildi olarak işaretle</label>
+    <div class="err" id="smErr" hidden></div>
+    <div class="actions"><div class="right"><button type="button" class="btn" data-cancel>Vazgeç</button><button type="submit" class="btn primary" id="smSave">Kaydet</button></div></div>`,"svmForm");
+  $("#svmForm").onsubmit=async e=>{e.preventDefault();const v=id=>$(id).value.trim(),err=$("#smErr"),btn=$("#smSave");
+    const d=v("#smD"),st=$("#smS").value,c=v("#smC"),pr=v("#smP");
+    if(!d||!c||!pr){err.textContent="Tarih, müşteri ve ürün zorunlu.";err.hidden=false;return}
+    const area=svArea(st);if(!area){err.textContent="Mağaza bulunamadı.";err.hidden=false;return}
+    const k=$("#smK").checked;btn.disabled=true;btn.textContent="Kaydediliyor…";
+    const row={ship_date:d,store:st,area_id:area,depot:"Mağaza (elden)",depot_type:"ELDEN",customer:c,product:pr,item_code:v("#smI")||null,
+      invoice_no:v("#smF")||null,description:v("#smA")||null,note:v("#smN")||null,manual:true,uploaded_by:S.me.id,
+      ...(k?{checked:true,checked_by:S.me.id,checked_at:new Date().toISOString()}:{})};
+    const{error}=await sb.from("shipments").insert(row);
+    if(error){btn.disabled=false;btn.textContent="Kaydet";err.textContent=errMsg(error);err.hidden=false;return}
+    closeModal();toast(svDot(d)+" için elden teslim eklendi");SV.date=d;SV.loadedFor=null;render()};
 }
 function svHead(){
   const recent=SV.days?Object.entries(SV.days).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,10):[];
   return`<section class="panel">
     <div class="panel-h"><div><div class="muted" style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Sevkiyat günü (randevu tarihi)</div><h2 style="font-size:22px">${svDayLabel(SV.date)}</h2></div>
       <div class="filters"><button class="btn sm" id="svPrev" type="button" aria-label="Önceki gün">‹</button><input type="date" id="svDate" value="${SV.date}"><button class="btn sm" id="svNext" type="button" aria-label="Sonraki gün">›</button>${SV.date!==TODAY?`<button class="btn sm ghost" id="svToday" type="button">Bugün</button>`:""}
-      ${S.isAdmin?`<button class="btn sm primary" id="svUp" type="button">Excel yükle</button><input type="file" id="svFile" accept=".xlsx,.xls" hidden>`:""}${(SV.rows||[]).length?`<button class="btn sm" id="svXlsx" type="button">Excel indir</button>`:""}</div></div>
+      ${svStoresForMe().length?`<button class="btn sm primary" id="svAdd" type="button">Elle ekle</button>`:""}${S.isAdmin?`<button class="btn sm primary" id="svUp" type="button">Excel yükle</button><input type="file" id="svFile" accept=".xlsx,.xls" hidden>`:""}${(SV.rows||[]).length?`<button class="btn sm" id="svXlsx" type="button">Excel indir</button>`:""}</div></div>
     ${recent.length?`<div class="filters">${recent.map(([d,x])=>`<button class="btn sm ${d===SV.date?"primary":""}" data-svday="${d}" type="button">${svDot(d).slice(0,5)} <span class="${x.c===x.n?"":"muted"}" style="font-size:11px">${x.c}/${x.n}</span></button>`).join("")}</div>`:""}
   </section>`;
 }
@@ -3874,7 +3906,10 @@ function bindSevk(){
   const di=$("#svDate");if(di)di.onchange=()=>setDate(di.value);
   app.querySelectorAll("[data-svday]").forEach(b=>b.onclick=()=>setDate(b.dataset.svday));
   on("#svUp",()=>$("#svFile").click());const f=$("#svFile");if(f)f.onchange=()=>{const x=f.files[0];f.value="";if(x)svHandleFile(x)};
-  on("#svXlsx",svExport);
+  on("#svXlsx",svExport);on("#svAdd",svManualForm);
+  app.querySelectorAll("[data-svdel]").forEach(b=>b.onclick=async()=>{if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Emin misiniz?";setTimeout(()=>{if(b.isConnected){b.dataset.sure="";b.textContent="Sil"}},4000);return}
+    b.disabled=true;const r=SV.rows.find(x=>x.id===b.dataset.svdel);const{error}=await sb.from("shipments").delete().eq("id",r.id).eq("manual",true);
+    if(error){toast(errMsg(error));b.disabled=false;return}toast("Elle eklenen satır silindi");SV.loadedFor=null;render()});
   const sg=$("#svSeg");if(sg)sg.querySelectorAll("button").forEach(b=>b.onclick=()=>{SV.store=b.dataset.v;render()});
   const op=$("#svOpen");if(op)op.onchange=()=>{SV.open=op.checked;render()};
   app.querySelectorAll("[data-svck]").forEach(c=>c.onchange=async()=>{const r=SV.rows.find(x=>x.id===c.dataset.svck);const v=c.checked;c.disabled=true;
@@ -3931,14 +3966,14 @@ async function svHandleFile(file){
     <div class="actions"><div class="right"><button type="button" class="btn" data-cancel>Vazgeç</button><button type="submit" class="btn primary" id="svSave">Kaydet</button></div></div>`,"svForm");
   const di=$("#svd");let existing=[];
   const info=async()=>{const d=di.value;$("#svdInfo").innerHTML=`<span><b>${d?svDayLabel(d):"Tarih seçin"}</b> sevkiyatı olarak kaydedilecek.</span>`;
-    if(!d)return;const{data}=await sb.from("shipments").select("id,order_no,work_order,item_code,checked,checked_by,checked_at,note").eq("ship_date",d);existing=data||[];
-    if(existing.length&&di.value===d)$("#svdInfo").innerHTML+=`<span>Bu güne ait ${existing.length} satır zaten var; yeni dosyayla değiştirilecek, kontrol işaretleri ve notlar korunacak.</span>`};
+    if(!d)return;const{data}=await sb.from("shipments").select("id,order_no,work_order,item_code,checked,checked_by,checked_at,note").eq("ship_date",d).eq("manual",false);existing=data||[];
+    if(existing.length&&di.value===d)$("#svdInfo").innerHTML+=`<span>Bu güne ait ${existing.length} satır zaten var; yeni dosyayla değiştirilecek, kontrol işaretleri ve notlar korunacak. Elle eklenen satırlara dokunulmaz.</span>`};
   di.onchange=info;info();
   $("#svForm").onsubmit=async e=>{e.preventDefault();const d=di.value,err=$("#svErr"),btn=$("#svSave");if(!d){err.textContent="Tarih seçin.";err.hidden=false;return}
     btn.disabled=true;btn.textContent="Kaydediliyor…";
     const k=r=>[r.order_no,r.work_order,r.item_code].join("|");const old={};existing.forEach(r=>{(old[k(r)]=old[k(r)]||[]).push(r)});
     const ins=p.rows.map(r=>{const o=(old[k(r)]||[]).shift();return{...r,ship_date:d,...(o?{checked:o.checked,checked_by:o.checked_by,checked_at:o.checked_at,note:o.note}:{})}});
-    let{error}=existing.length?await sb.from("shipments").delete().eq("ship_date",d):{error:null};
+    let{error}=existing.length?await sb.from("shipments").delete().eq("ship_date",d).eq("manual",false):{error:null};
     if(!error)({error}=await sb.from("shipments").insert(ins));
     if(error){btn.disabled=false;btn.textContent="Kaydet";err.textContent=errMsg(error);err.hidden=false;return}
     closeModal();toast(svDot(d)+" sevkiyatı kaydedildi ("+ins.length+" satır)");SV.date=d;SV.loadedFor=null;render()};
@@ -3947,7 +3982,7 @@ async function svExport(){
   await loadXLSX();const rows=(SV.rows||[]).filter(r=>!SV.store||r.store===SV.store);const d=svDot(SV.date);
   const H=["Randevu Tarihi","Saat","Satış Mağazası","Çıkış Deposu","Depo Tipi","Müşteri","Satış Siparişi","İş Emri No","Sipariş Tarihi","Madde Kodu","Ürün","Tutar (TL)","Satış Temsilcisi","İş Emri Durumu","Fatura No","Açıklama","Kontrol","Kontrol Eden","Not"];
   const aoa=[["GÜNLÜK SEVKİYAT KONTROLÜ — "+d+" "+parse(SV.date).toLocaleDateString("tr-TR",{weekday:"long"})+" (Randevu tarihine göre)"],[],H,
-    ...rows.map(r=>[d,r.ship_time||"",r.store,r.depot||"",r.depot_type==="BOD"?"BOD":"MAĞAZA",r.customer,r.order_no||"",r.work_order||"",r.order_date?svDot(r.order_date):"",r.item_code||"",r.product,r.amount??"",r.rep||"",r.wo_status||"",r.invoice_no||"",r.description||"",r.checked?"Evet":"Hayır",r.checked_by?creatorName(r.checked_by):"",r.note||""])];
+    ...rows.map(r=>[d,r.ship_time||"",r.store,r.depot||"",r.depot_type==="BOD"?"BOD":r.manual?"ELDEN":"MAĞAZA",r.customer,r.order_no||"",r.work_order||"",r.order_date?svDot(r.order_date):"",r.item_code||"",r.product,r.amount??"",r.rep||"",r.wo_status||"",r.invoice_no||"",r.description||"",r.checked?"Evet":"Hayır",r.checked_by?creatorName(r.checked_by):"",r.note||""])];
   aoa.push([],["ÖZET"],["Mağaza","BOD Satır","Mağaza Depo Satır","Toplam Satır","Kontrol Edilen","Toplam Tutar (TL)"]);
   ["PARSELLER","GÜNEŞLİ"].forEach(s=>{const x=rows.filter(r=>r.store===s);if(x.length)aoa.push([s,x.filter(r=>r.depot_type==="BOD").length,x.filter(r=>r.depot_type!=="BOD").length,x.length,x.filter(r=>r.checked).length,x.reduce((a,r)=>a+(r.amount||0),0)])});
   const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[12,7,12,12,9,26,14,12,12,14,30,12,18,14,18,40,8,16,28].map(w=>({wch:w}));ws["!autofilter"]={ref:`A3:S${3+rows.length}`};
