@@ -3833,12 +3833,13 @@ function vSevk(){
   const ageDays=r=>r.order_date?daysBetween(r.order_date,r.ship_date):0;
   const table=st=>{const list=rows.filter(r=>r.store===st);if(!list.length)return"";const sc=all.filter(r=>r.store===st);
     return`<section class="panel"><div class="panel-h"><h2>${st==="PARSELLER"?"Parseller":"Güneşli"} <span class="muted" style="font-size:14px;font-weight:500">· ${svDot(SV.date)} sevkiyatı · ${sc.filter(r=>r.checked).length}/${sc.length} kontrol edildi</span></h2></div>
-    <div class="tbl-wrap"><table class="sv"><thead><tr><th class="ck">✓</th><th>Randevu tarihi</th><th>Depo</th><th>Müşteri</th><th>Ürün</th><th>Temsilci</th><th>Fatura</th><th>Not</th></tr></thead><tbody>
+    <div class="tbl-wrap"><table class="sv"><thead><tr><th class="ck">✓</th><th>Randevu tarihi</th><th>Depo</th><th>Müşteri</th><th>Ürün</th><th>Açıklama</th><th>Temsilci</th><th>Fatura</th><th>Not</th></tr></thead><tbody>
     ${list.map(r=>`<tr class="${r.checked?"done":""}"><td class="ck"><input type="checkbox" data-svck="${r.id}" ${r.checked?"checked":""} aria-label="${esc(r.customer)} ${esc(r.product)} kontrol edildi"></td>
       <td class="num">${r.ship_date?svDot(r.ship_date):""}</td>
       <td><span class="chip ${r.depot_type==="BOD"?"xfer":"adm"}">${r.depot_type==="BOD"?"BOD":"Mağaza"}</span><div class="muted" style="font-size:11px">${esc(r.depot||"")}</div></td>
       <td><b style="font-weight:600">${esc(r.customer||"")}</b>${ageDays(r)>30?`<div><span class="chip warn">${ageDays(r)} gün önceki sipariş</span></div>`:""}</td>
       <td>${esc(r.product||"")}<div class="muted num" style="font-size:11px">${esc(r.item_code||"")}</div></td>
+      <td style="font-size:12px;max-width:260px;white-space:normal">${r.description?esc(r.description):'<span class="muted">—</span>'}</td>
       <td style="font-size:12px">${esc(r.rep||"")}</td>
       <td class="num" style="font-size:12px">${r.invoice_no?esc(r.invoice_no):'<span class="muted">—</span>'}</td>
       <td><input class="sv-note" data-svnote="${r.id}" value="${esc(r.note||"")}" placeholder="Not" aria-label="Not">${r.checked&&r.checked_by?`<div class="muted" style="font-size:11px">${esc(creatorName(r.checked_by)||"")} ${r.checked_at?new Date(r.checked_at).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"}):""}</div>`:""}</td></tr>`).join("")}
@@ -3886,7 +3887,7 @@ function bindSevk(){
 }
 const SV_COLS={ship_date:["randevu tarihi","sevkiyat tarihi"],ship_time:["randevu saati","randevu","saat"],store:["satis magazasi","magaza"],depot:["cikis deposu","depo"],depot_type:["depo tipi"],
   customer:["musteri","musteri adi"],order_no:["satis siparisi","siparis no","satis siparis no"],work_order:["is emri no","is emri"],order_date:["siparis tarihi"],item_code:["madde kodu","urun kodu"],
-  product:["urun","urun adi","madde adi"],amount:["tutar tl","tutar"],rep:["satis temsilcisi","temsilci"],wo_status:["is emri durumu","durum"],invoice_no:["fatura no","fatura"]};
+  product:["urun","urun adi","madde adi"],amount:["tutar tl","tutar"],rep:["satis temsilcisi","temsilci"],wo_status:["is emri durumu","durum"],invoice_no:["fatura no","fatura"],description:["aciklama"]};
 function svToIso(v){if(v==null||v==="")return null;if(typeof v==="number"){const d=new Date(Math.round((v-25569)*864e5));return d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate())}
   if(v instanceof Date)return iso(v);const m=String(v).match(/(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})/);return m?m[3]+"-"+pad(+m[2])+"-"+pad(+m[1]):null}
 function svTime(v){if(v==null||v==="")return null;if(typeof v==="number"){const f=v%1,mins=Math.round(f*1440);return pad(Math.floor(mins/60))+":"+pad(mins%60)}const m=String(v).match(/(\d{1,2}):(\d{2})/);return m?pad(+m[1])+":"+m[2]:String(v).trim()}
@@ -3910,7 +3911,7 @@ function svParse(wb,fileName){
       out.push({ship_date:svToIso(g("ship_date")),ship_time:svTime(g("ship_time")),store,area_id:svArea(store),depot,depot_type:dt,customer:String(g("customer")).trim(),
         order_no:g("order_no")!=null?String(g("order_no")).trim():null,work_order:g("work_order")!=null?String(g("work_order")).trim():null,order_date:svToIso(g("order_date")),
         item_code:g("item_code")!=null?String(g("item_code")).trim():null,product:String(g("product")).trim(),amount:typeof amt==="number"?amt:(amt?parseAmt(amt):null),
-        rep:g("rep")!=null?String(g("rep")).trim():null,wo_status:g("wo_status")!=null?String(g("wo_status")).trim():null,invoice_no:g("invoice_no")?String(g("invoice_no")).trim():null});
+        rep:g("rep")!=null?String(g("rep")).trim():null,wo_status:g("wo_status")!=null?String(g("wo_status")).trim():null,invoice_no:g("invoice_no")?String(g("invoice_no")).trim():null,description:g("description")!=null&&String(g("description")).trim()?String(g("description")).trim():null});
     }
     if(out.length)return{date:date||out.find(r=>r.ship_date)?.ship_date||SV.date,rows:out};
   }
@@ -3944,12 +3945,12 @@ async function svHandleFile(file){
 }
 async function svExport(){
   await loadXLSX();const rows=(SV.rows||[]).filter(r=>!SV.store||r.store===SV.store);const d=svDot(SV.date);
-  const H=["Randevu Tarihi","Saat","Satış Mağazası","Çıkış Deposu","Depo Tipi","Müşteri","Satış Siparişi","İş Emri No","Sipariş Tarihi","Madde Kodu","Ürün","Tutar (TL)","Satış Temsilcisi","İş Emri Durumu","Fatura No","Kontrol","Kontrol Eden","Not"];
+  const H=["Randevu Tarihi","Saat","Satış Mağazası","Çıkış Deposu","Depo Tipi","Müşteri","Satış Siparişi","İş Emri No","Sipariş Tarihi","Madde Kodu","Ürün","Tutar (TL)","Satış Temsilcisi","İş Emri Durumu","Fatura No","Açıklama","Kontrol","Kontrol Eden","Not"];
   const aoa=[["GÜNLÜK SEVKİYAT KONTROLÜ — "+d+" "+parse(SV.date).toLocaleDateString("tr-TR",{weekday:"long"})+" (Randevu tarihine göre)"],[],H,
-    ...rows.map(r=>[d,r.ship_time||"",r.store,r.depot||"",r.depot_type==="BOD"?"BOD":"MAĞAZA",r.customer,r.order_no||"",r.work_order||"",r.order_date?svDot(r.order_date):"",r.item_code||"",r.product,r.amount??"",r.rep||"",r.wo_status||"",r.invoice_no||"",r.checked?"Evet":"Hayır",r.checked_by?creatorName(r.checked_by):"",r.note||""])];
+    ...rows.map(r=>[d,r.ship_time||"",r.store,r.depot||"",r.depot_type==="BOD"?"BOD":"MAĞAZA",r.customer,r.order_no||"",r.work_order||"",r.order_date?svDot(r.order_date):"",r.item_code||"",r.product,r.amount??"",r.rep||"",r.wo_status||"",r.invoice_no||"",r.description||"",r.checked?"Evet":"Hayır",r.checked_by?creatorName(r.checked_by):"",r.note||""])];
   aoa.push([],["ÖZET"],["Mağaza","BOD Satır","Mağaza Depo Satır","Toplam Satır","Kontrol Edilen","Toplam Tutar (TL)"]);
   ["PARSELLER","GÜNEŞLİ"].forEach(s=>{const x=rows.filter(r=>r.store===s);if(x.length)aoa.push([s,x.filter(r=>r.depot_type==="BOD").length,x.filter(r=>r.depot_type!=="BOD").length,x.length,x.filter(r=>r.checked).length,x.reduce((a,r)=>a+(r.amount||0),0)])});
-  const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[12,7,12,12,9,26,14,12,12,14,30,12,18,14,18,8,16,28].map(w=>({wch:w}));ws["!autofilter"]={ref:`A3:R${3+rows.length}`};
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[12,7,12,12,9,26,14,12,12,14,30,12,18,14,18,40,8,16,28].map(w=>({wch:w}));ws["!autofilter"]={ref:`A3:S${3+rows.length}`};
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,d+" Sevkiyat");XLSX.writeFile(wb,`Sevkiyat_${d}.xlsx`);
 }
 
