@@ -1190,10 +1190,16 @@ const GK={view:"gun",area:null,date:null,month:null,entries:[],key:null,loading:
 const gkNeedsSql=e=>/daily_entries|products|pos_rates|kasa_start|kasa_devir|product_prices|kasa_close|list_prices_at|product_list_prices|discount_reason|ext_ref|does not exist|schema cache|Could not find/i.test((e&&e.message)||"");
 const GK_SQL_MSG="Günlük Kasa için veritabanı güncellemesi yapılmamış. Supabase → SQL Editor'de güncelleme dosyalarını (3, 4, 5, 6 ve 8 numaralı SQL) sırayla çalıştırın, sonra sayfayı yenileyin.";
 
-async function gkFetch(table,build,order="id"){
-  const out=[];let from=0;
-  for(;;){let q=sb.from(table).select("*");if(build)q=build(q);q=q.order(order,{ascending:true}).range(from,from+999);
-    const{data,error}=await q;if(error)throw error;out.push(...data);if(data.length<1000)break;from+=1000}
+/* 1000'lik sayfalar: ilk sayfa toplam satır sayısını da getirir, kalan sayfalar aynı anda istenir */
+async function gkFetch(table,build,order="id",sel="*"){
+  const page=(from,count)=>{let q=sb.from(table).select(sel,count?{count:"exact"}:undefined);if(build)q=build(q);return q.order(order,{ascending:true}).range(from,from+999)};
+  const first=await page(0,true);if(first.error)throw first.error;
+  const out=[...first.data];if(first.data.length<1000)return out;
+  let from=1000;
+  if(first.count!=null&&first.count>1000){const ps=[];for(;from<first.count;from+=1000)ps.push(page(from));
+    const rs=await Promise.all(ps);for(const r of rs){if(r.error)throw r.error;out.push(...r.data)}
+    if(rs[rs.length-1].data.length<1000)return out}
+  for(;;from+=1000){const{data,error}=await page(from);if(error)throw error;out.push(...data);if(data.length<1000)break}
   return out;
 }
 function gkStores(){return S.areas}
@@ -1209,26 +1215,32 @@ function gkBuildList(rows){
 function listAt(code,date){const a=GK.listMap&&GK.listMap[code];if(!a)return null;let p=null;for(const x of a){if(x.from<=date)p=x;else break}return p}
 async function gkListPrices(date){
   if(GK.lpCache[date])return GK.lpCache[date];
-  // sunucu tek seferde en çok 1000 satır döndürür: sayfa sayfa çek (yoksa 1000. üründen sonrakilerin liste altı satışı görünmez)
-  const data=[];for(let from=0;;from+=1000){const{data:d,error}=await sb.rpc("list_prices_at",{p_date:date}).order("madde_kodu").range(from,from+999);if(error)throw error;data.push(...(d||[]));if(!d||d.length<1000)break}
-  const m={};data.forEach(r=>m[r.madde_kodu]={list:+r.list_price,oliz:+r.oliz});GK.lpCache[date]=m;return m;
+  const{data,error}=await sb.rpc("list_prices_at",{p_date:date});if(error)throw error;
+  const m={};(data||[]).forEach(r=>m[r.madde_kodu]={list:+r.list_price,oliz:+r.oliz});GK.lpCache[date]=m;return m;
 }
 function isClosed(area,date){return GK.closes.find(c=>c.area_id===area&&c.date===date)||null}
 function priceAt(code,date){const a=GK.priceMap&&GK.priceMap[code];if(!a)return null;let p=null;for(const x of a){if(x.from<=date)p=x;else break}return p}
 function rateFor(card,n){const r=GK.rates.find(r=>r.card===card&&+r.installments===+n);return r?+r.rate:null}
 function gkCards(){return[...new Set(GK.rates.map(r=>r.card))]}
 
-async function gkEnsureBase(force){
-  if(GK.baseLoading||(GK.base&&!force))return;
+let gkBaseP=null;
+function gkEnsureBase(force){
+  if(gkBaseP)return gkBaseP;
+  if(GK.base&&!force)return Promise.resolve();
   GK.baseLoading=true;
-  try{
-    const[prods,rates,ks]=await Promise.all([gkFetch("products",null,"madde_kodu"),gkFetch("pos_rates",null,"card"),gkFetch("kasa_start",null,"area_id")]);
-    GK.products=prods;GK.prodMap=Object.fromEntries(prods.map(p=>[p.madde_kodu,p]));GK.rates=rates;GK.kasaStart=ks;
-    if(S.isAdmin||can("grapor")||can("kontrol")||can("satis")){gkBuildPrices(await gkFetch("product_prices",null,"madde_kodu"));gkBuildList(await gkFetch("product_list_prices",null,"madde_kodu"))}
-    GK.lpCache={};
-    GK.base=true;
-  }catch(e){GK.err=gkNeedsSql(e)?GK_SQL_MSG:errMsg(e)}
-  GK.baseLoading=false;
+  gkBaseP=(async()=>{
+    try{
+      const pr=S.isAdmin||can("grapor")||can("kontrol")||can("satis");
+      const[prods,rates,ks,prices,lists]=await Promise.all([gkFetch("products",null,"madde_kodu"),gkFetch("pos_rates",null,"card"),gkFetch("kasa_start",null,"area_id"),
+        pr?gkFetch("product_prices",null,"madde_kodu"):null,pr?gkFetch("product_list_prices",null,"madde_kodu"):null]);
+      GK.products=prods;GK.prodMap=Object.fromEntries(prods.map(p=>[p.madde_kodu,p]));GK.rates=rates;GK.kasaStart=ks;
+      if(pr){gkBuildPrices(prices);gkBuildList(lists)}
+      GK.lpCache={};
+      GK.base=true;
+    }catch(e){GK.err=gkNeedsSql(e)?GK_SQL_MSG:errMsg(e)}
+    GK.baseLoading=false;gkBaseP=null;
+  })();
+  return gkBaseP;
 }
 function gkKey(){return GK.view+"|"+GK.area+"|"+(GK.view==="gun"?GK.date:GK.month)}
 async function gkLoad(force){
@@ -2138,8 +2150,6 @@ async function akPreview(){
             madde_kodu:e.madde_kodu,qty:r4(+e.qty*f),pay:e.pay,card:e.card,installments:e.installments,amount:0,rep:e.rep,discount_reason:null,ext_ref:"R:"+r.recid+(k?"#"+k:"")}))}
         if(rr.length){const{error}=await sb.from("daily_entries").insert(rr);if(error)throw error}}
     }catch(x){btn.disabled=false;btn.textContent="Tekrar dene";
-      if(/INDIRIM_ACIKLAMASI/.test((x&&x.message)||"")){const bad=newL.filter(l=>!(l.reason||"").trim()&&l.ex==null);
-        return show("Liste fiyatının altında satılmış ama açıklaması olmayan satış var."+(bad.length?" Liste fiyatı ekranda okunamayan satışlar: "+bad.map(l=>l.customer+" · "+l.name+" ("+TL(l.amount)+")").join(", ")+". Pencereyi kapatıp yeniden açın.":""))}
       return show((x&&x.code==="23505")||/ext_ref|duplicate key/i.test((x&&x.message)||"")?"Bu kayıtların bir kısmı zaten aktarılmış. Pencereyi kapatıp dosyaları yeniden seçin.":errMsg(x))}
     await akVerify(plan.L);
     if(KS.cur){const b=KS.cur;KS.cur=null;await ksDecide(b.id,"onaylandi");
@@ -2159,9 +2169,9 @@ function sitepSnapFor(date){const L=SITEP.snaps;if(!L||!L.length)return null;con
 async function sitepEnsure(from,to){
   try{if(!SITEP.snaps){const{data,error}=await sb.from("web_price_snapshots").select("id,period,half").eq("status","tamam");if(error)throw error;SITEP.snaps=data}
     const ids=new Set();for(let t=Date.parse(from+"T12:00:00Z"),end=Date.parse(to+"T12:00:00Z");t<=end;t+=864e5){const x=sitepSnapFor(new Date(t).toISOString().slice(0,10));if(x)ids.add(x.id);if(ids.size>40)break}
-    for(const id of ids){if(SITEP.items[id])continue;const m=new Map();
-      for(let f=0;;f+=1000){const{data,error}=await sb.from("web_price_snapshot_items").select("code,list_price,sale_price").eq("snapshot_id",id).range(f,f+999);if(error)throw error;data.forEach(r=>m.set(r.code,{list:+r.list_price,sale:+r.sale_price}));if(data.length<1000)break}
-      SITEP.items[id]=m}
+    await Promise.all([...ids].filter(id=>!SITEP.items[id]).map(async id=>{
+      const rows=await gkFetch("web_price_snapshot_items",q=>q.eq("snapshot_id",id),"code","code,list_price,sale_price");
+      const m=new Map();rows.forEach(r=>m.set(r.code,{list:+r.list_price,sale:+r.sale_price}));SITEP.items[id]=m}));
   }catch(e){SITEP.snaps=SITEP.snaps||[]}}
 function sitepAt(code,date){const x=sitepSnapFor(date);const m=x&&SITEP.items[x.id];const r=m&&m.get(code);return r&&r.list>0?{list:r.list,oliz:Math.max(0,r.list-r.sale)}:null}
 
@@ -2200,9 +2210,10 @@ async function grLoad(){
 }
 /* Günlük Kasa'daki satış ve iptallerden, satış tarihindeki fiyatlarla maliyet/kâr satırları (Günlük Rapor ve Satış Analizi ortak) */
 async function kasaSalesLines(from,to,area,site){
-    await gkEnsureBase();if(GK.err)throw{message:GK.err,_msg:true};
-    if(site)await sitepEnsure(from,to);
-    const rows=await gkFetch("daily_entries",q=>{q=q.gte("date",from).lte("date",to).in("kind",["SATIŞ","İPTAL"]);return area?q.eq("area_id",area):q},"created_at");
+    /* temel fiyatlar, site fiyatları ve satışlar aynı anda */
+    const[,,rows]=await Promise.all([gkEnsureBase(),site?sitepEnsure(from,to):null,
+      gkFetch("daily_entries",q=>{q=q.gte("date",from).lte("date",to).in("kind",["SATIŞ","İPTAL"]);return area?q.eq("area_id",area):q},"created_at")]);
+    if(GK.err)throw{message:GK.err,_msg:true};
     const sat=rows.filter(r=>r.kind==="SATIŞ"),ipt=rows.filter(r=>r.kind==="İPTAL");
     const lines=grLines(sat,site);
     if(ipt.length){
