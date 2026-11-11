@@ -3983,18 +3983,19 @@ async function svHandleFile(file){
 }
 function svExportAsk(){
   sheet(`<h3>Excel indir</h3>
+    <label style="display:flex;gap:8px;align-items:center;font-size:14px;margin:8px 0"><input type="checkbox" id="sxR" style="width:auto;margin:0;flex:none;padding:0"> Satış Temsilcisi sütununu ekle</label>
     <label style="display:flex;gap:8px;align-items:center;font-size:14px;margin:8px 0"><input type="checkbox" id="sxK" style="width:auto;margin:0;flex:none;padding:0"> Kontrol ve Kontrol Eden sütunlarını ekle</label>
     <div class="actions"><div class="right"><button type="button" class="btn" data-cancel>Vazgeç</button><button type="submit" class="btn primary">İndir</button></div></div>`,"svxForm");
-  $("#svxForm").onsubmit=e=>{e.preventDefault();const k=$("#sxK").checked;closeModal();svExport(k)};
+  $("#svxForm").onsubmit=e=>{e.preventDefault();const k=$("#sxK").checked,rp=$("#sxR").checked;closeModal();svExport(k,rp)};
 }
-async function svExport(withCheck){
+async function svExport(withCheck,withRep){
   await loadXLSX();const rows=(SV.rows||[]).filter(r=>!SV.store||r.store===SV.store);const d=svDot(SV.date);
-  const H=["Randevu Tarihi","Satış Mağazası","Çıkış Deposu","Müşteri","Madde Kodu / Barkod","Ürün","Satış Temsilcisi","Açıklama",...(withCheck?["Kontrol","Kontrol Eden"]:[]),"Not"];
+  const H=["Randevu Tarihi","Satış Mağazası","Çıkış Deposu","Müşteri","Barkod","Ürün",...(withRep?["Satış Temsilcisi"]:[]),"Açıklama",...(withCheck?["Kontrol","Kontrol Eden"]:[]),"Not"];
   const aoa=[["GÜNLÜK SEVKİYAT KONTROLÜ — "+d+" "+parse(SV.date).toLocaleDateString("tr-TR",{weekday:"long"})+" (Randevu tarihine göre)"],[],H,
-    ...rows.map(r=>[d,r.store,r.depot||"",r.customer,r.item_code||r.barcode||"",r.product,r.rep||"",r.description||"",...(withCheck?[r.checked?"Evet":"Hayır",r.checked_by?creatorName(r.checked_by):""]:[]),r.note||""])];
+    ...rows.map(r=>[d,r.store,r.depot||"",r.customer,r.item_code||r.barcode||"",r.product,...(withRep?[r.rep||""]:[]),r.description||"",...(withCheck?[r.checked?"Evet":"Hayır",r.checked_by?creatorName(r.checked_by):""]:[]),r.note||""])];
   aoa.push([],["ÖZET"],["Mağaza","Toplam Satır",...(withCheck?["Kontrol Edilen"]:[]),"Elden Teslim"]);
   ["PARSELLER","GÜNEŞLİ"].forEach(s=>{const x=rows.filter(r=>r.store===s);if(x.length)aoa.push([s,x.length,...(withCheck?[x.filter(r=>r.checked).length]:[]),x.filter(r=>r.manual).length])});
-  const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[12,12,16,26,16,30,18,50,...(withCheck?[8,16]:[]),28].map(w=>({wch:w}));
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[12,12,16,26,16,30,...(withRep?[18]:[]),50,...(withCheck?[8,16]:[]),28].map(w=>({wch:w}));
   ws["!autofilter"]={ref:`A3:${XLSX.utils.encode_col(H.length-1)}${3+rows.length}`};
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,d+" Sevkiyat");XLSX.writeFile(wb,`Sevkiyat_${d}.xlsx`);
 }
