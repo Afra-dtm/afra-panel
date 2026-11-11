@@ -3206,13 +3206,31 @@ async function callAdmin(action,payload){
   const j=await r.json().catch(()=>({}));if(!r.ok||j.error)throw new Error(j.error||"İşlem tamamlanamadı ("+r.status+").");return j;
 }
 const toUsername=s=>String(s||"").trim().toLocaleLowerCase("tr").replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u").replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c").replace(/\s+/g,".").replace(/[^a-z0-9._-]/g,"");
-function genPw(){const c="abcdefghjkmnpqrstuvwxyz23456789";let s="";const a=new Uint32Array(8);crypto.getRandomValues(a);a.forEach(x=>s+=c[x%c.length]);return s}
+function genPw(){const L="abcdefghjkmnpqrstuvwxyz",U="ABCDEFGHJKLMNPQRSTUVWXYZ",D="23456789",A=L+U+D,r=n=>{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%n};
+  const ch=[L[r(L.length)],U[r(U.length)],D[r(D.length)]];while(ch.length<10)ch.push(A[r(A.length)]);
+  for(let i=ch.length-1;i>0;i--){const j=r(i+1);[ch[i],ch[j]]=[ch[j],ch[i]]}return ch.join("")}
+/* şifre kuralı: en az 8 karakter, büyük harf, küçük harf ve rakam */
+const PW_RULE="En az 8 karakter; büyük harf, küçük harf ve rakam içermeli.";
+function pwCheck(pw){pw=String(pw||"");return pw.length<8?"Şifre en az 8 karakter olmalı.":!/[a-zçğıöşü]/.test(pw)?"Şifrede en az bir küçük harf olmalı.":!/[A-ZÇĞİÖŞÜ]/.test(pw)?"Şifrede en az bir büyük harf olmalı.":!/[0-9]/.test(pw)?"Şifrede en az bir rakam olmalı.":""}
+const panelAddr=()=>location.host+location.pathname.replace(/\/(index\.html)?$/,"");
+/* kullanıcıya iletilecek giriş bilgileri: açılınca panoya kopyalanır, "Kopyala" ile tekrar kopyalanır */
+function showCreds(title,intro,fullName,username,password){
+  const txt=`${fullName?fullName+"\n":""}Kullanıcı adı: ${username}\nŞifre: ${password}\nAdres: https://${panelAddr()}`;
+  sheet(`<h3>${esc(title)}</h3><p style="margin:0">${esc(intro)}</p>
+    <div class="panel" style="gap:6px">${fullName?`<div class="mini" style="border:0"><span>Ad Soyad</span><b>${esc(fullName)}</b></div>`:""}<div class="mini"${fullName?"":' style="border:0"'}><span>Kullanıcı adı</span><b class="num">${esc(username)}</b></div><div class="mini"><span>Şifre</span><b class="num" style="font-size:16px;letter-spacing:.5px">${esc(password)}</b></div><div class="mini"><span>Adres</span><b>https://${esc(panelAddr())}</b></div></div>
+    <div class="hint" id="crHint">Panoya kopyalanıyor…</div>
+    <div class="actions"><div class="right"><button type="button" class="btn" id="crCopy">Kopyala</button><button type="button" class="btn primary" data-cancel>Tamam</button></div></div>`,"crDone");
+  const hint=$("#crHint"),copy=auto=>{const ok=()=>{hint.textContent="Bilgiler panoya kopyalandı — WhatsApp/mesaja yapıştırıp gönderebilirsiniz.";if(!auto)toast("Kopyalandı")},
+    no=()=>{hint.textContent="Otomatik kopyalanamadı — \"Kopyala\" düğmesine basın."};
+    if(navigator.clipboard?.writeText)navigator.clipboard.writeText(txt).then(ok,no);else no()};
+  $("#crCopy").onclick=()=>copy(false);copy(true);
+}
 function openNewUser(){
   sheet(`<h3>Yeni kullanıcı</h3>
     <div class="fgrid">
       <div class="field full"><label for="nu-name">Ad Soyad</label><input id="nu-name" autocomplete="off"></div>
       <div class="field"><label for="nu-user">Kullanıcı adı</label><input id="nu-user" autocapitalize="none" spellcheck="false" autocomplete="off" placeholder="ör. ahmet.yilmaz"></div>
-      <div class="field"><label for="nu-pw">İlk şifre</label><input id="nu-pw" autocomplete="off" value="${genPw()}"></div>
+      <div class="field"><label for="nu-pw">İlk şifre</label><input id="nu-pw" autocomplete="off" spellcheck="false" value="${genPw()}"><div class="hint" style="margin-top:4px">${PW_RULE}</div></div>
       <div class="field"><label for="nu-title">Görevi</label><input id="nu-title" placeholder="ör. Satış Danışmanı"></div>
       <div class="field"><label for="nu-hire">İşe giriş tarihi</label><input id="nu-hire" type="date"></div>
       <div class="field"><label for="nu-role">Rol</label><select id="nu-role"><option value="user">Kullanıcı</option><option value="admin">Yönetici</option></select></div>
@@ -3227,27 +3245,24 @@ function openNewUser(){
   const roleSel=$("#nu-role");roleSel.onchange=()=>{const a=roleSel.value==="admin";$("#nu-areas-wrap").hidden=a;$("#nu-perms-wrap").hidden=a};
   $("#nuForm").onsubmit=async e=>{e.preventDefault();const err=$("#nuErr"),btn=$("#nuSave");err.hidden=true;
     const username=toUsername(us.value),password=$("#nu-pw").value;
-    const m=!nm.value.trim()?"Ad soyad girin.":username.length<2?"Kullanıcı adı girin.":password.length<6?"Şifre en az 6 karakter olmalı.":"";
+    const m=!nm.value.trim()?"Ad soyad girin.":username.length<2?"Kullanıcı adı girin.":pwCheck(password);
     if(m){err.textContent=m;err.hidden=false;return}
     btn.disabled=true;btn.textContent="Oluşturuluyor…";
     try{await callAdmin("create",{username,password,full_name:nm.value.trim(),title:$("#nu-title").value.trim(),hire_date:$("#nu-hire").value||null,role:roleSel.value,
         perms:[...document.querySelectorAll('#nuForm input[name="nu-perm"]:checked')].map(i=>i.value),
         area_ids:[...document.querySelectorAll("#nu-areas-wrap .checks input:checked")].map(i=>i.value)});
-      sheet(`<h3>Kullanıcı oluşturuldu</h3><p style="margin:0">Aşağıdaki bilgileri çalışana iletin:</p>
-        <div class="panel" style="gap:6px"><div class="mini" style="border:0"><span>Kullanıcı adı</span><b class="num">${esc(username)}</b></div><div class="mini"><span>Şifre</span><b class="num">${esc(password)}</b></div><div class="mini"><span>Adres</span><b>${esc((location.host+location.pathname.replace(/\/(index\.html)?$/,"")))}</b></div></div>
-        <div class="actions"><div class="right"><button type="button" class="btn" id="nuCopy">Kopyala</button><button type="button" class="btn primary" data-cancel>Tamam</button></div></div>`,"nuDone");
-      $("#nuCopy").onclick=()=>{navigator.clipboard?.writeText(`Kullanıcı adı: ${username}\nŞifre: ${password}\nAdres: https://${(location.host+location.pathname.replace(/\/(index\.html)?$/,""))}`).then(()=>toast("Kopyalandı"),()=>{})};
+      showCreds("Kullanıcı oluşturuldu","Aşağıdaki bilgileri çalışana iletin:",nm.value.trim(),username,password);
       reload();
     }catch(x){btn.disabled=false;btn.textContent="Kullanıcıyı oluştur";err.textContent=x.message;err.hidden=false}};
 }
 function openSetPw(p){
   sheet(`<h3>Şifre sıfırla</h3><div class="hint">${esc(p.full_name||p.username)} için yeni şifre belirleyin. Eski şifre artık çalışmaz.</div>
-    <div class="field"><label for="sp-pw">Yeni şifre</label><input id="sp-pw" autocomplete="off" value="${genPw()}"></div>
+    <div class="field"><label for="sp-pw">Yeni şifre</label><input id="sp-pw" autocomplete="off" spellcheck="false" value="${genPw()}"><div class="hint" style="margin-top:4px">${PW_RULE}</div></div>
     <div class="err" id="spErr" hidden></div>
     <div class="actions"><div class="right"><button type="button" class="btn" data-cancel>Vazgeç</button><button type="submit" class="btn primary" id="spSave">Şifreyi değiştir</button></div></div>`,"spForm");
   $("#spForm").onsubmit=async e=>{e.preventDefault();const pw=$("#sp-pw").value,err=$("#spErr"),btn=$("#spSave");
-    if(pw.length<6){err.textContent="Şifre en az 6 karakter olmalı.";err.hidden=false;return}
-    btn.disabled=true;try{await callAdmin("set_password",{user_id:p.id,password:pw});closeModal();toast("Yeni şifre: "+pw)}
+    const m=pwCheck(pw);if(m){err.textContent=m;err.hidden=false;return}
+    btn.disabled=true;try{await callAdmin("set_password",{user_id:p.id,password:pw});showCreds("Şifre sıfırlandı","Yeni giriş bilgilerini çalışana iletin. Eski şifre artık çalışmaz.",p.full_name||"",p.username||"",pw)}
     catch(x){btn.disabled=false;err.textContent=x.message;err.hidden=false}};
 }
 
@@ -4195,12 +4210,12 @@ function printLeave(l){
 
 function openPw(){
   sheet(`<h3>Şifremi değiştir</h3>
-    <div class="field"><label for="pw1">Yeni şifre</label><input id="pw1" type="password" autocomplete="new-password"></div>
+    <div class="field"><label for="pw1">Yeni şifre</label><input id="pw1" type="password" autocomplete="new-password"><div class="hint" style="margin-top:4px">${PW_RULE}</div></div>
     <div class="field"><label for="pw2">Yeni şifre (tekrar)</label><input id="pw2" type="password" autocomplete="new-password"></div>
     <div class="err" id="pwErr" hidden></div>
     <div class="actions"><div class="right"><button type="button" class="btn" data-cancel>Vazgeç</button><button type="submit" class="btn primary">Kaydet</button></div></div>`,"pwForm");
   $("#pwForm").onsubmit=async e=>{e.preventDefault();const a=$("#pw1").value,b=$("#pw2").value,err=$("#pwErr");
-    const m=a.length<6?"Şifre en az 6 karakter olmalı.":a!==b?"Şifreler aynı değil.":"";if(m){err.textContent=m;err.hidden=false;return}
+    const m=pwCheck(a)||(a!==b?"Şifreler aynı değil.":"");if(m){err.textContent=m;err.hidden=false;return}
     const{error}=await sb.auth.updateUser({password:a});if(error){err.textContent=errMsg(error);err.hidden=false;return}
     closeModal();toast("Şifreniz değiştirildi")};
 }
