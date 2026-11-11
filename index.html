@@ -1215,8 +1215,9 @@ function gkBuildList(rows){
 function listAt(code,date){const a=GK.listMap&&GK.listMap[code];if(!a)return null;let p=null;for(const x of a){if(x.from<=date)p=x;else break}return p}
 async function gkListPrices(date){
   if(GK.lpCache[date])return GK.lpCache[date];
-  const{data,error}=await sb.rpc("list_prices_at",{p_date:date});if(error)throw error;
-  const m={};(data||[]).forEach(r=>m[r.madde_kodu]={list:+r.list_price,oliz:+r.oliz});GK.lpCache[date]=m;return m;
+  // sunucu tek seferde en çok 1000 satır döndürür: sayfa sayfa çek (yoksa 1000. üründen sonrakilerin liste altı satışı görünmez)
+  const data=[];for(let from=0;;from+=1000){const{data:d,error}=await sb.rpc("list_prices_at",{p_date:date}).order("madde_kodu").range(from,from+999);if(error)throw error;data.push(...(d||[]));if(!d||d.length<1000)break}
+  const m={};data.forEach(r=>m[r.madde_kodu]={list:+r.list_price,oliz:+r.oliz});GK.lpCache[date]=m;return m;
 }
 function isClosed(area,date){return GK.closes.find(c=>c.area_id===area&&c.date===date)||null}
 function priceAt(code,date){const a=GK.priceMap&&GK.priceMap[code];if(!a)return null;let p=null;for(const x of a){if(x.from<=date)p=x;else break}return p}
@@ -2150,6 +2151,8 @@ async function akPreview(){
             madde_kodu:e.madde_kodu,qty:r4(+e.qty*f),pay:e.pay,card:e.card,installments:e.installments,amount:0,rep:e.rep,discount_reason:null,ext_ref:"R:"+r.recid+(k?"#"+k:"")}))}
         if(rr.length){const{error}=await sb.from("daily_entries").insert(rr);if(error)throw error}}
     }catch(x){btn.disabled=false;btn.textContent="Tekrar dene";
+      if(/INDIRIM_ACIKLAMASI/.test((x&&x.message)||"")){const bad=newL.filter(l=>!(l.reason||"").trim()&&l.ex==null);
+        return show("Liste fiyatının altında satılmış ama açıklaması olmayan satış var."+(bad.length?" Liste fiyatı ekranda okunamayan satışlar: "+bad.map(l=>l.customer+" · "+l.name+" ("+TL(l.amount)+")").join(", ")+". Pencereyi kapatıp yeniden açın.":""))}
       return show((x&&x.code==="23505")||/ext_ref|duplicate key/i.test((x&&x.message)||"")?"Bu kayıtların bir kısmı zaten aktarılmış. Pencereyi kapatıp dosyaları yeniden seçin.":errMsg(x))}
     await akVerify(plan.L);
     if(KS.cur){const b=KS.cur;KS.cur=null;await ksDecide(b.id,"onaylandi");
