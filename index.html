@@ -3983,12 +3983,12 @@ async function svHandleFile(file){
 }
 async function svExport(){
   await loadXLSX();const rows=(SV.rows||[]).filter(r=>!SV.store||r.store===SV.store);const d=svDot(SV.date);
-  const H=["Randevu Tarihi","Saat","Satış Mağazası","Çıkış Deposu","Müşteri","Satış Siparişi","Madde Kodu / Barkod","Ürün","Satış Temsilcisi","İş Emri Durumu","Açıklama","Kontrol","Kontrol Eden","Not"];
+  const H=["Randevu Tarihi","Satış Mağazası","Çıkış Deposu","Müşteri","Satış Siparişi","Madde Kodu / Barkod","Ürün","Satış Temsilcisi","İş Emri Durumu","Açıklama","Kontrol","Kontrol Eden","Not"];
   const aoa=[["GÜNLÜK SEVKİYAT KONTROLÜ — "+d+" "+parse(SV.date).toLocaleDateString("tr-TR",{weekday:"long"})+" (Randevu tarihine göre)"],[],H,
-    ...rows.map(r=>[d,r.ship_time||"",r.store,r.depot||"",r.customer,r.order_no||"",r.item_code||r.barcode||"",r.product,r.rep||"",r.wo_status||"",r.description||"",r.checked?"Evet":"Hayır",r.checked_by?creatorName(r.checked_by):"",r.note||""])];
+    ...rows.map(r=>[d,r.store,r.depot||"",r.customer,r.order_no||"",r.item_code||r.barcode||"",r.product,r.rep||"",r.wo_status||"",r.description||"",r.checked?"Evet":"Hayır",r.checked_by?creatorName(r.checked_by):"",r.note||""])];
   aoa.push([],["ÖZET"],["Mağaza","Toplam Satır","Kontrol Edilen","Elden Teslim"]);
   ["PARSELLER","GÜNEŞLİ"].forEach(s=>{const x=rows.filter(r=>r.store===s);if(x.length)aoa.push([s,x.length,x.filter(r=>r.checked).length,x.filter(r=>r.manual).length])});
-  const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[12,7,12,16,26,14,16,30,18,16,50,8,16,28].map(w=>({wch:w}));ws["!autofilter"]={ref:`A3:N${3+rows.length}`};
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[12,12,16,26,14,16,30,18,16,50,8,16,28].map(w=>({wch:w}));ws["!autofilter"]={ref:`A3:M${3+rows.length}`};
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,d+" Sevkiyat");XLSX.writeFile(wb,`Sevkiyat_${d}.xlsx`);
 }
 
