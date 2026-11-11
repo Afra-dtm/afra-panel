@@ -3836,9 +3836,9 @@ function vSevk(){
     <div class="tbl-wrap"><table class="sv"><thead><tr><th class="ck">✓</th><th>Randevu tarihi</th><th>Depo</th><th>Müşteri</th><th>Ürün</th><th>Açıklama</th><th>Temsilci</th><th>Fatura</th><th>Not</th></tr></thead><tbody>
     ${list.map(r=>`<tr class="${r.checked?"done":""}"><td class="ck"><input type="checkbox" data-svck="${r.id}" ${r.checked?"checked":""} aria-label="${esc(r.customer)} ${esc(r.product)} kontrol edildi"></td>
       <td class="num">${r.ship_date?svDot(r.ship_date):""}</td>
-      <td><span class="chip ${r.depot_type==="BOD"?"xfer":r.manual?"in":"adm"}">${r.depot_type==="BOD"?"BOD":r.manual?"Elden":"Mağaza"}</span><div class="muted" style="font-size:11px">${esc(r.depot||"")}</div>${r.manual?`<div class="muted" style="font-size:11px">Elle: ${esc(creatorName(r.uploaded_by)||"")}</div><button type="button" class="btn sm ghost" data-svdel="${r.id}" style="margin-top:2px;padding:2px 8px">Sil</button>`:""}</td>
+      <td><span class="chip ${r.depot_type==="BOD"?"xfer":r.manual?"in":"adm"}">${r.depot_type==="BOD"?"BOD":r.manual?"Elden":"Mağaza"}</span><div class="muted" style="font-size:11px">${esc(r.depot||"")}</div>${r.manual?`<div style="font-size:11px">Ekleyen: <b style="font-weight:600">${esc(r.uploaded_by_name||creatorName(r.uploaded_by)||"—")}</b></div>${r.edited_by&&r.edited_by!==r.uploaded_by?`<div style="font-size:11px">Düzenleyen: <b style="font-weight:600">${esc(r.edited_by_name||creatorName(r.edited_by)||"—")}</b></div>`:""}${svCanEdit(r)?`<div style="display:flex;gap:4px;margin-top:2px"><button type="button" class="btn sm ghost" data-svedit="${r.id}" style="padding:2px 8px">Düzenle</button><button type="button" class="btn sm ghost" data-svdel="${r.id}" style="padding:2px 8px">Sil</button></div>`:""}`:""}</td>
       <td><b style="font-weight:600">${esc(r.customer||"")}</b>${ageDays(r)>30?`<div><span class="chip warn">${ageDays(r)} gün önceki sipariş</span></div>`:""}</td>
-      <td>${esc(r.product||"")}<div class="muted num" style="font-size:11px">${esc(r.item_code||"")}</div></td>
+      <td>${esc(r.product||"")}<div class="muted num" style="font-size:11px">${r.manual?(r.barcode?"Barkod: "+esc(r.barcode):""):esc(r.item_code||"")}</div></td>
       <td style="font-size:12px;max-width:260px;white-space:normal">${r.description?esc(r.description):'<span class="muted">—</span>'}</td>
       <td style="font-size:12px">${esc(r.rep||"")}</td>
       <td class="num" style="font-size:12px">${r.invoice_no?esc(r.invoice_no):'<span class="muted">—</span>'}</td>
@@ -3856,46 +3856,49 @@ function vSevk(){
     <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="svOpen" style="width:auto;margin:0;flex:none;padding:0" ${SV.open?"checked":""}> Sadece kontrol edilmeyenler</label>
   </div>
   ${stores.map(table).join("")||'<div class="empty">Filtreye uyan satır yok.</div>'}`
-  :`<div class="empty">${svDot(SV.date)} tarihi için sevkiyat yüklenmemiş.${S.isAdmin?" “Excel yükle” ile o günün sevkiyat dosyasını ekleyin.":""} Mağazada elden verilen ürünler için “Elle ekle”yi kullanın.</div>`}`;
+  :`<div class="empty">${svDot(SV.date)} tarihi için sevkiyat yüklenmemiş.${S.isAdmin?" “Excel yükle” ile o günün sevkiyat dosyasını ekleyin.":""} Mağazada elden verilen ürünler için “Yeni kayıt”ı kullanın.</div>`}`;
 }
 function svStoresForMe(){
   if(S.isAdmin)return["PARSELLER","GÜNEŞLİ"];
   return["PARSELLER","GÜNEŞLİ"].filter(st=>{const id=svArea(st);return id&&S.userAreas.some(u=>u.user_id===S.me.id&&u.area_id===id)});
 }
-function svManualForm(){
-  const stores=svStoresForMe();if(!stores.length){toast("Mağaza yetkiniz yok");return}
-  const def=SV.store&&stores.includes(SV.store)?SV.store:stores[0];
-  sheet(`<h3>Elle sevkiyat ekle</h3>
-    <div class="muted" style="font-size:13px;margin:-4px 0 8px">Mağazada elden verilen ürünler için. AX aktarımı ve Excel yükleme bu satırlara dokunmaz.</div>
-    <div class="field"><label for="smD">Teslim tarihi</label><input id="smD" type="date" value="${SV.date}" required></div>
+function svCanEdit(r){return r&&r.manual&&(S.isAdmin||r.uploaded_by===S.me.id)}
+function svManualForm(rec){
+  const ed=!!rec;let stores=svStoresForMe();if(ed&&!stores.includes(rec.store))stores=[rec.store,...stores];
+  if(!stores.length){toast("Mağaza yetkiniz yok");return}
+  const def=ed?rec.store:SV.store&&stores.includes(SV.store)?SV.store:stores[0];const val=k=>ed?esc(rec[k]||""):"";
+  sheet(`<h3>${ed?"Kaydı düzenle":"Yeni kayıt"}</h3>
+    <div class="muted" style="font-size:13px;margin:-4px 0 8px">${ed?`Ekleyen: ${esc(rec.uploaded_by_name||creatorName(rec.uploaded_by)||"")}${rec.edited_by&&rec.edited_by!==rec.uploaded_by?` · Son düzenleyen: ${esc(rec.edited_by_name||creatorName(rec.edited_by)||"")}`:""}`:"Mağazada elden verilen ürünler için. AX aktarımı ve Excel yükleme bu satırlara dokunmaz."}</div>
+    <div class="field"><label for="smD">Teslim tarihi</label><input id="smD" type="date" value="${ed?rec.ship_date:SV.date}" required></div>
     <div class="field"><label for="smS">Mağaza</label><select id="smS">${stores.map(s=>`<option value="${s}" ${s===def?"selected":""}>${s==="PARSELLER"?"Parseller":"Güneşli"}</option>`).join("")}</select></div>
-    <div class="field"><label for="smC">Müşteri</label><input id="smC" required autocomplete="off"></div>
-    <div class="field"><label for="smP">Ürün</label><input id="smP" required autocomplete="off"></div>
-    <div class="field"><label for="smI">Madde kodu (isteğe bağlı)</label><input id="smI" autocomplete="off" inputmode="numeric"></div>
-    <div class="field"><label for="smF">Fatura no (isteğe bağlı)</label><input id="smF" autocomplete="off"></div>
-    <div class="field"><label for="smA">Açıklama</label><input id="smA" autocomplete="off"></div>
-    <div class="field"><label for="smN">Not</label><input id="smN" autocomplete="off"></div>
-    <label style="display:flex;gap:6px;align-items:center;font-size:13px;margin:6px 0"><input type="checkbox" id="smK" style="width:auto;margin:0;flex:none;padding:0" checked> Kontrol edildi olarak işaretle</label>
+    <div class="field"><label for="smC">Müşteri</label><input id="smC" required autocomplete="off" value="${val("customer")}"></div>
+    <div class="field"><label for="smP">Ürün</label><input id="smP" required autocomplete="off" value="${val("product")}"></div>
+    <div class="field"><label for="smI">Barkod (isteğe bağlı)</label><input id="smI" autocomplete="off" value="${val("barcode")}"></div>
+    <div class="field"><label for="smF">Fatura no (isteğe bağlı)</label><input id="smF" autocomplete="off" value="${val("invoice_no")}"></div>
+    <div class="field"><label for="smA">Açıklama</label><input id="smA" autocomplete="off" value="${val("description")}"></div>
+    <div class="field"><label for="smN">Not</label><input id="smN" autocomplete="off" value="${val("note")}"></div>
+    ${ed?"":`<label style="display:flex;gap:6px;align-items:center;font-size:13px;margin:6px 0"><input type="checkbox" id="smK" style="width:auto;margin:0;flex:none;padding:0" checked> Kontrol edildi olarak işaretle</label>`}
     <div class="err" id="smErr" hidden></div>
     <div class="actions"><div class="right"><button type="button" class="btn" data-cancel>Vazgeç</button><button type="submit" class="btn primary" id="smSave">Kaydet</button></div></div>`,"svmForm");
   $("#svmForm").onsubmit=async e=>{e.preventDefault();const v=id=>$(id).value.trim(),err=$("#smErr"),btn=$("#smSave");
     const d=v("#smD"),st=$("#smS").value,c=v("#smC"),pr=v("#smP");
     if(!d||!c||!pr){err.textContent="Tarih, müşteri ve ürün zorunlu.";err.hidden=false;return}
     const area=svArea(st);if(!area){err.textContent="Mağaza bulunamadı.";err.hidden=false;return}
-    const k=$("#smK").checked;btn.disabled=true;btn.textContent="Kaydediliyor…";
-    const row={ship_date:d,store:st,area_id:area,depot:"Mağaza (elden)",depot_type:"ELDEN",customer:c,product:pr,item_code:v("#smI")||null,
-      invoice_no:v("#smF")||null,description:v("#smA")||null,note:v("#smN")||null,manual:true,uploaded_by:S.me.id,
-      ...(k?{checked:true,checked_by:S.me.id,checked_at:new Date().toISOString()}:{})};
-    const{error}=await sb.from("shipments").insert(row);
+    btn.disabled=true;btn.textContent="Kaydediliyor…";
+    const f={ship_date:d,store:st,area_id:area,customer:c,product:pr,barcode:v("#smI")||null,invoice_no:v("#smF")||null,description:v("#smA")||null,note:v("#smN")||null};
+    let error;
+    if(ed)({error}=await sb.from("shipments").update(f).eq("id",rec.id).eq("manual",true));
+    else{const k=$("#smK").checked;({error}=await sb.from("shipments").insert({...f,depot:"Mağaza (elden)",depot_type:"ELDEN",manual:true,uploaded_by:S.me.id,
+      ...(k?{checked:true,checked_by:S.me.id,checked_at:new Date().toISOString()}:{})}))}
     if(error){btn.disabled=false;btn.textContent="Kaydet";err.textContent=errMsg(error);err.hidden=false;return}
-    closeModal();toast(svDot(d)+" için elden teslim eklendi");SV.date=d;SV.loadedFor=null;render()};
+    closeModal();toast(ed?"Kayıt güncellendi":svDot(d)+" için yeni kayıt eklendi");SV.date=d;SV.loadedFor=null;render()};
 }
 function svHead(){
   const recent=SV.days?Object.entries(SV.days).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,10):[];
   return`<section class="panel">
     <div class="panel-h"><div><div class="muted" style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Sevkiyat günü (randevu tarihi)</div><h2 style="font-size:22px">${svDayLabel(SV.date)}</h2></div>
       <div class="filters"><button class="btn sm" id="svPrev" type="button" aria-label="Önceki gün">‹</button><input type="date" id="svDate" value="${SV.date}"><button class="btn sm" id="svNext" type="button" aria-label="Sonraki gün">›</button>${SV.date!==TODAY?`<button class="btn sm ghost" id="svToday" type="button">Bugün</button>`:""}
-      ${svStoresForMe().length?`<button class="btn sm primary" id="svAdd" type="button">Elle ekle</button>`:""}${S.isAdmin?`<button class="btn sm primary" id="svUp" type="button">Excel yükle</button><input type="file" id="svFile" accept=".xlsx,.xls" hidden>`:""}${(SV.rows||[]).length?`<button class="btn sm" id="svXlsx" type="button">Excel indir</button>`:""}</div></div>
+      ${svStoresForMe().length?`<button class="btn sm primary" id="svAdd" type="button">Yeni kayıt</button>`:""}${S.isAdmin?`<button class="btn sm primary" id="svUp" type="button">Excel yükle</button><input type="file" id="svFile" accept=".xlsx,.xls" hidden>`:""}${(SV.rows||[]).length?`<button class="btn sm" id="svXlsx" type="button">Excel indir</button>`:""}</div></div>
     ${recent.length?`<div class="filters">${recent.map(([d,x])=>`<button class="btn sm ${d===SV.date?"primary":""}" data-svday="${d}" type="button">${svDot(d).slice(0,5)} <span class="${x.c===x.n?"":"muted"}" style="font-size:11px">${x.c}/${x.n}</span></button>`).join("")}</div>`:""}
   </section>`;
 }
@@ -3906,10 +3909,11 @@ function bindSevk(){
   const di=$("#svDate");if(di)di.onchange=()=>setDate(di.value);
   app.querySelectorAll("[data-svday]").forEach(b=>b.onclick=()=>setDate(b.dataset.svday));
   on("#svUp",()=>$("#svFile").click());const f=$("#svFile");if(f)f.onchange=()=>{const x=f.files[0];f.value="";if(x)svHandleFile(x)};
-  on("#svXlsx",svExport);on("#svAdd",svManualForm);
+  on("#svXlsx",svExport);on("#svAdd",()=>svManualForm());
+  app.querySelectorAll("[data-svedit]").forEach(b=>b.onclick=()=>svManualForm(SV.rows.find(x=>x.id===b.dataset.svedit)));
   app.querySelectorAll("[data-svdel]").forEach(b=>b.onclick=async()=>{if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Emin misiniz?";setTimeout(()=>{if(b.isConnected){b.dataset.sure="";b.textContent="Sil"}},4000);return}
     b.disabled=true;const r=SV.rows.find(x=>x.id===b.dataset.svdel);const{error}=await sb.from("shipments").delete().eq("id",r.id).eq("manual",true);
-    if(error){toast(errMsg(error));b.disabled=false;return}toast("Elle eklenen satır silindi");SV.loadedFor=null;render()});
+    if(error){toast(errMsg(error));b.disabled=false;return}toast("Kayıt silindi");SV.loadedFor=null;render()});
   const sg=$("#svSeg");if(sg)sg.querySelectorAll("button").forEach(b=>b.onclick=()=>{SV.store=b.dataset.v;render()});
   const op=$("#svOpen");if(op)op.onchange=()=>{SV.open=op.checked;render()};
   app.querySelectorAll("[data-svck]").forEach(c=>c.onchange=async()=>{const r=SV.rows.find(x=>x.id===c.dataset.svck);const v=c.checked;c.disabled=true;
@@ -3982,7 +3986,7 @@ async function svExport(){
   await loadXLSX();const rows=(SV.rows||[]).filter(r=>!SV.store||r.store===SV.store);const d=svDot(SV.date);
   const H=["Randevu Tarihi","Saat","Satış Mağazası","Çıkış Deposu","Depo Tipi","Müşteri","Satış Siparişi","İş Emri No","Sipariş Tarihi","Madde Kodu","Ürün","Tutar (TL)","Satış Temsilcisi","İş Emri Durumu","Fatura No","Açıklama","Kontrol","Kontrol Eden","Not"];
   const aoa=[["GÜNLÜK SEVKİYAT KONTROLÜ — "+d+" "+parse(SV.date).toLocaleDateString("tr-TR",{weekday:"long"})+" (Randevu tarihine göre)"],[],H,
-    ...rows.map(r=>[d,r.ship_time||"",r.store,r.depot||"",r.depot_type==="BOD"?"BOD":r.manual?"ELDEN":"MAĞAZA",r.customer,r.order_no||"",r.work_order||"",r.order_date?svDot(r.order_date):"",r.item_code||"",r.product,r.amount??"",r.rep||"",r.wo_status||"",r.invoice_no||"",r.description||"",r.checked?"Evet":"Hayır",r.checked_by?creatorName(r.checked_by):"",r.note||""])];
+    ...rows.map(r=>[d,r.ship_time||"",r.store,r.depot||"",r.depot_type==="BOD"?"BOD":r.manual?"ELDEN":"MAĞAZA",r.customer,r.order_no||"",r.work_order||"",r.order_date?svDot(r.order_date):"",r.item_code||r.barcode||"",r.product,r.amount??"",r.rep||"",r.wo_status||"",r.invoice_no||"",r.description||"",r.checked?"Evet":"Hayır",r.checked_by?creatorName(r.checked_by):"",r.note||""])];
   aoa.push([],["ÖZET"],["Mağaza","BOD Satır","Mağaza Depo Satır","Toplam Satır","Kontrol Edilen","Toplam Tutar (TL)"]);
   ["PARSELLER","GÜNEŞLİ"].forEach(s=>{const x=rows.filter(r=>r.store===s);if(x.length)aoa.push([s,x.filter(r=>r.depot_type==="BOD").length,x.filter(r=>r.depot_type!=="BOD").length,x.length,x.filter(r=>r.checked).length,x.reduce((a,r)=>a+(r.amount||0),0)])});
   const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[12,7,12,12,9,26,14,12,12,14,30,12,18,14,18,40,8,16,28].map(w=>({wch:w}));ws["!autofilter"]={ref:`A3:S${3+rows.length}`};
