@@ -3833,14 +3833,12 @@ function vSevk(){
   const ageDays=r=>r.order_date?daysBetween(r.order_date,r.ship_date):0;
   const table=st=>{const list=rows.filter(r=>r.store===st);if(!list.length)return"";const sc=all.filter(r=>r.store===st);
     return`<section class="panel"><div class="panel-h"><h2>${st==="PARSELLER"?"Parseller":"Güneşli"} <span class="muted" style="font-size:14px;font-weight:500">· ${svDot(SV.date)} sevkiyatı · ${sc.filter(r=>r.checked).length}/${sc.length} kontrol edildi</span></h2></div>
-    <div class="tbl-wrap"><table class="sv"><thead><tr><th class="ck">✓</th><th>Saat</th><th>Depo</th><th>Müşteri</th><th>Ürün</th><th class="r">Tutar</th><th>Sipariş · İş emri</th><th>Temsilci</th><th>Fatura</th><th>Not</th></tr></thead><tbody>
+    <div class="tbl-wrap"><table class="sv"><thead><tr><th class="ck">✓</th><th>Randevu tarihi</th><th>Depo</th><th>Müşteri</th><th>Ürün</th><th>Temsilci</th><th>Fatura</th><th>Not</th></tr></thead><tbody>
     ${list.map(r=>`<tr class="${r.checked?"done":""}"><td class="ck"><input type="checkbox" data-svck="${r.id}" ${r.checked?"checked":""} aria-label="${esc(r.customer)} ${esc(r.product)} kontrol edildi"></td>
-      <td class="num">${esc(r.ship_time||"")}</td>
+      <td class="num">${r.ship_date?svDot(r.ship_date):""}</td>
       <td><span class="chip ${r.depot_type==="BOD"?"xfer":"adm"}">${r.depot_type==="BOD"?"BOD":"Mağaza"}</span><div class="muted" style="font-size:11px">${esc(r.depot||"")}</div></td>
       <td><b style="font-weight:600">${esc(r.customer||"")}</b>${ageDays(r)>30?`<div><span class="chip warn">${ageDays(r)} gün önceki sipariş</span></div>`:""}</td>
       <td>${esc(r.product||"")}<div class="muted num" style="font-size:11px">${esc(r.item_code||"")}</div></td>
-      <td class="r num">${r.amount!=null?TL(r.amount):""}</td>
-      <td class="num" style="font-size:12px">${esc(r.order_no||"")}<div class="muted">${esc(r.work_order||"")}${r.order_date?" · "+svDot(r.order_date):""}</div></td>
       <td style="font-size:12px">${esc(r.rep||"")}</td>
       <td class="num" style="font-size:12px">${r.invoice_no?esc(r.invoice_no):'<span class="muted">—</span>'}</td>
       <td><input class="sv-note" data-svnote="${r.id}" value="${esc(r.note||"")}" placeholder="Not" aria-label="Not">${r.checked&&r.checked_by?`<div class="muted" style="font-size:11px">${esc(creatorName(r.checked_by)||"")} ${r.checked_at?new Date(r.checked_at).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"}):""}</div>`:""}</td></tr>`).join("")}
