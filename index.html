@@ -974,7 +974,7 @@ function vSatis(){
         ${SA.months.length?`<select id="saMonth" aria-label="Ay">${SA.months.slice().reverse().map(m=>`<option value="${m.period}" ${m.period===SA.period?"selected":""}>${ymLabel(m.period)}${m.src==="kasa"?" · Günlük Kasa":""}</option>`).join("")}</select>`:""}
         ${(()=>{const m=SA.months.find(x=>x.period===SA.period);return m&&m.kasa&&m.excel?`<select id="saSrc" aria-label="Kaynak"><option value="kasa" ${m.src==="kasa"?"selected":""}>Kaynak: Günlük Kasa</option><option value="excel" ${m.src==="excel"?"selected":""}>Kaynak: yüklenen Excel</option></select>`:""})()}
         ${S.isAdmin?`<button class="btn sm" id="saUpload" type="button">Excel yükle</button>`:""}
-        ${SA.period&&SA.linesFor===SA.period?`<button class="btn sm" id="saCsv" type="button">CSV indir</button>${SA.linesSrc==="excel"&&S.isAdmin?`<button class="btn sm danger" id="saDel" type="button">Yüklenen Excel'i sil</button>`:""}`:""}
+        ${SA.period&&SA.linesFor===SA.period?`<button class="btn sm" id="saXlsx" type="button">Excel indir</button>${SA.linesSrc==="excel"&&S.isAdmin?`<button class="btn sm danger" id="saDel" type="button">Yüklenen Excel'i sil</button>`:""}`:""}
       </div></div>
     <div class="hint">${(()=>{const m=SA.months.find(x=>x.period===SA.period);return m&&m.src==="kasa"
       ?`<b>Günlük Kasa'dan otomatik.</b> Kasaya girilen her satış ve iptal buraya anında düşer${SA.lastDate&&SA.linesFor===SA.period?` · son kayıt ${dTR(SA.lastDate)}`:""}. Maliyet = en yüksek alış (ABS) − oliz × %85, satış tarihindeki fiyatlarla.${SA.noCost&&SA.linesFor===SA.period?` <span class="chip warn">${SA.noCost} satırda alış fiyatı yok, kâra 0 yazıldı</span>`:""}`
@@ -1169,11 +1169,34 @@ function bindSatis(){
   if(f)f.onchange=()=>{const file=f.files&&f.files[0];f.value="";if(file)saHandleFile(file)};
   const ms=$("#saMonth");if(ms)ms.onchange=()=>{SA.period=ms.value;render();saEnsure()};
   const sr=$("#saSrc");if(sr)sr.onchange=async()=>{SA.srcOf[SA.period]=sr.value;SA.linesFor=null;await saEnsure(true)};
-  on("#saCsv",()=>{
-    const head=["Tarih","Müşteri","Kota Grubu","Madde Kodu","Ürün","Miktar","Temsilci","Mağaza","Satış Fiyatı","ABS Fiyat","Paro","Net Rakam","ABS Fark"];const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';const n=v=>(+v).toFixed(2).replace(".",",");
-    const lines=SA.lines.map(l=>[l.sale_date.split("-").reverse().join("."),l.customer,l.kota,l.madde_kodu,l.urun,n(l.qty),l.rep,l.store,n(l.sale_price),n(l.abs_price),n(l.paro),n(l.net),n(l.marj)].map(q).join(";"));
-    const blob=new Blob(["﻿"+[head.map(q).join(";"),...lines].join("\r\n")],{type:"text/csv;charset=utf-8"});
-    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="afra-satis-"+SA.period+".csv";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+  on("#saXlsx",async()=>{
+    try{await loadXLSX()}catch(e){toast(errMsg(e));return}
+    const p=SA.period,Ls=SA.lines,r2=v=>Math.round((+v||0)*100)/100,r4=v=>Math.round((+v||0)*10000)/10000,dt=d=>String(d||"").split("-").reverse().join(".");
+    const T=agg(Ls,()=>"T")[0]||{n:0,adet:0,ciro:0,net:0,marj:0,paro:0};
+    const stores=agg(Ls,"store").sort(byCiro),ex=saExpenses(p,stores.map(s=>s.k));
+    const kz=stores.map(s=>{const e=ex.res[s.k];const g=e.direct+e.shared;return{...s,g,nk:s.marj-g}});
+    const gT=kz.reduce((a,r)=>a+r.g,0),nkT=T.marj-gT;
+    const src=SA.linesSrc==="kasa"?"Günlük Kasa":"Yüklenen Excel";
+    const wb=XLSX.utils.book_new();
+    const add=(name,aoa,cols)=>{const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=cols.map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,name)};
+    add("Özet",[["Aylık Satış Analizi",ymLabel(p)],["Kaynak",src],["İndirme",new Date().toLocaleString("tr-TR")],[],
+      ["Satış cirosu",r2(T.ciro)],["İşlem",T.n],["Adet",r2(T.adet)],["Net rakam (maliyet)",r2(T.net)],["Paro",r2(T.paro)],["Marj (ABS fark)",r2(T.marj)],["Marj % (net rakama göre)",r4(pct(T.marj,T.net))],["Gider",r2(gT)],["Net kâr (gider sonrası)",r2(nkT)],[],
+      ["Mağaza","Ciro","Marj","Brüt marj %","Gider","Net kâr","Net kâr %"],
+      ...kz.map(r=>[r.k,r2(r.ciro),r2(r.marj),r4(pct(r.marj,r.ciro)),r2(r.g),r2(r.nk),r4(pct(r.nk,r.ciro))]),
+      ["Toplam",r2(T.ciro),r2(T.marj),r4(pct(T.marj,T.ciro)),r2(gT),r2(nkT),r4(pct(nkT,T.ciro))]],[26,16,16,12,14,16,12]);
+    add("Satırlar",[["Tarih","Müşteri","Kota Grubu","Madde Kodu","Ürün","Miktar","Temsilci","Mağaza","Satış Fiyatı","ABS Fiyat","Paro","Net Rakam","ABS Fark",...(SA.linesSrc==="kasa"?["Not"]:[])],
+      ...Ls.map(l=>[dt(l.sale_date),l.customer,l.kota,l.madde_kodu,l.urun,r2(l.qty),l.rep,l.store,r2(l.sale_price),r2(l.abs_price),r2(l.paro),r2(l.net),r2(l.marj),...(SA.linesSrc==="kasa"?[[l.iptal?"İptal":"",l.nocost?"Alış fiyatı yok":""].filter(Boolean).join(" · ")]:[])])],[11,32,18,14,30,8,20,12,14,14,12,14,14,20]);
+    const grp=(name,key,label)=>add(name,[[label,"İşlem","Adet","Ciro","Net rakam","Marj (ABS fark)","Marj %","Ciro payı"],
+      ...agg(Ls,key).sort(byCiro).map(r=>[r.k,r.n,r2(r.adet),r2(r.ciro),r2(r.net),r2(r.marj),r4(pct(r.marj,r.net)),r4(pct(r.ciro,T.ciro))])],[28,8,8,16,16,16,10,10]);
+    grp("Temsilci","rep","Temsilci");grp("Kota Grubu","kota","Kota grubu");grp("Müşteri","customer","Müşteri");grp("Ürün","urun","Ürün");
+    const [yy,mm]=p.split("-").map(Number),days=new Date(yy,mm,0).getDate();
+    add("Günlük",[["Tarih","İşlem","Adet","Ciro","Marj"],...Array.from({length:days},(_,i)=>{const ds=p+"-"+pad(i+1),d=agg(Ls.filter(l=>l.sale_date===ds),()=>"d")[0]||{n:0,adet:0,ciro:0,marj:0};return[dt(ds),d.n,r2(d.adet),r2(d.ciro),r2(d.marj)]})],[11,8,8,16,16]);
+    const loss=Ls.filter(l=>l.marj<0).sort((a,b)=>a.marj-b.marj);
+    add("Zararına Satışlar",[["Tarih","Müşteri","Ürün","Temsilci","Mağaza","Satış","Net rakam","Marj"],...loss.map(l=>[dt(l.sale_date),l.customer,l.urun,l.rep,l.store,r2(l.sale_price),r2(l.net),r2(l.marj)])],[11,32,30,20,12,14,14,14]);
+    const cats=[...new Set([...ex.shops.flatMap(s=>Object.keys(ex.res[s].cats)),...Object.keys(ex.ortakCats)])].sort((a,b)=>a.localeCompare(b,"tr"));
+    add("Giderler",[["Kategori",...ex.shops,"Ortak","Toplam"],...cats.map(c=>{const v=ex.shops.map(s=>ex.res[s].cats[c]||0),o=ex.ortakCats[c]||0;return[c,...v.map(r2),r2(o),r2(v.reduce((a,b)=>a+b,0)+o)]}),
+      ["Mağazaya yazılan",...ex.shops.map(s=>r2(ex.res[s].direct+ex.res[s].shared)),"bölündü",r2(gT)]],[24,...ex.shops.map(()=>14),14,14]);
+    XLSX.writeFile(wb,`Aylik_Satis_Analizi_${p}.xlsx`);
   });
   const del=$("#saDel");
   if(del)armDelete(del,async()=>{
