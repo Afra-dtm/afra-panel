@@ -531,6 +531,8 @@ async function startApp(){
   render();
 }
 async function reload(){try{await loadAll();render()}catch(e){toast(errMsg(e))}}
+/* Günlük İşlem'deki gider değişince Giderler (S.txns) arka planda tazelenir */
+async function reloadTxns(){try{const d=await fetchAll("txns","*","date");S.txns=d.map(t=>({...t,amount:Number(t.amount)}));if(S.view==="gider")render()}catch(e){}}
 
 /* ---------- üst bölüm ---------- */
 /* sayfa yetkileri: yönetici olmayan kullanıcılara sayfa sayfa verilir (veritabanında da has_perm ile uygulanır) */
@@ -3433,6 +3435,7 @@ function mtForm(r){
       <div class="field"><label for="mt-area">Mağaza</label><select id="mt-area">${areas.map(a=>`<option value="${a.id}" ${a.id===r.area_id?"selected":""}>${esc(a.name)}</option>`).join("")}</select></div>
       <div class="field"><label for="mt-date">Tarih</label><input id="mt-date" type="date" value="${r.date}" ${S.isAdmin?"":`min="${TODAY}" max="${TODAY}"`}></div>
       <div class="field full"><label for="mt-cust">${kind==="GİDER"?"Açıklama (ne için)":MT_CASHONLY.has(kind)?"Açıklama":"Müşteri adı"}</label><input id="mt-cust" value="${esc(r.customer||"")}" placeholder="${kind==="GİDER"?"Kargo, temizlik, yemek…":kind==="KASA ÇIKIŞ"?"Bankaya yatırıldı, merkeze teslim…":kind==="KASA GİRİŞ"?"Bozuk para, merkezden gelen…":"Ad soyad"}"></div>
+      ${kind==="GİDER"?`<div class="field full"><label for="mt-cat">Gider kategorisi</label><select id="mt-cat">${gdCats().map(c=>`<option ${c===(r.category||"Diğer Gider")?"selected":""}>${esc(c)}</option>`).join("")}</select><div class="hint">Bu gider otomatik olarak <b>Giderler</b> sekmesine de yazılır.</div></div>`:""}
       <div class="field"><label for="mt-amt">Tutar (₺)</label><input id="mt-amt" inputmode="text" value="${r.amount!=null?String(r.amount).replace(".",","):""}" placeholder="0,00 (eksi için -)"></div>
       <div class="field" ${MT_CASHONLY.has(kind)?"hidden":""}><label for="mt-pay">Ödeme</label><select id="mt-pay">${(MT_CASHONLY.has(kind)?["Nakit"]:MT_PAY).map(x=>`<option ${x===r.pay?"selected":""}>${x}</option>`).join("")}</select></div>
       <div class="field" data-kk ${mtIsCard(r.pay)?"":"hidden"}><label for="mt-card">Kart</label><select id="mt-card"><option value="">Kart seçin</option>${mtBanks().map(c=>`<option ${c===r.card?"selected":""}>${esc(c)}</option>`).join("")}</select></div>
@@ -3442,9 +3445,9 @@ function mtForm(r){
     </div>
     <div class="hint">Giren: <b>${esc(isNew?(S.profile.full_name||S.profile.username||"Siz"):r.created_by_name)}</b>${isNew?" (otomatik, değiştirilemez)":" · değiştirilemez"}</div>
     <div class="actions">${!isNew&&mtCanEdit(r)?'<button type="button" class="btn danger" id="mtDel">Sil</button>':""}<div class="right"><button type="button" class="btn" data-cancel>Vazgeç</button>${isNew?'<button type="button" class="btn" id="mtSaveNew">Kaydet ve yeni</button>':""}<button type="submit" class="btn primary" id="mtSave">Kaydet</button></div></div>`;
-  const draw=()=>{const keep={area:$("#mt-area")?.value,date:$("#mt-date")?.value,cust:$("#mt-cust")?.value,amt:$("#mt-amt")?.value,pay:$("#mt-pay")?.value,card:$("#mt-card")?.value,inst:$("#mt-inst")?.value,note:$("#mt-note")?.value};
+  const draw=()=>{const keep={cat:$("#mt-cat")?.value,area:$("#mt-area")?.value,date:$("#mt-date")?.value,cust:$("#mt-cust")?.value,amt:$("#mt-amt")?.value,pay:$("#mt-pay")?.value,card:$("#mt-card")?.value,inst:$("#mt-inst")?.value,note:$("#mt-note")?.value};
     sheet(body(),"mtForm");
-    if(keep.area){$("#mt-area").value=keep.area;$("#mt-date").value=keep.date;$("#mt-cust").value=keep.cust||"";$("#mt-amt").value=keep.amt||"";$("#mt-pay").value=keep.pay;$("#mt-card").value=keep.card||"";$("#mt-note").value=keep.note||""}
+    if(keep.area){$("#mt-area").value=keep.area;$("#mt-date").value=keep.date;$("#mt-cust").value=keep.cust||"";$("#mt-amt").value=keep.amt||"";$("#mt-pay").value=keep.pay;$("#mt-card").value=keep.card||"";$("#mt-note").value=keep.note||"";if(keep.cat&&$("#mt-cat"))$("#mt-cat").value=keep.cat}
     const rcard=()=>$("#mt-pay").value===MT_POS?MT_POS:$("#mt-card").value;
     const kkSync=()=>{const on=mtIsCard($("#mt-pay").value);document.querySelectorAll("#mtForm [data-kk]").forEach(x=>x.hidden=!on);
       const c=$("#mt-card").value,cur=$("#mt-inst").value||keep.inst||(r.installments!=null?String(r.installments):"");
@@ -3464,17 +3467,17 @@ function mtForm(r){
       if(kind==="İPTAL"&&!note)return toast("İptal için sebep (not) yazın.");
       const pay=$("#mt-pay").value,kk=mtIsCard(pay),card=kk?$("#mt-card").value:null,inst=kk?+$("#mt-inst").value||null:null;
       if(kk&&(!card||!inst))return toast("Kart (banka) ve taksit seçin.");
-      const row={kind,area_id:$("#mt-area").value,date:$("#mt-date").value||TODAY,customer:cust||null,amount:amt,pay,card,installments:inst,note:note||null};
+      const row={kind,area_id:$("#mt-area").value,date:$("#mt-date").value||TODAY,customer:cust||null,amount:amt,pay,card,installments:inst,note:note||null,category:kind==="GİDER"?($("#mt-cat")?.value||"Diğer Gider"):null};
       const btns=document.querySelectorAll("#mtForm button");btns.forEach(b=>b.disabled=true);
       const{error}=isNew?await sb.from("manual_txns").insert(row):await sb.from("manual_txns").update(row).eq("id",r.id);
       if(error){btns.forEach(b=>b.disabled=false);return toast(errMsg(error))}
-      toast(isNew?"İşlem kaydedildi":"İşlem güncellendi");MT.key=null;
-      if(again){r={...r,customer:null,amount:null,note:null,area_id:row.area_id,date:row.date,pay:row.pay,card:row.card,installments:row.installments};
+      toast(isNew?"İşlem kaydedildi":"İşlem güncellendi");MT.key=null;if(kind==="GİDER"||r.kind==="GİDER")reloadTxns();
+      if(again){r={...r,customer:null,amount:null,note:null,category:row.category,area_id:row.area_id,date:row.date,pay:row.pay,card:row.card,installments:row.installments};
         ["#mt-cust","#mt-amt","#mt-note"].forEach(x=>{if($(x))$(x).value=""});kom();btns.forEach(b=>b.disabled=false);$("#mt-cust").focus();mtLoad();return}
       closeModal();mtLoad()};
     $("#mtForm").onsubmit=e=>{e.preventDefault();save(false)};
     const sn=$("#mtSaveNew");if(sn)sn.onclick=()=>save(true);
-    const d=$("#mtDel");if(d)armDelete(d,async()=>{const{error}=await sb.from("manual_txns").delete().eq("id",r.id);if(error){d.disabled=false;return toast(errMsg(error))}closeModal();toast("İşlem silindi");MT.key=null;mtLoad()});
+    const d=$("#mtDel");if(d)armDelete(d,async()=>{const{error}=await sb.from("manual_txns").delete().eq("id",r.id);if(error){d.disabled=false;return toast(errMsg(error))}closeModal();toast("İşlem silindi");MT.key=null;if(r.kind==="GİDER")reloadTxns();mtLoad()});
     $("#mt-cust").focus()};
   draw();
 }
@@ -3703,7 +3706,7 @@ function vGider(){
   const prevTot=sum(prev.filter(t=>t.status==="odendi")),d=prevTot?(sum(odendi)-prevTot)/prevTot:null;
   const W=S.isAdmin||can("gider");
   return`<section class="panel">
-    <div class="panel-h"><div><h2>Giderler · ${ymLabel(m)}</h2><div class="hint">Ödenmiş giderler Aylık Satış Analizi'ndeki mağaza kâr/zarar hesabına düşer. Mağazası seçilmeyenler ortak sayılır ve mağazalara eşit bölünür.</div></div>
+    <div class="panel-h"><div><h2>Giderler · ${ymLabel(m)}</h2><div class="hint">Ödenmiş giderler Aylık Satış Analizi'ndeki mağaza kâr/zarar hesabına düşer. Mağazası seçilmeyenler ortak sayılır ve mağazalara eşit bölünür. Günlük İşlem'de girilen giderler buraya otomatik gelir.</div></div>
       <div class="filters">
         <select id="gdMonth" aria-label="Ay">${gdMonthOpts()}</select>
         ${W&&recNew.length?`<button class="btn sm" id="gdCopy" type="button">Sabit giderleri ${ymLabel(prevYm(m))}'dan getir (${recNew.length})</button>`:""}
@@ -3734,10 +3737,10 @@ function vGider(){
     </div>
     ${L.length?`<div class="tbl-wrap"><table style="min-width:900px"><thead><tr><th>Tarih</th><th>Birim</th><th>Kategori</th><th>Tedarikçi</th><th>Açıklama</th><th>Ödeme</th><th>Durum</th><th class="r">Tutar</th>${W?"<th></th>":""}</tr></thead><tbody>
     ${L.map(t=>`<tr><td class="num" style="white-space:nowrap">${dTR(t.date)}</td><td>${t.area_id?esc(areaName(t.area_id)):'<span class="muted">Ortak</span>'}</td>
-      <td>${esc(t.category||"—")}${t.recurring?' <span class="chip in" title="Her ay tekrar eder">sabit</span>':""}</td><td>${esc(t.party||"—")}</td>
+      <td>${esc(t.category||"—")}${t.manual_txn_id?' <span class="chip xfer" title="Günlük İşlem ekranında girildi; düzeltme ve silme oradan yapılır">Günlük İşlem</span>':""}${t.recurring?' <span class="chip in" title="Her ay tekrar eder">sabit</span>':""}</td><td>${esc(t.party||"—")}</td>
       <td style="white-space:normal;max-width:260px;font-size:13px">${esc(t.note||"")}</td><td style="font-size:12px">${t.pay?esc(GD_PAYL[t.pay]||t.pay):"—"}</td>
       <td>${t.status==="odendi"?'<span class="chip in">Ödendi</span>':`<span class="chip warn">Bekliyor</span>`}</td><td class="r num"><b>${TL(t.amount)}</b></td>
-      ${W?`<td style="white-space:nowrap">${t.status!=="odendi"?`<button class="btn sm" type="button" data-gdpaid="${t.id}">Ödendi</button> `:""}<button class="btn sm" type="button" data-gdedit="${t.id}">Düzenle</button></td>`:""}</tr>`).join("")}
+      ${W?`<td style="white-space:nowrap">${t.manual_txn_id?'<span class="muted" style="font-size:12px">Günlük İşlem\'den</span>':`${t.status!=="odendi"?`<button class="btn sm" type="button" data-gdpaid="${t.id}">Ödendi</button> `:""}<button class="btn sm" type="button" data-gdedit="${t.id}">Düzenle</button>`}</td>`:""}</tr>`).join("")}
     </tbody></table></div>`:`<div class="empty">${all.length?"Bu süzgeçle eşleşen gider yok.":`${ymLabel(m)} için gider kaydı yok.${W?' Sağ üstteki "Gider ekle" ile başlayın.':""}`}</div>`}
   </section>`;
 }
@@ -3809,14 +3812,14 @@ function bindGider(){
   const cp=$("#gdCopy");if(cp)cp.onclick=gdCopyPrev;
   document.querySelectorAll("#app [data-gdcat]").forEach(tr=>tr.onclick=()=>{GD.cat=GD.cat===tr.dataset.gdcat?"":tr.dataset.gdcat;render()});
   document.querySelectorAll("#app [data-gdarea]").forEach(tr=>tr.onclick=()=>{GD.area=GD.area===tr.dataset.gdarea?"":tr.dataset.gdarea;render()});
-  document.querySelectorAll("#app [data-gdedit]").forEach(b=>b.onclick=()=>{const t=gdAll().find(x=>x.id===b.dataset.gdedit);if(t)openGider(t)});
+  document.querySelectorAll("#app [data-gdedit]").forEach(b=>b.onclick=()=>{const t=gdAll().find(x=>x.id===b.dataset.gdedit);if(t&&!t.manual_txn_id)openGider(t)});
   document.querySelectorAll("#app [data-gdpaid]").forEach(b=>b.onclick=async()=>{b.disabled=true;
     const{error}=await sb.from("txns").update({status:"odendi"}).eq("id",b.dataset.gdpaid);
     if(error){toast(errMsg(error));b.disabled=false;return}toast("Ödendi olarak işaretlendi");reload()});
   const x=$("#gdXlsx");if(x)x.onclick=async()=>{await loadXLSX();const L=gdRows();
-    const aoa=[["Tarih","Birim","Kategori","Tedarikçi","Açıklama","Ödeme şekli","Durum","Tutar","Sabit gider"],
-      ...L.map(t=>[dTR(t.date),t.area_id?areaName(t.area_id):"Ortak",t.category||"",t.party||"",t.note||"",t.pay?(GD_PAYL[t.pay]||t.pay):"",t.status==="odendi"?"Ödendi":"Bekliyor",t.amount,t.recurring?"Evet":""])];
-    const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[12,18,22,26,34,14,10,14,10].map(w=>({wch:w}));
+    const aoa=[["Tarih","Birim","Kategori","Tedarikçi","Açıklama","Ödeme şekli","Durum","Tutar","Sabit gider","Kaynak"],
+      ...L.map(t=>[dTR(t.date),t.area_id?areaName(t.area_id):"Ortak",t.category||"",t.party||"",t.note||"",t.pay?(GD_PAYL[t.pay]||t.pay):"",t.status==="odendi"?"Ödendi":"Bekliyor",t.amount,t.recurring?"Evet":"",t.manual_txn_id?"Günlük İşlem":"Giderler"])];
+    const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[12,18,22,26,34,14,10,14,10,14].map(w=>({wch:w}));
     const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Giderler");XLSX.writeFile(wb,`Giderler_${gdMonth()}.xlsx`)};
 }
 
