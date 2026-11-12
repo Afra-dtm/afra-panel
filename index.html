@@ -3827,12 +3827,21 @@ const svDayLabel=d=>{const x=parse(d);return x.getDate()+" "+MONTHS_L[x.getMonth
 const svDot=d=>d.split("-").reverse().join(".");
 const svStoreOf=s=>{const k=svKey(s);return k.includes("yenigun")||k.includes("parseller")?"PARSELLER":k?"GÜNEŞLİ":""};
 const svArea=st=>{const want=st==="PARSELLER"?"parseller":"guneşli";return(S.areas.find(a=>svKey(a.name).includes(svKey(want)))||{}).id||null};
+function svPayChip(r){
+  const a=r.cust_account&&SV.pay&&SV.pay[r.cust_account];if(!a)return"";
+  const when=new Date(a.checked_at).toLocaleString("tr-TR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+  if(!(a.open_amount>0))return`<div class="muted" style="font-size:11px" title="AX Tahsilat yönetimi, ${when}">Açık VAD / K SENET yok</div>`;
+  const det=(a.detail||[]).map(x=>`${x.method||""} · sipariş ${x.order_no||""} · vade ${x.due||""} · kalan ${TL(Number(x.remaining)||0)}${x.delay>0?` · ${x.delay} gün gecikme`:""}`).join("\n");
+  return`<div><span class="chip ${a.overdue_amount>0?"late":"warn"}" title="${esc(det+"\nKontrol: "+when)}">⚠ Ödenmemiş VAD / K SENET: ${TL(a.open_amount)}${a.overdue_amount>0?` · vadesi geçmiş ${TL(a.overdue_amount)}`:""}</span></div>`;
+}
 async function svLoad(force){
   if(SV.loading||(!force&&SV.loadedFor===SV.date))return;SV.loading=true;SV.err="";const d=SV.date;
   try{
     const{data,error}=await sb.from("shipments").select("*").eq("ship_date",d).order("ship_time").order("customer");if(error)throw error;
     if(SV.date!==d){SV.loading=false;return svLoad(true)}
     SV.rows=data.map(r=>({...r,amount:r.amount==null?null:Number(r.amount)}));SV.loadedFor=d;
+    const accs=[...new Set(SV.rows.map(r=>r.cust_account).filter(Boolean))];SV.pay={};
+    if(accs.length){const{data:pa}=await sb.from("customer_pay_alerts").select("*").in("cust_account",accs);(pa||[]).forEach(a=>SV.pay[a.cust_account]={...a,open_amount:Number(a.open_amount),overdue_amount:Number(a.overdue_amount)})}
     const since=iso(addDays(parse(TODAY),-45));
     const{data:dd}=await sb.from("shipments").select("ship_date,checked").gte("ship_date",since);
     const m={};(dd||[]).forEach(r=>{const x=m[r.ship_date]||(m[r.ship_date]={n:0,c:0});x.n++;if(r.checked)x.c++});SV.days=m;
@@ -3852,7 +3861,7 @@ function vSevk(){
     ${list.map(r=>`<tr class="${r.checked?"done":""}"><td class="ck"><input type="checkbox" data-svck="${r.id}" ${r.checked?"checked":""} aria-label="${esc(r.customer)} ${esc(r.product)} kontrol edildi"></td>
       <td class="num">${r.ship_date?svDot(r.ship_date):""}</td>
       <td><div style="font-size:13px">${esc(r.depot||"")}</div>${r.manual?`<div style="font-size:11px">Ekleyen: <b style="font-weight:600">${esc(r.uploaded_by_name||creatorName(r.uploaded_by)||"—")}</b></div>${r.edited_by&&r.edited_by!==r.uploaded_by?`<div style="font-size:11px">Düzenleyen: <b style="font-weight:600">${esc(r.edited_by_name||creatorName(r.edited_by)||"—")}</b></div>`:""}${svCanEdit(r)?`<div style="display:flex;gap:4px;margin-top:2px"><button type="button" class="btn sm ghost" data-svedit="${r.id}" style="padding:2px 8px">Düzenle</button><button type="button" class="btn sm ghost" data-svdel="${r.id}" style="padding:2px 8px">Sil</button></div>`:""}`:""}</td>
-      <td><b style="font-weight:600">${esc(r.customer||"")}</b>${ageDays(r)>30?`<div><span class="chip warn">${ageDays(r)} gün önceki sipariş</span></div>`:""}</td>
+      <td><b style="font-weight:600">${esc(r.customer||"")}</b>${svPayChip(r)}${ageDays(r)>30?`<div><span class="chip warn">${ageDays(r)} gün önceki sipariş</span></div>`:""}</td>
       <td>${esc(r.product||"")}<div class="muted num" style="font-size:11px">${r.manual?(r.barcode?"Barkod: "+esc(r.barcode):""):esc(r.item_code||"")}</div></td>
       <td style="font-size:12px;max-width:260px;white-space:normal">${r.description?esc(r.description):'<span class="muted">—</span>'}</td>
       <td style="font-size:12px">${esc(r.rep||"")}</td>
@@ -3865,6 +3874,7 @@ function vSevk(){
     <div class="kpi"><label>Müşteri</label><div class="v num">${new Set(all.map(r=>r.store+"|"+r.customer)).size}</div><div class="s">${stores.map(s=>(s==="PARSELLER"?"Parseller ":"Güneşli ")+all.filter(r=>r.store===s).length).join(" · ")} satır</div></div>
     <div class="kpi"><label>Toplam tutar</label><div class="v num">${TL(all.reduce((s,r)=>s+(r.amount||0),0))}</div><div class="s">${all.filter(r=>!r.invoice_no).length} satırda fatura yok</div></div>
   </section>
+  ${(()=>{const al=Object.values(SV.pay||{}).filter(x=>x.open_amount>0&&all.some(r=>r.cust_account===x.cust_account));return al.length?`<div class="banner bad"><span><b>Ödeme uyarısı:</b> ${al.length} müşteride ödenmemiş VAD / K SENET var — toplam ${TL(al.reduce((t,x)=>t+x.open_amount,0))}${al.some(x=>x.overdue_amount>0)?`, vadesi geçmiş ${TL(al.reduce((t,x)=>t+x.overdue_amount,0))}`:""}. Teslimattan önce tahsilatı kontrol edin.</span></div>`:""})()}
   <div class="filters" style="align-items:center">
     ${S.isAdmin&&stores.length>1?`<div class="seg" id="svSeg">${[["","Tümü"],["PARSELLER","Parseller"],["GÜNEŞLİ","Güneşli"]].map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${SV.store===v}">${l}</button>`).join("")}</div>`:""}
     <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="svOpen" style="width:auto;margin:0;flex:none;padding:0" ${SV.open?"checked":""}> Sadece kontrol edilmeyenler</label>
@@ -3940,7 +3950,7 @@ function bindSevk(){
 }
 const SV_COLS={ship_date:["randevu tarihi","sevkiyat tarihi"],ship_time:["randevu saati","randevu","saat"],store:["satis magazasi","magaza"],depot:["cikis deposu","depo"],depot_type:["depo tipi"],
   customer:["musteri","musteri adi"],order_no:["satis siparisi","siparis no","satis siparis no"],work_order:["is emri no","is emri"],order_date:["siparis tarihi"],item_code:["madde kodu","urun kodu"],
-  product:["urun","urun adi","madde adi"],amount:["tutar tl","tutar"],rep:["satis temsilcisi","temsilci"],wo_status:["is emri durumu","durum"],invoice_no:["fatura no","fatura"],description:["aciklama"]};
+  product:["urun","urun adi","madde adi"],amount:["tutar tl","tutar"],rep:["satis temsilcisi","temsilci"],wo_status:["is emri durumu","durum"],invoice_no:["fatura no","fatura"],description:["aciklama"],cust_account:["musteri hesabi","musteri hesap no"]};
 function svToIso(v){if(v==null||v==="")return null;if(typeof v==="number"){const d=new Date(Math.round((v-25569)*864e5));return d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate())}
   if(v instanceof Date)return iso(v);const m=String(v).match(/(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})/);return m?m[3]+"-"+pad(+m[2])+"-"+pad(+m[1]):null}
 function svTime(v){if(v==null||v==="")return null;if(typeof v==="number"){const f=v%1,mins=Math.round(f*1440);return pad(Math.floor(mins/60))+":"+pad(mins%60)}const m=String(v).match(/(\d{1,2}):(\d{2})/);return m?pad(+m[1])+":"+m[2]:String(v).trim()}
@@ -3964,7 +3974,7 @@ function svParse(wb,fileName){
       out.push({ship_date:svToIso(g("ship_date")),ship_time:svTime(g("ship_time")),store,area_id:svArea(store),depot,depot_type:dt,customer:String(g("customer")).trim(),
         order_no:g("order_no")!=null?String(g("order_no")).trim():null,work_order:g("work_order")!=null?String(g("work_order")).trim():null,order_date:svToIso(g("order_date")),
         item_code:g("item_code")!=null?String(g("item_code")).trim():null,product:String(g("product")).trim(),amount:typeof amt==="number"?amt:(amt?parseAmt(amt):null),
-        rep:g("rep")!=null?String(g("rep")).trim():null,wo_status:g("wo_status")!=null?String(g("wo_status")).trim():null,invoice_no:g("invoice_no")?String(g("invoice_no")).trim():null,description:g("description")!=null&&String(g("description")).trim()?String(g("description")).trim():null});
+        rep:g("rep")!=null?String(g("rep")).trim():null,wo_status:g("wo_status")!=null?String(g("wo_status")).trim():null,invoice_no:g("invoice_no")?String(g("invoice_no")).trim():null,description:g("description")!=null&&String(g("description")).trim()?String(g("description")).trim():null,cust_account:g("cust_account")!=null&&String(g("cust_account")).trim()?String(g("cust_account")).trim():null});
     }
     if(out.length)return{date:date||out.find(r=>r.ship_date)?.ship_date||SV.date,rows:out};
   }
