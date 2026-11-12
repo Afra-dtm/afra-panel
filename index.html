@@ -931,7 +931,7 @@ const byCiro=(a,b)=>b.ciro-a.ciro;
 /* Mağaza giderleri: Afra Finans'taki ödenmiş gider kayıtlarından.
    Mağaza adı bir birim adında geçiyorsa (örn. GÜNEŞLİ → "Güneşli Mağaza") o birimin giderleri doğrudan o mağazaya yazılır.
    Başka birimlerin (Merkez vb.) ve birimsiz giderler ortak sayılır, eşleşen mağazalara eşit bölünür.
-   Arçelik Mal Alımı hariç tutulur; ürün maliyeti zaten net rakamın içinde. */
+   Arçelik Mal Alımı hariç tutulur; ürün maliyeti zaten ABS fiyatının içinde. */
 function saExpenses(period,storeNames){
   const areaFor={};
   storeNames.forEach(st=>{const a=S.areas.find(a=>normTR(a.name).includes(normTR(st)));if(a)areaFor[st]=a.id});
@@ -1013,12 +1013,12 @@ function vSatis(){
   const mx={};Ls.forEach(l=>{const k=(l.kota||"—")+"|"+(l.rep||"—");mx[k]=(mx[k]||0)+l.sale_price});
   const tbl=(h,body,min=560,foot="")=>`<div class="tbl-wrap"><table style="min-width:${min}px"><thead><tr>${h}</tr></thead><tbody>${body}</tbody>${foot}</table></div>`;
   const aggRow=(r,extra="")=>`<td class="r num">${fmt0.format(r.n)}</td><td class="r num">${fmt0.format(r.adet)}</td><td class="r num">${TL(r.ciro)}</td><td class="r num">${TL(r.net)}</td><td class="r num ${r.marj<0?"neg":"pos"}">${TL(r.marj)}</td><td class="r num">${pctTxt(pct(r.marj,r.net))}</td>${extra}`;
-  const aggHead=`<th class="r">İşlem</th><th class="r">Adet</th><th class="r">Ciro</th><th class="r">Net rakam</th><th class="r">Marj (ABS fark)</th><th class="r">Marj %</th>`;
+  const aggHead=`<th class="r">İşlem</th><th class="r">Adet</th><th class="r">Ciro</th><th class="r">ABS fiyatı</th><th class="r">Marj (ABS fark)</th><th class="r">Marj %</th>`;
 
   return head+`
   <section class="kpis">
     <div class="kpi"><label>Satış cirosu</label><div class="v num">${TL(T.ciro)}</div><div class="s">${fmt0.format(T.n)} işlem · ${fmt0.format(T.adet)} adet${d==null?"":` · ${d>=0?"▲":"▼"} ${pctTxt(Math.abs(d))}`}</div></div>
-    <div class="kpi"><label>Net rakam (maliyet)</label><div class="v num">${TL(T.net)}</div><div class="s">Paro: ${TL(T.paro)}</div></div>
+    <div class="kpi"><label>ABS fiyatı</label><div class="v num">${TL(T.net)}</div><div class="s">Paro: ${TL(T.paro)}</div></div>
     <div class="kpi"><label>Marj (ABS fark)</label><div class="v num pos">${TL(T.marj)}</div><div class="s">Marj %: ${pctTxt(pct(T.marj,T.net))} · ciroya göre ${pctTxt(pct(T.marj,T.ciro))}</div></div>
     <div class="kpi"><label>Net kâr (gider sonrası)</label><div class="v num ${netKarT<0?"neg":"pos"}">${TL(netKarT)}</div><div class="s">${noExp?"Bu ay gider kaydı yok":"Gider: "+TL(giderT)+" · "+pctTxt(pct(netKarT,T.ciro))}</div></div>
   </section>
@@ -1030,7 +1030,7 @@ function vSatis(){
       rowsKZ.map(r=>`<tr><td><b>${esc(r.k)}</b></td><td class="r num">${TL(r.ciro)}</td><td class="r num">${TL(r.marj)}</td><td class="r num">${pctTxt(pct(r.marj,r.ciro))}</td><td class="r num">${TL(r.gider)}</td><td class="r num ${r.netKar<0?"neg":"pos"}">${TL(r.netKar)}</td><td class="r num">${pctTxt(pct(r.netKar,r.ciro))}</td><td>${status(r)}</td></tr>`).join(""),700,
       `<tfoot><tr><td>Toplam</td><td class="r num">${TL(T.ciro)}</td><td class="r num">${TL(T.marj)}</td><td class="r num">${pctTxt(pct(T.marj,T.ciro))}</td><td class="r num">${TL(giderT)}</td><td class="r num ${netKarT<0?"neg":"pos"}">${TL(netKarT)}</td><td class="r num">${pctTxt(pct(netKarT,T.ciro))}</td><td></td></tr></tfoot>`)}
     <details class="more"><summary>Giderler nasıl hesaplanıyor? · döküm</summary>
-      <div class="hint" style="margin:8px 0">Afra Finans'taki <b>ödenmiş gider</b> kayıtları kullanılır. Mağaza adı geçen birimin (örn. "Güneşli Mağaza") giderleri o mağazaya yazılır. Merkez ve birimsiz giderler <b>ortak</b> sayılır ve ${ex.shops.length?ex.shops.map(esc).join(" ile "):"mağazalara"} arasında eşit bölünür. <b>Arçelik Mal Alımı</b> dahil edilmez; ürün maliyeti zaten net rakamın içinde.${ex.excluded?` Bu ay hariç tutulan mal alımı: ${TL(ex.excluded)}.`:""}${ex.unmatched.length?` Birim eşleşmesi olmayan: ${ex.unmatched.map(esc).join(", ")} (bu satışlara gider yazılmaz).`:""}</div>
+      <div class="hint" style="margin:8px 0">Afra Finans'taki <b>ödenmiş gider</b> kayıtları kullanılır. Mağaza adı geçen birimin (örn. "Güneşli Mağaza") giderleri o mağazaya yazılır. Merkez ve birimsiz giderler <b>ortak</b> sayılır ve ${ex.shops.length?ex.shops.map(esc).join(" ile "):"mağazalara"} arasında eşit bölünür. <b>Arçelik Mal Alımı</b> dahil edilmez; ürün maliyeti zaten ABS fiyatının içinde.${ex.excluded?` Bu ay hariç tutulan mal alımı: ${TL(ex.excluded)}.`:""}${ex.unmatched.length?` Birim eşleşmesi olmayan: ${ex.unmatched.map(esc).join(", ")} (bu satışlara gider yazılmaz).`:""}</div>
       ${(()=>{const cats=[...new Set([...ex.shops.flatMap(s=>Object.keys(ex.res[s].cats)),...Object.keys(ex.ortakCats)])].sort((a,b)=>a.localeCompare(b,"tr"));
         if(!cats.length)return'<div class="empty">Bu ay için gider kaydı yok.</div>';
         return tbl(`<th>Kategori</th>${ex.shops.map(s=>`<th class="r">${esc(s)}</th>`).join("")}<th class="r">Ortak</th><th class="r">Toplam</th>`,
@@ -1059,7 +1059,7 @@ function vSatis(){
   </section>
 
   <section class="panel"><div class="panel-h"><h2>Zararına satışlar</h2><span class="meta">${losses.length} satır · ${TL(lossT)}</span></div>
-    ${losses.length?tbl(`<th>Tarih</th><th>Müşteri</th><th>Ürün</th><th>Temsilci</th><th>Mağaza</th><th class="r">Satış</th><th class="r">Net rakam</th><th class="r">Marj</th>`,
+    ${losses.length?tbl(`<th>Tarih</th><th>Müşteri</th><th>Ürün</th><th>Temsilci</th><th>Mağaza</th><th class="r">Satış</th><th class="r">ABS fiyatı</th><th class="r">Marj</th>`,
       losses.map(l=>`<tr><td class="num">${l.sale_date.split("-").reverse().join(".")}</td><td><span class="desc">${esc(l.customer)}</span></td><td>${esc(l.urun)}</td><td>${esc(l.rep)}</td><td>${esc(l.store)}</td><td class="r num">${TL(l.sale_price)}</td><td class="r num">${TL(l.net)}</td><td class="r num neg">${TL(l.marj)}</td></tr>`).join(""),860)
       :'<div class="empty">Bu ay zararına satış yok.</div>'}
   </section>
@@ -1180,19 +1180,19 @@ function bindSatis(){
     const wb=XLSX.utils.book_new();
     const add=(name,aoa,cols)=>{const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=cols.map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,name)};
     add("Özet",[["Aylık Satış Analizi",ymLabel(p)],["Kaynak",src],["İndirme",new Date().toLocaleString("tr-TR")],[],
-      ["Satış cirosu",r2(T.ciro)],["İşlem",T.n],["Adet",r2(T.adet)],["Net rakam (maliyet)",r2(T.net)],["Paro",r2(T.paro)],["Marj (ABS fark)",r2(T.marj)],["Marj % (net rakama göre)",r4(pct(T.marj,T.net))],["Gider",r2(gT)],["Net kâr (gider sonrası)",r2(nkT)],[],
+      ["Satış cirosu",r2(T.ciro)],["İşlem",T.n],["Adet",r2(T.adet)],["ABS fiyatı",r2(T.net)],["Paro",r2(T.paro)],["Marj (ABS fark)",r2(T.marj)],["Marj % (ABS fiyatına göre)",r4(pct(T.marj,T.net))],["Gider",r2(gT)],["Net kâr (gider sonrası)",r2(nkT)],[],
       ["Mağaza","Ciro","Marj","Brüt marj %","Gider","Net kâr","Net kâr %"],
       ...kz.map(r=>[r.k,r2(r.ciro),r2(r.marj),r4(pct(r.marj,r.ciro)),r2(r.g),r2(r.nk),r4(pct(r.nk,r.ciro))]),
       ["Toplam",r2(T.ciro),r2(T.marj),r4(pct(T.marj,T.ciro)),r2(gT),r2(nkT),r4(pct(nkT,T.ciro))]],[26,16,16,12,14,16,12]);
-    add("Satırlar",[["Tarih","Müşteri","Kota Grubu","Madde Kodu","Ürün","Miktar","Temsilci","Mağaza","Satış Fiyatı","ABS Fiyat","Paro","Net Rakam","ABS Fark",...(SA.linesSrc==="kasa"?["Not"]:[])],
+    add("Satırlar",[["Tarih","Müşteri","Kota Grubu","Madde Kodu","Ürün","Miktar","Temsilci","Mağaza","Satış Fiyatı","ABS Fiyat (paro öncesi)","Paro","ABS Fiyatı","ABS Fark",...(SA.linesSrc==="kasa"?["Not"]:[])],
       ...Ls.map(l=>[dt(l.sale_date),l.customer,l.kota,l.madde_kodu,l.urun,r2(l.qty),l.rep,l.store,r2(l.sale_price),r2(l.abs_price),r2(l.paro),r2(l.net),r2(l.marj),...(SA.linesSrc==="kasa"?[[l.iptal?"İptal":"",l.nocost?"Alış fiyatı yok":""].filter(Boolean).join(" · ")]:[])])],[11,32,18,14,30,8,20,12,14,14,12,14,14,20]);
-    const grp=(name,key,label)=>add(name,[[label,"İşlem","Adet","Ciro","Net rakam","Marj (ABS fark)","Marj %","Ciro payı"],
+    const grp=(name,key,label)=>add(name,[[label,"İşlem","Adet","Ciro","ABS fiyatı","Marj (ABS fark)","Marj %","Ciro payı"],
       ...agg(Ls,key).sort(byCiro).map(r=>[r.k,r.n,r2(r.adet),r2(r.ciro),r2(r.net),r2(r.marj),r4(pct(r.marj,r.net)),r4(pct(r.ciro,T.ciro))])],[28,8,8,16,16,16,10,10]);
     grp("Temsilci","rep","Temsilci");grp("Kota Grubu","kota","Kota grubu");grp("Müşteri","customer","Müşteri");grp("Ürün","urun","Ürün");
     const [yy,mm]=p.split("-").map(Number),days=new Date(yy,mm,0).getDate();
     add("Günlük",[["Tarih","İşlem","Adet","Ciro","Marj"],...Array.from({length:days},(_,i)=>{const ds=p+"-"+pad(i+1),d=agg(Ls.filter(l=>l.sale_date===ds),()=>"d")[0]||{n:0,adet:0,ciro:0,marj:0};return[dt(ds),d.n,r2(d.adet),r2(d.ciro),r2(d.marj)]})],[11,8,8,16,16]);
     const loss=Ls.filter(l=>l.marj<0).sort((a,b)=>a.marj-b.marj);
-    add("Zararına Satışlar",[["Tarih","Müşteri","Ürün","Temsilci","Mağaza","Satış","Net rakam","Marj"],...loss.map(l=>[dt(l.sale_date),l.customer,l.urun,l.rep,l.store,r2(l.sale_price),r2(l.net),r2(l.marj)])],[11,32,30,20,12,14,14,14]);
+    add("Zararına Satışlar",[["Tarih","Müşteri","Ürün","Temsilci","Mağaza","Satış","ABS fiyatı","Marj"],...loss.map(l=>[dt(l.sale_date),l.customer,l.urun,l.rep,l.store,r2(l.sale_price),r2(l.net),r2(l.marj)])],[11,32,30,20,12,14,14,14]);
     const cats=[...new Set([...ex.shops.flatMap(s=>Object.keys(ex.res[s].cats)),...Object.keys(ex.ortakCats)])].sort((a,b)=>a.localeCompare(b,"tr"));
     add("Giderler",[["Kategori",...ex.shops,"Ortak","Toplam"],...cats.map(c=>{const v=ex.shops.map(s=>ex.res[s].cats[c]||0),o=ex.ortakCats[c]||0;return[c,...v.map(r2),r2(o),r2(v.reduce((a,b)=>a+b,0)+o)]}),
       ["Mağazaya yazılan",...ex.shops.map(s=>r2(ex.res[s].direct+ex.res[s].shared)),"bölündü",r2(gT)]],[24,...ex.shops.map(()=>14),14,14]);
@@ -3696,7 +3696,7 @@ function bindAlis(){
 /* === GİDERLER (txns tablosu, type='gider') ===
    Kira, maaş, fatura gibi ödemeler buradan girilir. Ödenmiş giderler Aylık Satış Analizi'ndeki
    mağaza kâr/zarar hesabına düşer; mağazası seçilmeyen (ortak) giderler mağazalara eşit bölünür.
-   "Arçelik Mal Alımı" kâr hesabına girmez; ürün maliyeti zaten net rakamın içindedir. */
+   "Arçelik Mal Alımı" kâr hesabına girmez; ürün maliyeti zaten ABS fiyatının içindedir. */
 const GD_PAY=[["N","Nakit"],["EFT","Havale / EFT"],["KK","Kredi Kartı"],["CS","Çek / Senet"]];
 const GD_PAYL=Object.fromEntries(GD_PAY);
 const GD={month:null,area:"",cat:"",st:"",q:""};
@@ -3744,7 +3744,7 @@ function vGider(){
     </section></section>
   ${all.length?`<section class="panel"><div class="panel-h"><h2>Kategoriler</h2><div class="hint">${ymLabel(m)} · ödenen + bekleyen</div></div>
     <div class="tbl-wrap"><table style="min-width:560px"><thead><tr><th>Kategori</th><th class="r">Ödenen</th><th class="r">Bekleyen</th><th class="r">Toplam</th><th style="width:34%">Pay</th></tr></thead><tbody>
-    ${cats.map(([c,x])=>`<tr class="clickable" data-gdcat="${esc(c)}"><td>${esc(c)}${EXCLUDED_CATS.includes(c)?' <span class="chip off" title="Ürün maliyeti net rakamın içinde">kâra girmez</span>':""}</td>
+    ${cats.map(([c,x])=>`<tr class="clickable" data-gdcat="${esc(c)}"><td>${esc(c)}${EXCLUDED_CATS.includes(c)?' <span class="chip off" title="Ürün maliyeti ABS fiyatının içinde">kâra girmez</span>':""}</td>
       <td class="r num">${TL(x.o)}</td><td class="r num ${x.b?"neg":"muted"}">${x.b?TL(x.b):"—"}</td><td class="r num"><b>${TL(x.o+x.b)}</b></td>
       <td><div style="background:var(--line-2);border-radius:4px;height:8px"><div style="width:${mx?Math.round((x.o+x.b)/mx*100):0}%;background:var(--out);height:8px;border-radius:4px"></div></div></td></tr>`).join("")}
     </tbody><tfoot><tr><td>Toplam</td><td class="r num">${TL(sum(odendi))}</td><td class="r num">${TL(sum(bekl))}</td><td class="r num">${TL(sum(all))}</td><td></td></tr></tfoot></table></div>
