@@ -3830,9 +3830,9 @@ const svArea=st=>{const want=st==="PARSELLER"?"parseller":"guneşli";return(S.ar
 function svPayChip(r){
   const a=r.cust_account&&SV.pay&&SV.pay[r.cust_account];if(!a)return"";
   const when=new Date(a.checked_at).toLocaleString("tr-TR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
-  if(!(a.open_amount>0))return`<div class="muted" style="font-size:11px" title="AX Tahsilat yönetimi, ${when}">Açık VAD / K SENET yok</div>`;
+  if(!(a.open_amount>0))return"";
   const det=(a.detail||[]).map(x=>`${x.method||""} · sipariş ${x.order_no||""} · vade ${x.due||""} · kalan ${TL(Number(x.remaining)||0)}${x.delay>0?` · ${x.delay} gün gecikme`:""}`).join("\n");
-  return`<div><span class="chip ${a.overdue_amount>0?"late":"warn"}" title="${esc(det+"\nKontrol: "+when)}">⚠ Ödenmemiş VAD / K SENET: ${TL(a.open_amount)}${a.overdue_amount>0?` · vadesi geçmiş ${TL(a.overdue_amount)}`:""}</span></div>`;
+  return`<div><span class="chip late" title="${esc(det+"\nKontrol: "+when)}">⚠ ${a.overdue_amount>0?`Vadesi geçmiş VAD / K SENET: ${TL(a.overdue_amount)}`:`Ödenmemiş VAD / K SENET: ${TL(a.open_amount)}`}</span></div>`;
 }
 async function svLoad(force){
   if(SV.loading||(!force&&SV.loadedFor===SV.date))return;SV.loading=true;SV.err="";const d=SV.date;
@@ -3921,7 +3921,7 @@ function svHead(){
   const recent=SV.days?Object.entries(SV.days).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,10):[];
   return`<section class="panel">
     <div class="panel-h"><div><div class="muted" style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Sevkiyat günü (randevu tarihi)</div><h2 style="font-size:22px">${svDayLabel(SV.date)}</h2></div>
-      <div class="filters"><button class="btn sm" id="svPrev" type="button" aria-label="Önceki gün">‹</button><input type="date" id="svDate" value="${SV.date}"><button class="btn sm" id="svNext" type="button" aria-label="Sonraki gün">›</button>${SV.date!==TODAY?`<button class="btn sm ghost" id="svToday" type="button">Bugün</button>`:""}
+      <div class="filters"><button class="btn sm" id="svPrev" type="button" aria-label="Önceki gün">‹</button><input type="date" id="svDate" value="${SV.date}"><button class="btn sm" id="svNext" type="button" aria-label="Sonraki gün">›</button>${SV.date!==TODAY?`<button class="btn sm ghost" id="svToday" type="button">Bugün</button>`:""}<button class="btn sm" id="svRefresh" type="button" ${SV.loading?"disabled":""}>${SV.loading?"Yenileniyor…":"↻ Yenile"}</button>
       ${svStoresForMe().length?`<button class="btn sm primary" id="svAdd" type="button">Yeni kayıt</button>`:""}${S.isAdmin?`<button class="btn sm primary" id="svUp" type="button">Excel yükle</button><input type="file" id="svFile" accept=".xlsx,.xls" hidden>`:""}${(SV.rows||[]).length?`<button class="btn sm" id="svXlsx" type="button">Excel indir</button>`:""}</div></div>
     ${recent.length?`<div class="filters">${recent.map(([d,x])=>`<button class="btn sm ${d===SV.date?"primary":""}" data-svday="${d}" type="button">${svDot(d).slice(0,5)} <span class="${x.c===x.n?"":"muted"}" style="font-size:11px">${x.c}/${x.n}</span></button>`).join("")}</div>`:""}
   </section>`;
@@ -3933,7 +3933,7 @@ function bindSevk(){
   const di=$("#svDate");if(di)di.onchange=()=>setDate(di.value);
   app.querySelectorAll("[data-svday]").forEach(b=>b.onclick=()=>setDate(b.dataset.svday));
   on("#svUp",()=>$("#svFile").click());const f=$("#svFile");if(f)f.onchange=()=>{const x=f.files[0];f.value="";if(x)svHandleFile(x)};
-  on("#svXlsx",svExportAsk);on("#svAdd",()=>svManualForm());
+  on("#svXlsx",svExportAsk);on("#svRefresh",()=>{SV.loadedFor=null;const pr=svLoad(true);render();pr.then(()=>{if(!SV.err)toast("Sevkiyat yenilendi")})});on("#svAdd",()=>svManualForm());
   app.querySelectorAll("[data-svedit]").forEach(b=>b.onclick=()=>svManualForm(SV.rows.find(x=>x.id===b.dataset.svedit)));
   app.querySelectorAll("[data-svdel]").forEach(b=>b.onclick=async()=>{if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Emin misiniz?";setTimeout(()=>{if(b.isConnected){b.dataset.sure="";b.textContent="Sil"}},4000);return}
     b.disabled=true;const r=SV.rows.find(x=>x.id===b.dataset.svdel);const{error}=await sb.from("shipments").delete().eq("id",r.id).eq("manual",true);
