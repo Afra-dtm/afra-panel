@@ -245,6 +245,7 @@ tfoot td{font-weight:600;background:var(--surface-2)}
 @media (min-width:640px){.scrim{align-items:center}}
 .sheet{background:var(--surface);border-radius:14px;width:100%;max-width:520px;max-height:calc(100% - 20px);overflow:auto;padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
 .sheet h3{font-size:19px}
+.sheet.wide{max-width:820px}.sheet.wide>*{flex-shrink:0}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .fgrid .full{grid-column:1/-1}
 @media (max-width:480px){.fgrid{grid-template-columns:1fr}}
@@ -4169,7 +4170,7 @@ function prDetail(k){
     ${L.map(l=>`<tr><td>${dTR(l.date)}${l.iptal?' <span class="chip late">İptal</span>':""}</td><td class="muted">${esc(l.store)}</td><td>${esc(l.customer||"—")}</td><td>${esc(l.urun)}${l.gar?' <span class="chip in">Ek garanti</span>':""}${l.isk?' <span class="chip late">Ekstra iskonto · prim yok</span>':""}${l.kotaR?` <span class="chip in">${esc(l.kota)}</span>`:""}${l.urunR?' <span class="chip warn">Seçili ürün</span>':""}</td>
       <td class="r num">${fmt0.format(l.qty)}</td><td class="r num">${TL(l.amount)}</td><td class="r num">${l.ciroP?TL(l.ciroP)+`<div class="muted" style="font-size:11px">${prBinde(l.ciroR.rate)}</div>`:"—"}</td><td class="r num">${l.garP?TL(l.garP):"—"}</td><td class="r num">${l.kotaP?TL(l.kotaP):"—"}</td><td class="r num">${l.urunP?TL(l.urunP):"—"}</td><td class="r num"><b>${TL(l.prim)}</b></td></tr>`).join("")}
     </tbody></table></div>
-    <div class="actions"><div class="right"><button type="button" class="btn primary" data-cancel>Kapat</button></div></div>`,"prDetForm");
+    <div class="actions"><div class="right"><button type="button" class="btn primary" data-cancel>Kapat</button></div></div>`,"prDetForm");$("#prDetForm").classList.add("wide");
 }
 async function openPrimRules(){
   if(!PR.rules){toast("Yükleniyor…");return}
@@ -4228,7 +4229,7 @@ async function openPrimRules(){
     ${hist.length?`<details><summary class="muted" style="cursor:pointer;font-size:13px">Son değişiklikler</summary><div style="font-size:12px">${hist.map(r=>`<div class="mini"><span>${dTR(r.valid_from)} · ${hTxt(r)}</span><span>${!r.active?"kaldırıldı":r.kind==="ciro"?prBinde(r.rate):prRateTxt(r)}</span></div>`).join("")}</div></details>`:""}
     <div class="err" id="pr-err" hidden></div>
     <div class="actions"><div class="right"><button type="button" class="btn" data-cancel>Vazgeç</button><button type="submit" class="btn primary" id="pr-save">Kaydet</button></div></div>`,"prForm");
-  fill();
+  $("#prForm").classList.add("wide");fill();
   $("#pr-date").onchange=()=>{if($("#pr-date").value){st.date=$("#pr-date").value;fill()}};
   $("#pr-ciroAdd").onclick=()=>{st.ciro.push({s:"*",p:"*",b:0});draw()};
   $("#pr-kotaAdd").onclick=()=>{const k=$("#pr-kotaSel").value;if(!k)return;if(st.kota.some(x=>x.code===k)){toast("Bu kota grubu zaten listede.");return}st.kota.push({code:k,rate:0,unit:0});draw()};
