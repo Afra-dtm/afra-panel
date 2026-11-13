@@ -575,6 +575,7 @@ const NAV_ICON=(()=>{const s=d=>`<svg viewBox="0 0 24 24" fill="none" stroke="cu
   sevk:s('<path d="M1 6h13v10H1zM14 9h4l3 3v4h-7"/><circle cx="5.5" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/>'),
   gider:s('<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6"/>'),
   izin:s('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 15l2.5 2.5L16 13"/>'),
+  prim:s('<circle cx="12" cy="8" r="5"/><path d="M8.5 12.5L7 22l5-3 5 3-1.5-9.5"/>'),
   sepet:s('<path d="M3 4h2l2.4 11h11l2-8H6.5"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/>')}})();
 function navGroups(){
   if(!S.isAdmin){const g=[];PAGES.filter(p=>can(p[0])).forEach(([k,l,h,ic])=>{let x=g.find(y=>y[0]===h);if(!x)g.push(x=[h,[]]);x[1].push([k,l,ic])});return g}
@@ -583,7 +584,7 @@ function navGroups(){
     ["Raporlar",[["grapor","Günlük Rapor","rapor"],["prapor","Perakende Raporu","rapor"],["satis","Aylık Satış Analizi","satis"]]],
     ["Takip",[["sevk","Sevkiyat Kontrolü","sevk"],["kontrol","Kontrol","kontrol"],["arcelik","Arçelik Ödeme","odeme"],["webfiyat","Arçelik Fiyatları","fiyat"],["alis","Alış Fiyatları","fiyat"]]],
     ["Web Sitesi",[["websip","Web Siparişleri","sepet"]]],
-    ["Personel",[["izin","İzin Takibi","izin"],["kullanici","Kullanıcılar","kisi"]]],
+    ["Personel",[["izin","İzin Takibi","izin"],["prim","Prim Hesaplama","prim"],["kullanici","Kullanıcılar","kisi"]]],
     ["Ayarlar",[["fiyat","Fiyat & Komisyon","fiyat"],["yedek","Yedek","yedek"]]]];
 }
 function navLabel(v){for(const[,items]of navGroups())for(const[k,l]of items)if(k===v)return l;return""}
@@ -644,7 +645,7 @@ const creatorName=id=>{const p=S.profiles.find(x=>x.id===id);return p?(p.full_na
 function render(){
   let h="";
   if(!S.isAdmin&&!S.areas.length)h+=`<div class="banner info">Size henüz bir mağaza atanmamış. Kayıt girebilmek için yöneticinizden yetki isteyin.</div>`;
-  const V={ozet:vOzet,planli:vPlanli,hareket:vHareket,hesap:vHesap,rapor:vRapor,satis:vSatis,gunluk:vGunluk,islem:vIslem,grapor:()=>vGRapor("analiz"),prapor:()=>vGRapor("perakende"),kontrol:vKontrol,fiyat:vFiyat,kullanici:vKullanici,yedek:vYedek,arcelik:vArcelik,izin:vIzin,sevk:vSevk,webfiyat:vWebFiyat,alis:vAlis,websip:vWebSip,gider:vGider};
+  const V={ozet:vOzet,planli:vPlanli,hareket:vHareket,hesap:vHesap,rapor:vRapor,satis:vSatis,gunluk:vGunluk,islem:vIslem,grapor:()=>vGRapor("analiz"),prapor:()=>vGRapor("perakende"),kontrol:vKontrol,fiyat:vFiyat,kullanici:vKullanici,yedek:vYedek,arcelik:vArcelik,izin:vIzin,sevk:vSevk,webfiyat:vWebFiyat,alis:vAlis,websip:vWebSip,gider:vGider,prim:vPrim};
   if(!viewAllowed(S.view))S.view=firstView();
   if(!S.view){$("#pageTitle").textContent="Hoş geldiniz";$("#app").innerHTML='<div class="banner info"><span>Size henüz bir sayfa yetkisi verilmedi. Yöneticinizden yetki isteyin.</span></div>';return}
   if(!S.isAdmin&&VIEW_ONLY.has(S.view))h+='<div class="banner info"><span>Bu sayfayı görüntüleme yetkiniz var. Değişiklikleri yalnızca yöneticiler yapabilir.</span></div>';
@@ -2250,7 +2251,7 @@ async function kasaSalesLines(from,to,area,site){
       const origs=[...sat.filter(r=>want.has(r.id)),...(miss.length?await gkFetchIn("id",miss):[])];
       const byId=new Map(grLines(origs.map(r=>({...r,ext_ref:null})),site).map(l=>[l.id,l]));
       ipt.forEach(i=>{const l=byId.get(i.cancel_of);if(!l)return;const f=l.qty?(+i.qty)/l.qty:0;const sc=v=>v==null?null:-v*f;
-        lines.push({...l,id:i.id,date:i.date,area_id:i.area_id,created_at:i.created_at,qty:-(+i.qty),amount:-(+i.amount),commission:-(+i.commission),
+        lines.push({...l,id:i.id,date:i.date,origDate:l.date,area_id:i.area_id,created_at:i.created_at,qty:-(+i.qty),amount:-(+i.amount),commission:-(+i.commission),
           list:sc(l.list),olizR:sc(l.olizR),paro:sc(l.paro),net:sc(l.net),ind:sc(l.ind),abs:sc(l.abs),cost:sc(l.cost),brut:sc(l.brut),netKar:l.brut==null?null:sc(l.brut)+(+i.commission),
           iptal:true,discount_reason:"İptal: "+(i.note||""),payTxt:"İptal · "+l.payTxt})});
     }
@@ -2623,7 +2624,7 @@ function bindArcelik(){
 }
 /* === SADE MENÜ + YEDEK === */
 const NAV_GROUPS={grapor:[["grapor","Günlük Rapor"],["prapor","Perakende Raporu"],["satis","Aylık Satış Analizi"]],fiyat:[["fiyat","Fiyat & Komisyon"],["kullanici","Kullanıcılar"],["yedek","Yedek"]]};
-const TAB_OF={islem:"islem",satis:"grapor",prapor:"grapor",kullanici:"fiyat",yedek:"fiyat",websip:"websip"};
+const TAB_OF={prim:"prim",islem:"islem",satis:"grapor",prapor:"grapor",kullanici:"fiyat",yedek:"fiyat",websip:"websip"};
 function subNav(){
   const g=NAV_GROUPS[TAB_OF[S.view]||S.view];if(!g||!S.isAdmin)return"";
   return`<div class="seg" style="margin-bottom:12px" id="subNav">${g.map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${S.view===v}">${l}</button>`).join("")}</div>`;
@@ -3080,7 +3081,7 @@ function bindView(){
   const rm=$("#rm");if(rm)rm.onchange=()=>{S.rep.month=rm.value;render()};
   const rar=$("#rar");if(rar)rar.onchange=()=>{S.rep.area=rar.value;render()};
   on("#csvBtn",()=>exportCsv(filteredTx(),"afra-hareketler"));
-  bindSatis();bindGunluk();bindFiyat();bindKontrol();bindGRapor();bindSubNav();bindYedek();bindArcelik();bindIzin();bindSevk();bindWebFiyat();bindAlis();bindWebSip();bindIslem();bindGider();
+  bindSatis();bindGunluk();bindFiyat();bindKontrol();bindGRapor();bindSubNav();bindYedek();bindArcelik();bindIzin();bindSevk();bindWebFiyat();bindAlis();bindWebSip();bindIslem();bindGider();bindPrim();
   on("#repCsv",()=>exportCsv(realized().filter(t=>t.date.slice(0,7)===S.rep.month&&(!S.rep.area||t.area_id===S.rep.area)),"afra-rapor-"+S.rep.month));
 }
 
@@ -4052,6 +4053,183 @@ async function svExport(withCheck,withRep){
 }
 
 
+
+/* === PRİM HESAPLAMA (yalnızca yönetici) ===
+   Kaynak: Günlük Kasa satışları ve iptalleri (kasaSalesLines). İptal edilen satışın primi, satış tarihindeki oranla, iptal edildiği ayda temsilciden düşülür.
+   Kurallar prim_rules tablosunda, geçerlilik tarihli: her satır kendi satış tarihindeki kuralla hesaplanır (oran değişikliği geçmişi bozmaz).
+   - Ciro primi: ek garanti HARİÇ satış tutarının %'si
+   - Ek garanti primi: ek garanti satış tutarının %'si + adet başı TL (ürün adında "EK GARANTİ" geçenler)
+   - Ürün primi: seçilen madde kodları için ciro priminin ÜSTÜNE, tutarın %'si + adet başı TL
+   HESAP SEPETİ, PAZARYERİ ve temsilcisi boş satışlar prim dışıdır. */
+const PR={month:null,rules:null,lines:null,key:null,loading:false,err:null};
+const PR_NONREP=new Set(["—","HESAP SEPETİ","PAZARYERİ"]);
+const prIsGar=l=>normTR(l.urun).includes("EK GARANT");
+const prRepK=r=>normTR(r)||"—";
+const prNum=v=>{const n=parseAmt(String(v??"").replace("%",""));return isNaN(n)?0:n};
+const prFmtRate=v=>"%"+(+v).toLocaleString("tr-TR",{maximumFractionDigits:2});
+function prRuleAt(kind,code,date){let b=null;for(const r of PR.rules||[])if(r.kind===kind&&r.madde_kodu===(code||"")&&r.valid_from<=date&&(!b||r.valid_from>b.valid_from))b=r;return b&&b.active?b:null}
+function prProdCodes(date){return[...new Set((PR.rules||[]).filter(r=>r.kind==="urun").map(r=>r.madde_kodu))].filter(c=>prRuleAt("urun",c,date))}
+function prLine(l){
+  const g=prIsGar(l),non=PR_NONREP.has(prRepK(l.rep));
+  const o={...l,repK:prRepK(l.rep),gar:g,non,ciroB:g?0:l.amount,ciroP:0,garP:0,urunP:0,urunR:null};
+  const d=l.iptal&&l.origDate?l.origDate:l.date;// iptal, satıldığı tarihteki oranla düşülür
+  if(!non){
+    if(g){const r=prRuleAt("garanti","",d);if(r)o.garP=l.amount*r.rate/100+l.qty*r.per_unit}
+    else{const r=prRuleAt("ciro","",d);if(r)o.ciroP=l.amount*r.rate/100+l.qty*r.per_unit}
+    const u=l.madde_kodu?prRuleAt("urun",l.madde_kodu,d):null;if(u){o.urunR=u;o.urunP=l.amount*u.rate/100+l.qty*u.per_unit}
+  }
+  o.prim=Math.round((o.ciroP+o.garP+o.urunP)*100)/100;return o;
+}
+const prKey=()=>PR.month;
+async function prLoad(force){
+  if(PR.loading)return;PR.loading=true;PR.err=null;const key=prKey();
+  try{
+    const[y,m]=PR.month.split("-").map(Number);const from=PR.month+"-01",to=PR.month+"-"+pad(new Date(y,m,0).getDate());
+    const[rr,L]=await Promise.all([sb.from("prim_rules").select("*").order("valid_from").order("id"),kasaSalesLines(from,to,"")]);
+    if(rr.error)throw rr.error;
+    PR.rules=rr.data.map(r=>({...r,rate:+r.rate,per_unit:+r.per_unit}));
+    PR.lines=L.map(prLine);PR.key=key;
+  }catch(e){PR.err=/prim_rules/.test((e&&e.message)||"")?"Prim tablosu bulunamadı (veritabanı güncellemesi eksik).":errMsg(e)}
+  PR.loading=false;if(S.view==="prim")render();
+}
+function prSum(L){const t={n:0,adet:0,ciro:0,ipt:0,ciroB:0,ciroP:0,garN:0,garT:0,garP:0,urunN:0,urunP:0,prim:0,stores:new Set()};
+  L.forEach(l=>{if(!l.iptal)t.n++;t.adet+=l.qty;t.ciro+=l.amount;if(l.iptal)t.ipt+=l.amount;t.ciroB+=l.ciroB;t.ciroP+=l.ciroP;
+    if(l.gar){t.garN+=l.qty;t.garT+=l.amount}t.garP+=l.garP;if(l.urunR){t.urunN+=l.qty}t.urunP+=l.urunP;t.prim+=l.prim;t.stores.add(saStoreName(l.area_id))});
+  return t}
+function prGroups(L){const g=new Map();L.forEach(l=>{if(!g.has(l.repK))g.set(l.repK,[]);g.get(l.repK).push(l)});
+  return[...g.entries()].map(([k,a])=>({k,...prSum(a),lines:a})).sort((a,b)=>b.prim-a.prim||b.ciro-a.ciro)}
+function prRulesTxt(date){
+  const c=prRuleAt("ciro","",date),g=prRuleAt("garanti","",date),n=prProdCodes(date).length;
+  const gt=g?[g.rate?prFmtRate(g.rate):"",g.per_unit?TL(g.per_unit)+"/adet":""].filter(Boolean).join(" + ")||"0":"tanımsız";
+  return`Ciro primi <b>${c?prFmtRate(c.rate):"tanımsız"}</b> · Ek garanti primi <b>${gt}</b> · Seçili ürün <b>${n}</b>`;
+}
+function vPrim(){
+  if(!S.isAdmin)return'<div class="banner bad"><span>Bu sayfa yalnızca yöneticilere açıktır.</span></div>';
+  if(!PR.month)PR.month=TODAY.slice(0,7);
+  if(!PR.err&&PR.key!==prKey()&&!PR.loading)prLoad();
+  const[y,m]=PR.month.split("-").map(Number);const monthEnd=PR.month+"-"+pad(new Date(y,m,0).getDate());
+  const head=`<section class="panel"><div class="panel-h"><div><h2>Prim Hesaplama · ${ymLabel(PR.month)}</h2>
+      <div class="hint">Günlük Kasa satışlarından. Prim = ciro primi (ek garanti hariç) + ek garanti primi + seçili ürün primi. İptal edilen satışın primi iptal ayında düşülür. Her satış, satış tarihindeki oranla hesaplanır. Yalnızca yöneticiler görür.</div></div>
+    <div class="filters"><input type="month" id="prMonth" value="${PR.month}" max="${TODAY.slice(0,7)}" aria-label="Ay">
+      <button class="btn sm" id="prRefresh" type="button">Yenile</button>
+      ${PR.lines&&PR.key===prKey()?`<button class="btn sm" id="prXlsx" type="button">Excel indir</button>`:""}
+      <button class="btn sm primary" id="prRules" type="button">Prim ayarları</button></div></div>
+    ${PR.rules?`<div class="hint">${ymLabel(PR.month)} sonu itibarıyla: ${prRulesTxt(monthEnd)}</div>`:""}</section>`;
+  if(PR.err)return head+`<div class="banner bad"><span>${esc(PR.err)}</span></div>`;
+  if(!PR.lines||PR.key!==prKey())return head+'<div class="empty">Yükleniyor…</div>';
+  const noRules=!PR.rules.length;
+  const all=prGroups(PR.lines),reps=all.filter(r=>!PR_NONREP.has(r.k)),non=all.filter(r=>PR_NONREP.has(r.k));
+  const T=prSum(PR.lines.filter(l=>!l.non));
+  const prods=(()=>{const g=new Map();PR.lines.filter(l=>l.urunR&&!l.non).forEach(l=>{const x=g.get(l.madde_kodu)||{code:l.madde_kodu,urun:l.urun,adet:0,ciro:0,prim:0};x.adet+=l.qty;x.ciro+=l.amount;x.prim+=l.urunP;g.set(l.madde_kodu,x)});return[...g.values()].sort((a,b)=>b.prim-a.prim)})();
+  const num=v=>`<td class="r num">${Math.abs(v)<0.005?'<span class="muted">—</span>':TL(v)}</td>`,cnt=v=>`<td class="r num">${v?fmt0.format(v):'<span class="muted">—</span>'}</td>`;
+  return head+(noRules?`<div class="banner info"><span>Henüz prim oranı girilmedi. <b>Prim ayarları</b>'ndan ciro, ek garanti ve ürün primlerini girin; tablo hemen hesaplanır.</span></div>`:"")+`
+  <section class="kpis">
+    <div class="kpi"><label>Toplam prim</label><div class="v num">${TL(T.prim)}</div><div class="s">${reps.filter(r=>Math.abs(r.prim)>=0.005).length} temsilci</div></div>
+    <div class="kpi"><label>Ciro (ek garanti hariç)</label><div class="v num">${TL(T.ciroB)}</div><div class="s">Ciro primi ${TL(T.ciroP)}</div></div>
+    <div class="kpi"><label>Ek garanti</label><div class="v num">${fmt0.format(T.garN)} adet</div><div class="s">${TL(T.garT)} · prim ${TL(T.garP)}</div></div>
+    <div class="kpi"><label>Seçili ürünler</label><div class="v num">${fmt0.format(T.urunN)} adet</div><div class="s">Ürün primi ${TL(T.urunP)}</div></div>
+  </section>
+  <section class="panel"><div class="panel-h"><h2>Temsilci bazında</h2><span class="meta">Ayrıntı için satıra tıklayın</span></div>
+    <div class="tbl-wrap"><table style="min-width:1100px"><thead><tr><th>Temsilci</th><th>Mağaza</th><th class="r">Satış</th><th class="r">Ciro (garanti hariç)</th><th class="r">İptal</th><th class="r">Ciro primi</th><th class="r">Ek garanti adet</th><th class="r">Ek garanti tutarı</th><th class="r">Garanti primi</th><th class="r">Seçili ürün adet</th><th class="r">Ürün primi</th><th class="r">Toplam prim</th></tr></thead><tbody>
+    ${reps.map(r=>`<tr data-prrep="${esc(r.k)}" style="cursor:pointer"><td><b>${esc(r.k)}</b></td><td class="muted">${esc([...r.stores].join(", "))}</td>${cnt(r.n)}${num(r.ciroB)}${num(r.ipt)}${num(r.ciroP)}${cnt(r.garN)}${num(r.garT)}${num(r.garP)}${cnt(r.urunN)}${num(r.urunP)}<td class="r num"><b>${TL(r.prim)}</b></td></tr>`).join("")||'<tr><td colspan="12" class="muted">Bu ay satış yok.</td></tr>'}
+    ${reps.length?`<tr style="border-top:2px solid var(--line)"><td><b>Toplam</b></td><td></td>${cnt(T.n)}${num(T.ciroB)}${num(T.ipt)}${num(T.ciroP)}${cnt(T.garN)}${num(T.garT)}${num(T.garP)}${cnt(T.urunN)}${num(T.urunP)}<td class="r num"><b>${TL(T.prim)}</b></td></tr>`:""}
+    </tbody></table></div>
+    ${non.length?`<div class="hint">Prim dışı: ${non.map(r=>`${r.k==="—"?"temsilcisi boş":esc(r.k)} ${TL(r.ciro)} (${fmt0.format(r.n)} satış)`).join(" · ")}</div>`:""}
+  </section>
+  ${prods.length?`<section class="panel"><div class="panel-h"><h2>Seçili ürünler</h2></div><div class="tbl-wrap"><table><thead><tr><th>Madde kodu</th><th>Ürün</th><th class="r">Adet</th><th class="r">Ciro</th><th class="r">Ürün primi</th></tr></thead><tbody>
+    ${prods.map(p=>`<tr><td class="num">${esc(p.code)}</td><td>${esc(p.urun)}</td>${cnt(p.adet)}${num(p.ciro)}${num(p.prim)}</tr>`).join("")}</tbody></table></div></section>`:""}`;
+}
+function prDetail(k){
+  const r=prGroups(PR.lines).find(x=>x.k===k);if(!r)return;
+  const L=r.lines.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  sheet(`<h3>${esc(k)} · ${ymLabel(PR.month)}</h3>
+    <div class="hint">Toplam prim <b>${TL(r.prim)}</b> = ciro primi ${TL(r.ciroP)} + garanti primi ${TL(r.garP)} + ürün primi ${TL(r.urunP)}</div>
+    <div class="tbl-wrap" style="max-height:60vh"><table style="min-width:900px"><thead><tr><th>Tarih</th><th>Müşteri</th><th>Ürün</th><th class="r">Adet</th><th class="r">Tutar</th><th class="r">Ciro primi</th><th class="r">Garanti primi</th><th class="r">Ürün primi</th><th class="r">Prim</th></tr></thead><tbody>
+    ${L.map(l=>`<tr><td>${dTR(l.date)}${l.iptal?' <span class="chip late">İptal</span>':""}</td><td>${esc(l.customer||"—")}</td><td>${esc(l.urun)}${l.gar?' <span class="chip in">Ek garanti</span>':""}${l.urunR?' <span class="chip warn">Seçili ürün</span>':""}</td>
+      <td class="r num">${fmt0.format(l.qty)}</td><td class="r num">${TL(l.amount)}</td><td class="r num">${l.ciroP?TL(l.ciroP):"—"}</td><td class="r num">${l.garP?TL(l.garP):"—"}</td><td class="r num">${l.urunP?TL(l.urunP):"—"}</td><td class="r num"><b>${TL(l.prim)}</b></td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="actions"><div class="right"><button type="button" class="btn primary" data-cancel>Kapat</button></div></div>`,"prDetForm");
+}
+async function openPrimRules(){
+  if(!PR.rules){toast("Yükleniyor…");return}
+  await gkEnsureBase();
+  const d0=(PR.month||TODAY.slice(0,7))+"-01";
+  const st={date:d0,items:[]};
+  const cur=date=>{const c=prRuleAt("ciro","",date),g=prRuleAt("garanti","",date);
+    return{ciro:c?c.rate:0,garR:g?g.rate:0,garU:g?g.per_unit:0,items:prProdCodes(date).map(code=>{const r=prRuleAt("urun",code,date);return{code,rate:r.rate,unit:r.per_unit}})}};
+  const prodName=c=>(GK.prodMap[c]||{}).urun||"";
+  const fill=()=>{const c=cur(st.date);$("#pr-ciro").value=c.ciro||"";$("#pr-garR").value=c.garR||"";$("#pr-garU").value=c.garU||"";st.items=c.items;drawItems()};
+  const drawItems=()=>{$("#pr-items").innerHTML=st.items.length?st.items.map((it,i)=>`<tr><td class="num">${esc(it.code)}</td><td style="font-size:12px">${esc(prodName(it.code)||"—")}</td>
+      <td><input data-pri="${i}" data-f="rate" inputmode="decimal" value="${it.rate||""}" placeholder="%" style="width:70px"></td><td><input data-pri="${i}" data-f="unit" inputmode="decimal" value="${it.unit||""}" placeholder="TL" style="width:90px"></td>
+      <td><button type="button" class="btn sm danger" data-prdel="${i}">Kaldır</button></td></tr>`).join(""):'<tr><td colspan="5" class="muted">Seçili ürün yok.</td></tr>';
+    $("#pr-items").querySelectorAll("input[data-pri]").forEach(x=>x.oninput=()=>{st.items[+x.dataset.pri][x.dataset.f]=prNum(x.value)});
+    $("#pr-items").querySelectorAll("[data-prdel]").forEach(b=>b.onclick=()=>{st.items.splice(+b.dataset.prdel,1);drawItems()})};
+  const hist=(PR.rules||[]).slice().sort((a,b)=>b.valid_from.localeCompare(a.valid_from)||b.id-a.id).slice(0,15);
+  sheet(`<h3>Prim ayarları</h3>
+    <div class="hint">Oranlar seçtiğiniz tarihten itibaren geçerli olur; önceki satışlar eski oranla kalır. Ciro primi ek garanti hariç satış tutarına uygulanır. Seçili ürün primi ciro priminin <b>üstüne</b> eklenir. Boş bırakılan alan 0 sayılır.</div>
+    <div class="field"><label for="pr-date">Geçerlilik başlangıcı</label><input id="pr-date" type="date" value="${st.date}"></div>
+    <div class="grid2" style="gap:10px">
+      <div class="field"><label for="pr-ciro">Ciro primi (%)</label><input id="pr-ciro" inputmode="decimal" placeholder="Örn. 0,5"></div>
+      <div></div>
+      <div class="field"><label for="pr-garR">Ek garanti primi (% tutar)</label><input id="pr-garR" inputmode="decimal" placeholder="Örn. 10"></div>
+      <div class="field"><label for="pr-garU">Ek garanti primi (TL / adet)</label><input id="pr-garU" inputmode="decimal" placeholder="Örn. 100"></div>
+    </div>
+    <h3 style="font-size:15px;margin-top:6px">Seçili ürünler</h3>
+    <div class="field"><label for="pr-add">Ürün ekle (madde kodu veya ürün adı)</label>
+      <div style="display:flex;gap:8px"><input id="pr-add" list="prProdList" placeholder="Madde kodu yazın ya da listeden seçin"><button type="button" class="btn sm" id="pr-addBtn">Ekle</button></div>
+      <datalist id="prProdList">${GK.products.filter(p=>p.active!==false).map(p=>`<option value="${esc(p.madde_kodu)}">${esc(p.urun||"")}</option>`).join("")}</datalist></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Madde kodu</th><th>Ürün</th><th>% tutar</th><th>TL / adet</th><th></th></tr></thead><tbody id="pr-items"></tbody></table></div>
+    ${hist.length?`<details><summary class="muted" style="cursor:pointer;font-size:13px">Son değişiklikler</summary><div style="font-size:12px">${hist.map(r=>`<div class="mini"><span>${dTR(r.valid_from)} · ${r.kind==="ciro"?"Ciro":r.kind==="garanti"?"Ek garanti":"Ürün "+esc(r.madde_kodu)+" "+esc(prodName(r.madde_kodu))}</span><span>${r.active?[r.rate?prFmtRate(r.rate):"",r.per_unit?TL(r.per_unit)+"/adet":""].filter(Boolean).join(" + ")||"0":"kaldırıldı"}</span></div>`).join("")}</div></details>`:""}
+    <div class="err" id="pr-err" hidden></div>
+    <div class="actions"><div class="right"><button type="button" class="btn" data-cancel>Vazgeç</button><button type="submit" class="btn primary" id="pr-save">Kaydet</button></div></div>`,"prForm");
+  fill();
+  $("#pr-date").onchange=()=>{if($("#pr-date").value){st.date=$("#pr-date").value;fill()}};
+  const add=()=>{const v=$("#pr-add").value.trim();if(!v)return;
+    let code=GK.prodMap[v]?v:null;if(!code){const q=normTR(v);const hits=GK.products.filter(p=>normTR(p.urun).includes(q));if(hits.length===1)code=hits[0].madde_kodu;else{toast(hits.length?"Birden çok ürün eşleşti; madde kodunu seçin.":"Ürün bulunamadı.");return}}
+    if(st.items.some(i=>i.code===code)){toast("Bu ürün zaten listede.");return}
+    st.items.push({code,rate:0,unit:0});$("#pr-add").value="";drawItems()};
+  $("#pr-addBtn").onclick=add;$("#pr-add").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();add()}};
+  $("#prForm").onsubmit=async e=>{e.preventDefault();const err=$("#pr-err"),btn=$("#pr-save");err.hidden=true;
+    const date=$("#pr-date").value;if(!date){err.textContent="Geçerlilik tarihi seçin.";err.hidden=false;return}
+    const want={ciro:prNum($("#pr-ciro").value),garR:prNum($("#pr-garR").value),garU:prNum($("#pr-garU").value)};
+    if([want.ciro,want.garR,...st.items.map(i=>i.rate)].some(v=>v<0||v>100)){err.textContent="Yüzde 0 ile 100 arasında olmalı.";err.hidden=false;return}
+    if([want.garU,...st.items.map(i=>i.unit)].some(v=>v<0)){err.textContent="Tutar eksi olamaz.";err.hidden=false;return}
+    const c=cur(date),rows=[],row=(kind,code,rate,unit,active=true)=>rows.push({kind,madde_kodu:code,rate,per_unit:unit,active,valid_from:date});
+    const old=(k,c2)=>(PR.rules||[]).some(r=>r.kind===k&&r.madde_kodu===c2&&r.valid_from<=date);
+    if(want.ciro!==c.ciro||!old("ciro",""))row("ciro","",want.ciro,0);
+    if(want.garR!==c.garR||want.garU!==c.garU||!old("garanti",""))row("garanti","",want.garR,want.garU);
+    st.items.forEach(i=>{const o=c.items.find(x=>x.code===i.code);if(!o||o.rate!==i.rate||o.unit!==i.unit)row("urun",i.code,i.rate,i.unit)});
+    c.items.forEach(o=>{if(!st.items.some(i=>i.code===o.code))row("urun",o.code,0,0,false)});
+    if(!rows.length){closeModal();toast("Değişiklik yok");return}
+    btn.disabled=true;
+    const{error}=await sb.from("prim_rules").upsert(rows,{onConflict:"kind,madde_kodu,valid_from"});
+    if(error){btn.disabled=false;err.textContent=errMsg(error);err.hidden=false;return}
+    closeModal();toast("Prim ayarları kaydedildi");PR.key=null;prLoad()};
+}
+async function prExport(){
+  await loadXLSX();const wb=XLSX.utils.book_new(),p=PR.month,r2=v=>Math.round(v*100)/100;
+  const G=prGroups(PR.lines),reps=G.filter(r=>!PR_NONREP.has(r.k)),T=prSum(PR.lines.filter(l=>!l.non));
+  const s1=[["Temsilci","Mağaza","Satış","Ciro (garanti hariç)","İptal","Ciro primi","Ek garanti adet","Ek garanti tutarı","Garanti primi","Seçili ürün adet","Ürün primi","Toplam prim"],
+    ...reps.map(r=>[r.k,[...r.stores].join(", "),r.n,r2(r.ciroB),r2(r.ipt),r2(r.ciroP),r.garN,r2(r.garT),r2(r.garP),r.urunN,r2(r.urunP),r2(r.prim)]),
+    ["Toplam","",T.n,r2(T.ciroB),r2(T.ipt),r2(T.ciroP),T.garN,r2(T.garT),r2(T.garP),T.urunN,r2(T.urunP),r2(T.prim)],[],
+    ["Prim dışı (ciro)"],...G.filter(r=>PR_NONREP.has(r.k)).map(r=>[r.k==="—"?"Temsilcisi boş":r.k,"",r.n,r2(r.ciro)])];
+  const ws1=XLSX.utils.aoa_to_sheet(s1);ws1["!cols"]=[24,22,8,16,12,12,10,14,12,10,12,14].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws1,"Temsilci");
+  const s2=[["Tarih","Temsilci","Mağaza","Müşteri","Madde kodu","Ürün","Adet","Tutar","Tür","Ciro primi","Garanti primi","Ürün primi","Prim"],
+    ...PR.lines.slice().sort((a,b)=>a.repK.localeCompare(b.repK,"tr")||a.date.localeCompare(b.date)).map(l=>[dTR(l.date),l.repK,saStoreName(l.area_id),l.customer||"",l.madde_kodu||"",l.urun,l.qty,r2(l.amount),
+      [l.iptal?"İptal":"",l.gar?"Ek garanti":"",l.urunR?"Seçili ürün":"",l.non?"Prim dışı":""].filter(Boolean).join(", "),r2(l.ciroP),r2(l.garP),r2(l.urunP),r2(l.prim)])];
+  const ws2=XLSX.utils.aoa_to_sheet(s2);ws2["!cols"]=[11,22,12,26,13,40,6,13,18,11,11,11,11].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws2,"Satırlar");
+  const[y,m]=p.split("-").map(Number);const end=p+"-"+pad(new Date(y,m,0).getDate());const c=prRuleAt("ciro","",end),g=prRuleAt("garanti","",end);
+  const s3=[["Kural (ay sonu itibarıyla)","Madde kodu","Ürün","% tutar","TL / adet","Geçerlilik"],["Ciro primi (ek garanti hariç)","","",c?c.rate:0,"",c?dTR(c.valid_from):""],["Ek garanti primi","","",g?g.rate:0,g?g.per_unit:0,g?dTR(g.valid_from):""],
+    ...prProdCodes(end).map(code=>{const r=prRuleAt("urun",code,end);return["Seçili ürün",code,(GK.prodMap[code]||{}).urun||"",r.rate,r.per_unit,dTR(r.valid_from)]})];
+  const ws3=XLSX.utils.aoa_to_sheet(s3);ws3["!cols"]=[28,13,40,9,10,11].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws3,"Kurallar");
+  XLSX.writeFile(wb,`Prim_${p}.xlsx`);
+}
+function bindPrim(){
+  if(S.view!=="prim")return;const on=(s,fn)=>{const el=$(s);if(el)el.onclick=fn};
+  const mo=$("#prMonth");if(mo)mo.onchange=()=>{if(/^\d{4}-\d{2}$/.test(mo.value)){PR.month=mo.value;render()}};
+  on("#prRefresh",()=>{PR.key=null;prLoad()});on("#prRules",openPrimRules);on("#prXlsx",prExport);
+  $("#app").querySelectorAll("[data-prrep]").forEach(t=>t.onclick=()=>prDetail(t.dataset.prrep));
+}
 
 /* === PERSONEL İZİN TAKİBİ === */
 const IZ={who:"",year:""};
