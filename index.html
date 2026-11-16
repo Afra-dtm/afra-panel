@@ -1919,9 +1919,17 @@ function akParseSales(rows,h){
     const cancelled=normTR(g(r,"Satır durumu")).includes("İPTAL");
     lines.push({cancelled,cancelDate:cancelled?(saDate(g(r,"İptal tarihi"))||saDate(g(r,"İşlem Tarihi"))||date):null,recid:akStr(g(r,"SalesLine RecId"))||order+"|"+code+"|"+i,order,date,customer:akStr(g(r,"Müşteri Adı")),code,
       name:akStr(g(r,"Ürün Kısa Kodu"))||code,kota:kota?normTR(kota):null,qty:q>0?q:1,amount:r2(amt),
-      rep:akStr(g(r,"Satışı yapanın adı")),store:akStr(g(r,"Mağaza")),note:akStr(g(r,"Fatura Notu"))});
+      rep:akStr(g(r,"Satışı yapanın adı")),store:akStr(g(r,"Mağaza")),note:akStr(g(r,"Fatura Notu")),
+      birim:h.ix[normTR("Birim fiyat")]!=null?saNum(g(r,"Birim fiyat")):null,iskonto:h.ix[normTR("İskonto")]!=null?saNum(g(r,"İskonto")):null});
   }
   return{lines,returns,skip};
+}
+/* AX Detaylı satış raporundaki Birim fiyat + İskonto (oliz) → ax_line_prices (recid = SalesLine RecId) */
+async function akSaveAxPrices(L){
+  const fin=v=>v!=null&&isFinite(v)?v:null;
+  const rows=L.filter(l=>fin(l.iskonto)!=null||fin(l.birim)!=null).map(l=>({recid:String(l.recid),sale_date:l.date,madde_kodu:l.code,qty:l.qty,birim:fin(l.birim),iskonto:fin(l.iskonto),amount:l.amount,src:"kasa aktarımı",updated_at:new Date().toISOString()}));
+  try{for(let i=0;i<rows.length;i+=300){const{error}=await sb.from("ax_line_prices").upsert(rows.slice(i,i+300),{onConflict:"recid"});if(error)throw error}}
+  catch(e){console.warn("ax_line_prices",e);toast("AX iskonto bilgisi kaydedilemedi: "+errMsg(e))}
 }
 function akParsePays(rows,h){
   const g=(r,n)=>{const j=h.ix[normTR(n)];return j==null?null:r[j]};const out=[];
@@ -2181,6 +2189,7 @@ async function akPreview(){
       if(/INDIRIM_ACIKLAMASI/.test((x&&x.message)||"")){const bad=newL.filter(l=>!(l.reason||"").trim()&&l.ex==null);
         return show("Liste fiyatının altında satılmış ama açıklaması olmayan satış var."+(bad.length?" Liste fiyatı ekranda okunamayan satışlar: "+bad.map(l=>l.customer+" · "+l.name+" ("+TL(l.amount)+")").join(", ")+". Pencereyi kapatıp yeniden açın.":""))}
       return show((x&&x.code==="23505")||/ext_ref|duplicate key/i.test((x&&x.message)||"")?"Bu kayıtların bir kısmı zaten aktarılmış. Pencereyi kapatıp dosyaları yeniden seçin.":errMsg(x))}
+    await akSaveAxPrices(plan.L);
     await akVerify(plan.L);
     if(KS.cur){const b=KS.cur;KS.cur=null;await ksDecide(b.id,"onaylandi");
       if(b.src_amount!=null){const L=plan.L;await vrLog({kind:"kasa_gun",date_from:b.date_from,date_to:b.date_to,checker:"aktarim",source_label:"Dynamics ekran toplamı (ajan) · "+(b.run_label||b.batch),
@@ -2203,6 +2212,15 @@ async function sitepEnsure(from,to){
       const rows=await gkFetch("web_price_snapshot_items",q=>q.eq("snapshot_id",id),"code","code,list_price,sale_price");
       const m=new Map();rows.forEach(r=>m.set(r.code,{list:+r.list_price,sale:+r.sale_price}));SITEP.items[id]=m}));
   }catch(e){SITEP.snaps=SITEP.snaps||[]}}
+/* AX satır fiyatları (Birim fiyat + İskonto) — Perakende Raporu oliz kaynağı */
+const AXLP={map:new Map(),key:null};
+async function axlpEnsure(from,to){const k=from+"|"+to;if(AXLP.key===k)return;
+  try{const rows=await gkFetch("ax_line_prices",q=>q.gte("sale_date",addDaysISO(from,-120)).lte("sale_date",to),"recid","recid,qty,birim,iskonto");
+    const m=new Map();rows.forEach(r=>m.set(r.recid,{qty:+r.qty||1,birim:r.birim==null?null:+r.birim,iskonto:r.iskonto==null?null:+r.iskonto}));AXLP.map=m;AXLP.key=k}
+  catch(e){AXLP.map=new Map();AXLP.key=null}}
+const addDaysISO=(d,n)=>new Date(Date.parse(d+"T12:00:00Z")+n*864e5).toISOString().slice(0,10);
+function axlpAt(ref){if(!ref||!/^S:/.test(ref))return null;const r=AXLP.map.get(ref.slice(2).split("#")[0]);
+  return r&&r.iskonto!=null?{birim:r.birim,oliz:Math.max(0,r.iskonto/r.qty)}:null}
 function sitepAt(code,date){const x=sitepSnapFor(date);const m=x&&SITEP.items[x.id];const r=m&&m.get(code);return r&&r.list>0?{list:r.list,oliz:Math.max(0,r.list-r.sale)}:null}
 
 /* === GÜNLÜK RAPOR (yönetici): perakende iskonto + satış analizi + Excel === */
@@ -2222,12 +2240,16 @@ function grLines(rows,site){
     const list=own?+e.list_price:li?li.list:e.list_price!=null?+e.list_price:null,oliz=own?+(e.oliz||0):li?li.oliz:e.oliz!=null?+e.oliz:pr?pr.paro:null;
     /* perakende (iskonto) hesabı: sitede varsa satış tarihindeki Arçelik site liste fiyatı ve oliz'i (liste − site satış fiyatı), %85 uygulanmaz.
        maliyet/paro hesabı aşağıda eskisi gibi (oliz × %85). */
-    const sp=site&&e.madde_kodu?sitepAt(e.madde_kodu,e.date):null;
-    const rList=sp?sp.list:list,rOliz=sp?sp.oliz:(oliz!=null&&!own&&!li&&e.oliz==null&&pr?oliz/OLIZ_KATKI:oliz);
+    const sp=site&&e.madde_kodu?sitepAt(e.madde_kodu,e.date):null,ax=site?axlpAt(e.ax_ref||e.ext_ref):null;
+    /* Perakende: oliz = AX İskonto (birim, %85 yok); liste = Arçelik site liste (üstü çizili) fiyatı, sitede yoksa AX Birim fiyat.
+       AX verisi yoksa eski yöntem: site liste − site satış, o da yoksa yüklenen liste. */
+    const rList=ax?(sp?sp.list:ax.birim!=null?ax.birim:list):sp?sp.list:list,
+      rOliz=ax?ax.oliz:sp?sp.oliz:(oliz!=null&&!own&&!li&&e.oliz==null&&pr?oliz/OLIZ_KATKI:oliz),
+      olizSrc=ax?(sp?"ax":"axb"):sp?"site":"liste";
     const net=rList!=null?(rList-(rOliz||0))*e.qty:null,ind=net!=null?net-e.amount:null;
     const abs=pr?pr.abs*e.qty:null,fromParo=!own&&!li&&e.oliz==null&&!!pr,paro=oliz!=null?(fromParo?oliz:oliz*OLIZ_KATKI)*e.qty:null,cost=abs!=null?abs-(paro||0):null,brut=cost!=null?e.amount-cost:null;
     const payTxt=e.pays.map(x=>x.pay==="KK"?`${x.card||"Kart"} ${x.installments||"?"}tk`:(PAY_L[x.pay]||x.pay)).filter((v,i,a)=>a.indexOf(v)===i).join(" + ");
-    return{...e,urun:p.urun||e.note||"—",kota:p.kota||"—",list:rList!=null?rList*e.qty:null,olizR:rOliz!=null?rOliz*e.qty:null,olizSrc:sp?"site":"liste",paro,net,ind,indP:net?ind/net:null,
+    return{...e,urun:p.urun||e.note||"—",kota:p.kota||"—",list:rList!=null?rList*e.qty:null,olizR:rOliz!=null?rOliz*e.qty:null,olizSrc,paro,net,ind,indP:net?ind/net:null,
       abs,cost,brut,marj:brut!=null&&e.amount?brut/e.amount:null,netKar:brut!=null?brut-e.commission:null,payTxt};
   });
 }
@@ -2241,7 +2263,7 @@ async function grLoad(){
 /* Günlük Kasa'daki satış ve iptallerden, satış tarihindeki fiyatlarla maliyet/kâr satırları (Günlük Rapor ve Satış Analizi ortak) */
 async function kasaSalesLines(from,to,area,site){
     /* temel fiyatlar, site fiyatları ve satışlar aynı anda */
-    const[,,rows]=await Promise.all([gkEnsureBase(),site?sitepEnsure(from,to):null,
+    const[,,rows]=await Promise.all([gkEnsureBase(),site?Promise.all([sitepEnsure(from,to),axlpEnsure(from,to)]):null,
       gkFetch("daily_entries",q=>{q=q.gte("date",from).lte("date",to).in("kind",["SATIŞ","İPTAL"]);return area?q.eq("area_id",area):q},"created_at")]);
     if(GK.err)throw{message:GK.err,_msg:true};
     const sat=rows.filter(r=>r.kind==="SATIŞ"),ipt=rows.filter(r=>r.kind==="İPTAL");
@@ -2250,7 +2272,7 @@ async function kasaSalesLines(from,to,area,site){
       const have=new Set(sat.map(r=>r.id)),want=new Set(ipt.map(r=>r.cancel_of));
       const miss=[...want].filter(id=>!have.has(id));
       const origs=[...sat.filter(r=>want.has(r.id)),...(miss.length?await gkFetchIn("id",miss):[])];
-      const byId=new Map(grLines(origs.map(r=>({...r,ext_ref:null})),site).map(l=>[l.id,l]));
+      const byId=new Map(grLines(origs.map(r=>({...r,ax_ref:r.ext_ref,ext_ref:null})),site).map(l=>[l.id,l]));
       ipt.forEach(i=>{const l=byId.get(i.cancel_of);if(!l)return;const f=l.qty?(+i.qty)/l.qty:0;const sc=v=>v==null?null:-v*f;
         lines.push({...l,id:i.id,date:i.date,origDate:l.date,area_id:i.area_id,created_at:i.created_at,qty:-(+i.qty),amount:-(+i.amount),commission:-(+i.commission),
           list:sc(l.list),olizR:sc(l.olizR),paro:sc(l.paro),net:sc(l.net),ind:sc(l.ind),abs:sc(l.abs),cost:sc(l.cost),brut:sc(l.brut),netKar:l.brut==null?null:sc(l.brut)+(+i.commission),
@@ -2281,7 +2303,7 @@ function vGRapor(mode){
       <button class="btn sm" id="grRefresh" type="button">Yenile</button>
       <button class="btn sm primary" id="grXlsx" type="button">Excel indir</button>
     </div></div>
-    ${PR?`<div class="hint">Günlük Kasa'daki satışlar, satış tarihinde geçerli fiyatlarla: <b>net liste = liste − oliz</b>, <b>ekstra iskonto % = (net liste − satış) ÷ net liste</b>. Liste ve oliz, satış tarihinin dönemindeki <b>Arçelik sitesi</b> fiyatından alınır (oliz = site liste − site satış fiyatı, %85 uygulanmaz). Ürün sitede yoksa yüklediğiniz liste kullanılır ve satırda sarı <b>liste</b> etiketi görünür.</div>`
+    ${PR?`<div class="hint">Günlük Kasa'daki satışlar, satış tarihinde geçerli fiyatlarla: <b>net liste = liste − oliz</b>, <b>ekstra iskonto % = (net liste − satış) ÷ net liste</b>. <b>Oliz = AX Detaylı satış raporundaki İskonto</b> (%85 uygulanmaz). <b>Liste</b> = satış tarihinin dönemindeki Arçelik sitesi üstü çizili fiyat; ürün sitede yoksa AX birim fiyatı (<b>AX liste</b> etiketi). AX iskontosu olmayan satırlarda eski yöntem kullanılır (sarı <b>site</b> / <b>liste</b> etiketi).</div>`
       :`<div class="hint">Günlük Kasa'daki satışlar, satış tarihinde geçerli fiyatlarla: <b>maliyet = ABS − Arçelik katkısı (oliz × %85)</b>, <b>brüt kâr = satış − maliyet</b>, net kâr = brüt kâr − kart komisyonu. Liste altı satış ve iskonto için <b>Perakende Raporu</b>'na bakın.</div>`}
   </section>`;
   if(GR.err)return head+`<div class="banner bad"><span>${esc(GR.err)}</span></div>`;
@@ -2322,19 +2344,20 @@ function vGRapor(mode){
 }
 function vPerakende(){
   const all=GR.rows,multiDay=GR.from!==GR.to,multiArea=!GR.area,T=grSum(all);
-  const L=all.filter(e=>GR.pf==="alti"?e.ind!=null&&e.ind>0.5:GR.pf==="liste"?e.olizSrc==="liste":GR.pf==="yok"?e.ind==null:true);
-  const nListe=all.filter(e=>e.olizSrc==="liste"&&e.list!=null).length;
+  const noAx=e=>e.olizSrc==="site"||e.olizSrc==="liste";
+  const L=all.filter(e=>GR.pf==="alti"?e.ind!=null&&e.ind>0.5:GR.pf==="noax"?noAx(e):GR.pf==="axb"?e.olizSrc==="axb":GR.pf==="yok"?e.ind==null:true);
+  const nNoAx=all.filter(noAx).length,nAxb=all.filter(e=>e.olizSrc==="axb").length;
   const pTbl=(title,G,first)=>`<section class="panel"><div class="panel-h"><h2>${title}</h2></div><div class="tbl-wrap"><table style="min-width:640px"><thead><tr><th>${first}</th><th class="r">Adet</th><th class="r">Satış</th><th class="r">Net liste</th><th class="r">Ekstra indirim</th><th class="r">İskonto %</th><th class="r">Liste altı satır</th></tr></thead>
     <tbody>${G.map(r=>`<tr><td>${esc(first==="Gün"?dTR(r.k):r.k)}</td><td class="r num">${fmt0.format(r.adet)}</td><td class="r num">${TL(r.ciro)}</td><td class="r num">${TL(r.netL)}</td><td class="r num ${r.ind>0.5?"neg":""}">${TL(r.ind)}</td><td class="r num"><b>${pc(r.indP)}</b></td><td class="r num">${r.indN}</td></tr>`).join("")}</tbody>
     <tfoot><tr><td>Toplam</td><td class="r num">${fmt0.format(T.adet)}</td><td class="r num">${TL(T.ciro)}</td><td class="r num">${TL(T.netL)}</td><td class="r num">${TL(T.ind)}</td><td class="r num">${pc(T.indP)}</td><td class="r num">${T.indN}</td></tr></tfoot></table></div></section>`;
   const stores=multiArea?grGroup(all,e=>areaName(e.area_id)):[],days=multiDay?grGroup(all,e=>e.date).sort((a,b)=>a.k.localeCompare(b.k)):[],reps=grGroup(all,e=>e.rep);
-  const f=[["","Tümü",all.length],["alti","Liste altı",T.indN],["liste","\"liste\" etiketli",nListe],["yok","Liste fiyatı yok",T.noList]];
+  const f=[["","Tümü",all.length],["alti","Liste altı",T.indN],["axb","Sitede yok (AX liste)",nAxb],["noax","AX iskontosu yok",nNoAx],["yok","Liste fiyatı yok",T.noList]];
   return`
   <section class="kpis">
     <div class="kpi"><label>Satış</label><div class="v num">${TL(T.ciro)}</div><div class="s">${fmt0.format(T.adet)} adet · ${T.n} satır</div></div>
     <div class="kpi"><label>Net liste (liste − oliz)</label><div class="v num">${TL(T.netL)}</div><div class="s">Liste fiyatı bilinen satırlar</div></div>
     <div class="kpi"><label>Ekstra indirim</label><div class="v num ${T.ind>0.5?"neg":""}">${TL(T.ind)}</div><div class="s">İskonto ${pc(T.indP)}</div></div>
-    <div class="kpi"><label>Liste altı satış</label><div class="v num">${T.indN}</div><div class="s">${nListe} satır sitede yok ("liste")</div></div>
+    <div class="kpi"><label>Liste altı satış</label><div class="v num">${T.indN}</div><div class="s">${nNoAx?nNoAx+" satırda AX iskontosu yok":"Oliz: AX İskonto"}</div></div>
   </section>
   ${T.noList?`<div class="banner"><span>${T.noList} satırda liste fiyatı yok (iskonto hesabına girmedi). Fiyat & Komisyon'dan liste yükleyin.</span></div>`:""}
   ${multiArea&&stores.length>1?pTbl("Mağaza bazında",stores,"Mağaza"):""}
@@ -2344,7 +2367,7 @@ function vPerakende(){
   <section class="panel"><div class="panel-h"><h2>Satır bazında</h2><span class="meta">${L.length} satır</span></div>
     <div class="tbl-wrap"><table style="min-width:1240px"><thead><tr><th>Tarih</th>${multiArea?"<th>Mağaza</th>":""}<th>Müşteri</th><th>Ürün</th><th>Personel</th><th class="r">Adet</th><th class="r">Liste</th><th class="r">Oliz</th><th class="r">Net liste</th><th class="r">Satış</th><th class="r">Ekstra ind.</th><th class="r">İskonto %</th><th>Ödeme</th><th>Açıklama</th></tr></thead>
     <tbody>${L.map(e=>`<tr class="clickable" data-kt-go="${e.area_id}|${e.date}"><td class="num">${dTR(e.date)}</td>${multiArea?`<td>${esc(areaName(e.area_id))}</td>`:""}<td><span class="desc">${esc(e.customer||"")}</span>${e.iptal?' <span class="chip late">İptal</span>':""}</td><td>${esc(e.urun)}</td><td style="font-size:12px">${esc(e.rep||"")}</td><td class="r num">${fmt0.format(e.qty)}</td>
-      <td class="r num">${TLn(e.list)}</td><td class="r num">${TLn(e.olizR)}${e.olizSrc==="liste"&&e.list!=null?' <span class="chip warn" title="Ürün Arçelik sitesinde bulunamadı; yüklenen liste/paro fiyatı kullanıldı">liste</span>':""}</td><td class="r num">${TLn(e.net)}</td><td class="r num"><b>${TL(e.amount)}</b></td>
+      <td class="r num">${TLn(e.list)}</td><td class="r num">${TLn(e.olizR)}${e.olizSrc==="axb"?' <span class="chip in" title="Ürün Arçelik sitesinde yok; liste = AX birim fiyatı. AX\'te ekstra indirim birim fiyatı düşürerek yapıldıysa burada görünmez.">AX liste</span>':e.olizSrc==="site"?' <span class="chip warn" title="AX iskonto bilgisi yok; oliz = site liste − site satış fiyatı">site</span>':e.olizSrc==="liste"&&e.list!=null?' <span class="chip warn" title="AX iskonto bilgisi yok ve ürün sitede yok; yüklenen liste/paro fiyatı kullanıldı">liste</span>':""}</td><td class="r num">${TLn(e.net)}</td><td class="r num"><b>${TL(e.amount)}</b></td>
       <td class="r num ${e.ind>0.5?"neg":""}">${e.ind==null?'<span class="chip warn">Liste yok</span>':TL(e.ind)}</td><td class="r num">${e.indP==null?"—":e.ind>0.5?`<span class="chip warn">${pc(e.indP)}</span>`:pc(e.indP)}</td>
       <td style="font-size:12px">${esc(e.payTxt)}</td><td><span class="desc" style="font-size:12px">${esc(e.discount_reason||"")}</span></td></tr>`).join("")}</tbody></table></div>
   </section>
@@ -2386,7 +2409,7 @@ async function grExcel(){
       ["Liste fiyatı olmayan satır",T.noList],["Oliz kaynağı","Arçelik sitesi (satış tarihinin dönemi); sitede yoksa yüklenen liste"]],[32,40],[1],[]);
     (()=>{const ws=wb.Sheets["Özet"];if(ws.B9)ws.B9.z="0.0%";["B6","B10","B12"].forEach(a=>{if(ws[a])ws[a].z="0"})})();
     add("Perakende",[["Tarih","Mağaza","Müşteri","Madde kodu","Ürün","Kota","Personel","Adet","Liste","Oliz","Net liste","Satış","Ekstra indirim","İskonto %","Ödeme","İndirim açıklaması","Liste/oliz kaynağı"],
-    ...L.map(e=>[dTR(e.date),areaName(e.area_id),e.customer||"",e.madde_kodu||"",e.urun,e.kota,e.rep||"",e.qty,r2(e.list),r2(e.olizR),r2(e.net),r2(e.amount),r2(e.ind),p4(e.indP),e.payTxt,e.discount_reason||"",e.olizSrc==="site"?"Arçelik sitesi":"Liste/paro"])],
+    ...L.map(e=>[dTR(e.date),areaName(e.area_id),e.customer||"",e.madde_kodu||"",e.urun,e.kota,e.rep||"",e.qty,r2(e.list),r2(e.olizR),r2(e.net),r2(e.amount),r2(e.ind),p4(e.indP),e.payTxt,e.discount_reason||"",({ax:"Oliz AX İskonto · liste Arçelik sitesi",axb:"Oliz AX İskonto · liste AX birim fiyat",site:"Arçelik sitesi (AX yok)",liste:"Liste/paro (AX yok)"})[e.olizSrc]])],
     [11,18,24,14,24,18,20,6,12,12,12,12,12,10,20,30],[8,9,10,11,12],[13]);
     const pg=(name,G,first)=>add(name,[[first,"Adet","Satış","Net liste","Ekstra indirim","İskonto %","Liste altı satır"],...G.map(r=>[first==="Gün"?dTR(r.k):r.k,r.adet,r2(r.ciro),r2(r.netL),r2(r.ind),p4(r.indP),r.indN])],[24,8,14,14,14,10,10],[2,3,4],[5]);
     pg("Personel",grGroup(L,e=>e.rep),"Personel");
