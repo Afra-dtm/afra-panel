@@ -173,6 +173,7 @@ main{display:flex;flex-direction:column;gap:20px;padding-top:20px}
 @media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi:nth-child(3){border-left:0}.kpi:nth-child(n+3){border-top:1px solid var(--line-2)}}
 
 .grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:20px;align-items:start}
+.grid2.eq{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
 @media (max-width:900px){.grid2{grid-template-columns:minmax(0,1fr)}}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
 .panel-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
@@ -579,12 +580,13 @@ const NAV_ICON=(()=>{const s=d=>`<svg viewBox="0 0 24 24" fill="none" stroke="cu
   gider:s('<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6"/>'),
   izin:s('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 15l2.5 2.5L16 13"/>'),
   prim:s('<circle cx="12" cy="8" r="5"/><path d="M8.5 12.5L7 22l5-3 5 3-1.5-9.5"/>'),
+  capraz:s('<circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/>'),
   sepet:s('<path d="M3 4h2l2.4 11h11l2-8H6.5"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/>')}})();
 function navGroups(){
   if(!S.isAdmin){const g=[];PAGES.filter(p=>can(p[0])).forEach(([k,l,h,ic])=>{let x=g.find(y=>y[0]===h);if(!x)g.push(x=[h,[]]);x[1].push([k,l,ic])});return g}
   return[
     ["Mağaza",[["gunluk","Günlük Kasa","kasa"],["islem","Günlük İşlem","islem"],["gider","Giderler","gider"]]],
-    ["Raporlar",[["grapor","Günlük Rapor","rapor"],["prapor","Perakende Raporu","rapor"],["satis","Aylık Satış Analizi","satis"]]],
+    ["Raporlar",[["grapor","Günlük Rapor","rapor"],["prapor","Perakende Raporu","rapor"],["satis","Aylık Satış Analizi","satis"],["sepet","Sepet & Çapraz Satış","capraz"]]],
     ["Takip",[["sevk","Sevkiyat Kontrolü","sevk"],["kontrol","Kontrol","kontrol"],["arcelik","Arçelik Ödeme","odeme"],["webfiyat","Arçelik Fiyatları","fiyat"],["alis","Alış Fiyatları","fiyat"]]],
     ["Web Sitesi",[["websip","Web Siparişleri","sepet"]]],
     ["Personel",[["izin","İzin Takibi","izin"],["prim","Prim Hesaplama","prim"],["kullanici","Kullanıcılar","kisi"]]],
@@ -648,7 +650,7 @@ const creatorName=id=>{const p=S.profiles.find(x=>x.id===id);return p?(p.full_na
 function render(){
   let h="";
   if(!S.isAdmin&&!S.areas.length)h+=`<div class="banner info">Size henüz bir mağaza atanmamış. Kayıt girebilmek için yöneticinizden yetki isteyin.</div>`;
-  const V={ozet:vOzet,planli:vPlanli,hareket:vHareket,hesap:vHesap,rapor:vRapor,satis:vSatis,gunluk:vGunluk,islem:vIslem,grapor:()=>vGRapor("analiz"),prapor:()=>vGRapor("perakende"),kontrol:vKontrol,fiyat:vFiyat,kullanici:vKullanici,yedek:vYedek,arcelik:vArcelik,izin:vIzin,sevk:vSevk,webfiyat:vWebFiyat,alis:vAlis,websip:vWebSip,gider:vGider,prim:vPrim};
+  const V={ozet:vOzet,planli:vPlanli,hareket:vHareket,hesap:vHesap,rapor:vRapor,satis:vSatis,gunluk:vGunluk,islem:vIslem,grapor:()=>vGRapor("analiz"),prapor:()=>vGRapor("perakende"),kontrol:vKontrol,fiyat:vFiyat,kullanici:vKullanici,yedek:vYedek,arcelik:vArcelik,izin:vIzin,sevk:vSevk,webfiyat:vWebFiyat,alis:vAlis,websip:vWebSip,gider:vGider,prim:vPrim,sepet:vSepet};
   if(!viewAllowed(S.view))S.view=firstView();
   if(!S.view){$("#pageTitle").textContent="Hoş geldiniz";$("#app").innerHTML='<div class="banner info"><span>Size henüz bir sayfa yetkisi verilmedi. Yöneticinizden yetki isteyin.</span></div>';return}
   if(!S.isAdmin&&VIEW_ONLY.has(S.view))h+='<div class="banner info"><span>Bu sayfayı görüntüleme yetkiniz var. Değişiklikleri yalnızca yöneticiler yapabilir.</span></div>';
@@ -1208,6 +1210,208 @@ function bindSatis(){
     if(error){toast(errMsg(error));del.disabled=false;return}
     toast(ymLabel(SA.period)+" satış verisi silindi");SA.period=null;SA.linesFor=null;await saEnsure(true);
   });
+}
+
+/* === SEPET & ÇAPRAZ SATIŞ (yönetici) ===
+   Kaynak: Günlük Kasa satışları ve iptalleri (kasaSalesLines). Sepet = aynı müşterinin aynı gün aldığı her şey.
+   İptal, orijinal satışın gününe ve sepetine düşülür. Kurumsal Satış birimi hariç (ayrı sayılır).
+   0–1 TL birim fiyatlı satırlar (hediye, klima iç ünitesi) ve ek garanti satırları ürün sayılmaz, ciroya girer.
+   Ek garanti oranı müşteri-ay bazında; KEA oranı beyaz eşya içeren sepetlerde. */
+const SP={months:[],monthsLoaded:false,period:null,store:"",lines:null,linesFor:null,loading:false,err:null,at:0};
+const SP_KOTA={"KÜÇÜK EV ALETLERİ":"Küçük ev aletleri","PİŞİRİCİLER":"Pişirici","KOTA DIŞI":"Kota dışı","KURUTMA MAKİNASI":"Kurutma mak.","ÇAMAŞIR MAKİNASI":"Çamaşır mak.",
+  "SOĞUTUCU":"Soğutucu","BULAŞIK (SOLO+ANK.)":"Bulaşık mak.","FIRIN (SOLO+ANK.)":"Fırın","TV":"TV","SÜPÜRGE":"Süpürge","KLİMA":"Klima","DONDURUCU":"Dondurucu",
+  "HAVALANDIRMA":"Havalandırma","SU SEBİLİ":"Su sebili","BİLGİSAYAR VE TABLET":"Bilgisayar/tablet","55":"Elektronik","60":"Elektronik","80":"Elektronik"};
+const SP_BEYAZ=new Set(["Çamaşır mak.","Kurutma mak.","Soğutucu","Bulaşık mak.","Pişirici","Fırın","Dondurucu"]);
+const SP_KEA="Küçük ev aletleri";
+const spGrp=l=>/EK GARANT|(^|[^A-ZÇĞİÖŞÜ0-9])EG([^A-ZÇĞİÖŞÜ0-9]|$)/.test(normTR(l.urun))?"Ek garanti":(SP_KOTA[normTR(l.kota)]||(l.kota&&l.kota!=="—"?l.kota:"Diğer"));
+const spStore=l=>{const r=normTR(l.rep);return r==="HESAP SEPETİ"||r==="PAZARYERİ"?"İNTERNET":saStoreName(l.area_id)};
+const spPct=(a,b)=>b?a/b*100:null;
+const spP=v=>v==null?"—":"%"+v.toLocaleString("tr-TR",{minimumFractionDigits:1,maximumFractionDigits:1});
+const spD2=v=>v==null?"—":v.toLocaleString("tr-TR",{minimumFractionDigits:2,maximumFractionDigits:2});
+
+async function spLoad(){
+  if(SP.loading)return;SP.loading=true;SP.err=null;
+  try{
+    if(!SP.monthsLoaded){
+      const{data,error}=await sb.rpc("kasa_months");if(error)throw error;
+      SP.months=(data||[]).map(r=>r.period).sort();SP.monthsLoaded=true;
+      if(!SP.period||!SP.months.includes(SP.period))SP.period=SP.months.length?SP.months[SP.months.length-1]:null;
+    }
+    if(SP.period){
+      /* sonraki aylarda girilen iptaller de bu ayın sepetlerinden düşsün diye bugüne kadar okunur */
+      const p=SP.period;const L=await kasaSalesLines(p+"-01",TODAY>p+"-01"?TODAY:p+"-31","",false);
+      SP.lines=L;SP.linesFor=p;SP.at=Date.now();
+    }
+  }catch(e){SP.err=e._msg?e.message:errMsg(e)}
+  SP.loading=false;if(S.view==="sepet")render();
+}
+
+function spCompute(L,period,store){
+  const inM=d=>!!d&&d.slice(0,7)===period;
+  const B=new Map();let kurumsal={n:0,ciro:0};const kurSep=new Set();
+  for(const l of L){
+    const d=l.iptal?l.origDate:l.date;if(!inM(d))continue;
+    const st=spStore(l);
+    if(st==="KURUMSAL"){kurumsal.ciro+=l.amount;if(!l.iptal)kurSep.add(normTR(l.customer)+"|"+d);continue}
+    if(store&&st!==store)continue;
+    const cust=normTR(l.customer);const bk=(cust||"#"+(l.madde_kodu||l.urun||""))+"|"+d;
+    let b=B.get(bk);if(!b){b={cust,customer:l.customer||"—",date:d,store:st,items:new Map(),tl:0};B.set(bk,b)}
+    if(!l.iptal&&b.store!==st&&!b.items.size)b.store=st;
+    b.tl+=l.amount;
+    const ik=(l.madde_kodu||l.urun||"?");let it=b.items.get(ik);
+    if(!it){it={madde:l.madde_kodu,urun:l.urun,grp:spGrp(l),qty:0,amount:0,rep:{}};b.items.set(ik,it)}
+    it.qty+=l.qty;it.amount+=l.amount;if(!l.iptal){const r=l.rep||"—";it.rep[r]=(it.rep[r]||0)+l.amount}
+  }
+  kurumsal.n=kurSep.size;
+  const baskets=[];const egCust=new Map();
+  for(const b of B.values()){
+    const items=[...b.items.values()].filter(i=>i.qty>0.001);
+    if(!items.length)continue;
+    const unit=i=>i.amount/i.qty;
+    const prod=items.filter(i=>i.grp!=="Ek garanti"&&unit(i)>1);
+    const eg=items.filter(i=>i.grp==="Ek garanti");
+    const repW={};prod.forEach(i=>Object.entries(i.rep).forEach(([r,v])=>repW[r]=(repW[r]||0)+v));
+    if(!prod.length)eg.forEach(i=>Object.entries(i.rep).forEach(([r,v])=>repW[r]=(repW[r]||0)+v));
+    const rep=Object.entries(repW).sort((a,b)=>b[1]-a[1])[0];
+    const x={customer:b.customer,cust:b.cust,date:b.date,store:b.store,rep:rep?rep[0]:"—",tl:items.reduce((s,i)=>s+i.amount,0),
+      n:Math.round(prod.reduce((s,i)=>s+i.qty,0)),grps:[...new Set(prod.map(i=>i.grp))].sort((a,c)=>a.localeCompare(c,"tr")),
+      egQty:eg.reduce((s,i)=>s+i.qty,0),egTl:eg.reduce((s,i)=>s+i.amount,0),
+      beyazQty:prod.filter(i=>SP_BEYAZ.has(i.grp)).reduce((s,i)=>s+i.qty,0),urunler:prod.map(i=>i.urun).join(", ")};
+    const ck=b.cust||"#"+b.date+x.tl;let c=egCust.get(ck);if(!c){c={elig:0,eg:0,store:null,rep:null};egCust.set(ck,c)}
+    c.eg+=x.egQty;if(x.beyazQty){c.elig+=x.beyazQty;if(!c.rep){c.rep=x.rep;c.store=x.store}}
+    if(x.n>0)baskets.push(x);
+  }
+  const P=baskets;
+  const sum=(A,f)=>A.reduce((s,x)=>s+f(x),0);
+  const stats=A=>{const tl=sum(A,b=>b.tl),n=sum(A,b=>b.n),srt=A.map(b=>b.tl).sort((a,b)=>a-b);
+    const med=srt.length?(srt.length%2?srt[(srt.length-1)/2]:(srt[srt.length/2-1]+srt[srt.length/2])/2):null;
+    const be=A.filter(b=>b.grps.some(g=>SP_BEYAZ.has(g)));
+    return{sepet:A.length,ciro:tl,ort:A.length?tl/A.length:null,med,adet:A.length?n/A.length:null,
+      tek:spPct(A.filter(b=>b.n===1).length,A.length),cokUrun:spPct(A.filter(b=>b.n>=2).length,A.length),cokGrup:spPct(A.filter(b=>b.grps.length>=2).length,A.length),
+      beyaz:be.length,kea:spPct(be.filter(b=>b.grps.includes(SP_KEA)).length,be.length),ikinci:spPct(be.filter(b=>b.grps.filter(g=>SP_BEYAZ.has(g)).length>=2).length,be.length)}};
+  const egStats=f=>{const C=[...egCust.values()].filter(c=>c.elig>0&&f(c));
+    return{musteri:C.length,egMusteri:C.filter(c=>c.eg>0).length,oran:spPct(C.filter(c=>c.eg>0).length,C.length),
+      urunOran:spPct(sum(C,c=>Math.min(c.eg,c.elig)),sum(C,c=>c.elig))}};
+  const T=stats(P),EG=egStats(()=>true);
+  /* ek garantisi ayrı günde alınan (ürünsüz sepet) müşteriler için de adet/tutar */
+  let egAdetAll=0,egTlAll=0;for(const b of B.values())for(const i of b.items.values())if(i.grp==="Ek garanti"&&i.qty>0.001){egAdetAll+=i.qty;egTlAll+=i.amount}
+  const bucket=n=>n>=4?"4+":String(n);
+  const adetD=["1","2","3","4+"].map(k=>{const A=P.filter(b=>bucket(b.n)===k);return{k,sepet:A.length,pay:spPct(A.length,P.length),ciroPay:spPct(sum(A,b=>b.tl),T.ciro),ort:A.length?sum(A,b=>b.tl)/A.length:null}});
+  const TLB=[[0,10000,"10 bin altı"],[10000,25000,"10–25 bin"],[25000,50000,"25–50 bin"],[50000,100000,"50–100 bin"],[100000,Infinity,"100 bin ve üstü"]];
+  const tlD=TLB.map(([a,c,k])=>{const A=P.filter(b=>b.tl>=a&&b.tl<c);return{k,sepet:A.length,pay:spPct(A.length,P.length),ciroPay:spPct(sum(A,b=>b.tl),T.ciro),ort:A.length?sum(A,b=>b.tl)/A.length:null}});
+  const gc=new Map();P.forEach(b=>b.grps.forEach(g=>gc.set(g,(gc.get(g)||0)+1)));
+  const pair=new Map();P.forEach(b=>{for(let i=0;i<b.grps.length;i++)for(let j=i+1;j<b.grps.length;j++){const k=b.grps[i]+"|"+b.grps[j];pair.set(k,(pair.get(k)||0)+1)}});
+  const pc=(a,c)=>a===c?gc.get(a)||0:pair.get(a.localeCompare(c,"tr")<0?a+"|"+c:c+"|"+a)||0;
+  const G=[...gc.entries()].sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
+  const grup=G.map(g=>{const n=gc.get(g),alone=P.filter(b=>b.grps.length===1&&b.grps[0]===g).length;
+    const yan=G.filter(h=>h!==g).map(h=>({g:h,n:pc(g,h)})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n).slice(0,3).map(x=>({...x,oran:spPct(x.n,n)}));
+    return{g,sepet:n,tek:spPct(alone,n),yan}});
+  const stores=["GÜNEŞLİ","PARSELLER","İNTERNET"].concat([...new Set(P.map(b=>b.store))].filter(s=>!["GÜNEŞLİ","PARSELLER","İNTERNET"].includes(s)))
+    .map(s=>({k:s,...stats(P.filter(b=>b.store===s)),eg:egStats(c=>c.store===s)})).filter(r=>r.sepet);
+  const repN=new Map();P.forEach(b=>repN.set(b.rep,(repN.get(b.rep)||0)+1));
+  const reps=[...repN.entries()].filter(([r,n])=>n>=5&&!["HESAP SEPETİ","PAZARYERİ","—"].includes(normTR(r)))
+    .map(([r])=>({k:r,...stats(P.filter(b=>b.rep===r)),eg:egStats(c=>c.rep===r)})).sort((a,b)=>b.sepet-a.sepet);
+  return{T,EG,egAdet:egAdetAll,egTl:egTlAll,adetD,tlD,G,pc,gc,grup,stores,reps,P,kurumsal,repsAz:[...repN.entries()].filter(([,n])=>n<5).length};
+}
+
+function spBars(D,lab){
+  const mx=Math.max(1,...D.flatMap(d=>[d.pay||0,d.ciroPay||0]));
+  return`<div class="legend"><span><i style="background:var(--accent)"></i>Sepet payı</span><span><i style="background:var(--xfer)"></i>Ciro payı</span></div>
+  <div class="bars">${D.map(d=>`<div class="bar-row" title="${esc(lab(d.k))}: ${d.sepet} sepet · ortalama ${d.ort==null?"—":TL(d.ort)}">
+    <span class="lbl">${esc(lab(d.k))}<span class="muted" style="font-size:11px"> · ${fmt0.format(d.sepet)} sepet</span></span>
+    <span style="display:flex;flex-direction:column;gap:3px"><span class="track"><span class="fill" style="display:block;width:${(d.pay||0)/mx*100}%;background:var(--accent)"></span></span><span class="track"><span class="fill" style="display:block;width:${(d.ciroPay||0)/mx*100}%;background:var(--xfer)"></span></span></span>
+    <span class="num" style="font-size:12px;text-align:right;line-height:1.35">${spP(d.pay)}<br><span style="color:var(--xfer)">${spP(d.ciroPay)}</span></span></div>`).join("")}</div>`;
+}
+
+function vSepet(){
+  if(!SP.err&&!SP.loading&&(!SP.monthsLoaded||(SP.period&&SP.linesFor!==SP.period)||Date.now()-SP.at>60000))spLoad();
+  const head=`<section class="panel"><div class="panel-h"><h2>Sepet &amp; Çapraz Satış${SP.period?" · "+ymLabel(SP.period):""}</h2>
+    <div class="filters">
+      ${SP.months.length?`<select id="spMonth" aria-label="Ay">${SP.months.slice().reverse().map(m=>`<option value="${m}" ${m===SP.period?"selected":""}>${ymLabel(m)}</option>`).join("")}</select>`:""}
+      <select id="spStore" aria-label="Mağaza"><option value="">Tüm mağazalar</option>${["GÜNEŞLİ","PARSELLER","İNTERNET"].map(s=>`<option value="${s}" ${s===SP.store?"selected":""}>${s}</option>`).join("")}</select>
+      <button class="btn sm" id="spRefresh" type="button">Yenile</button>
+      ${SP.linesFor&&SP.linesFor===SP.period?`<button class="btn sm primary" id="spXlsx" type="button">Excel indir</button>`:""}
+    </div></div>
+    <div class="hint">Günlük Kasa'daki satışlardan, iptaller düşülerek. <b>Sepet</b> = aynı müşterinin aynı gün aldığı her şey. <b>Çapraz satış</b> = sepette birden fazla ürün grubu (kota grubu) olması. Kurumsal Satış hariç. Tanımlar sayfanın altında.</div></section>`;
+  if(SP.err)return head+`<div class="banner bad"><span>${esc(SP.err)}</span></div>`;
+  if(!SP.monthsLoaded||SP.linesFor!==SP.period)return head+(SP.monthsLoaded&&!SP.period?'<div class="empty">Günlük Kasa\'da satış yok.</div>':'<div class="empty">Yükleniyor…</div>');
+  const R=spCompute(SP.lines,SP.period,SP.store),T=R.T;
+  if(!T.sepet)return head+'<div class="empty">Bu ay ve mağazada satış yok.</div>';
+  const A1=R.adetD[0],A4=R.adetD[3];
+  const egElig=R.EG.musteri;
+  const matrix=R.G.slice(0,14);
+  const heat=(a,c)=>{const n=R.pc(a,c),base=R.gc.get(a)||0,o=a===c?null:spPct(n,base);
+    if(a===c)return`<td class="r num" style="background:var(--surface-2);color:var(--ink-3)" title="${esc(a)}: ${n} sepet">${n}</td>`;
+    const s=o==null?0:Math.min(1,o/60);
+    return`<td class="r num" style="${n?`background:color-mix(in srgb,var(--accent) ${Math.round(8+s*80)}%,transparent);${s>.5?"color:var(--on-accent);":""}`:"color:var(--ink-3)"}" title="${esc(a)} içeren ${base} sepetin ${n} tanesinde ${esc(c)} de var${o==null?"":" ("+spP(o)+")"}">${n?Math.round(o):"·"}</td>`};
+  const egCell=e=>e.musteri>=5?`${spP(e.oran)} <span class="muted" style="font-size:11px">(${e.egMusteri}/${e.musteri})</span>`:`<span class="muted">${e.musteri?`${e.egMusteri}/${e.musteri}`:"—"}</span>`;
+  const keaCell=r=>r.beyaz>=5?`${spP(r.kea)} <span class="muted" style="font-size:11px">(${r.beyaz})</span>`:`<span class="muted">—</span>`;
+  return head+`
+  <div class="insight" style="font-size:14px"><span>Sepetlerin <b>${spP(A1.pay)}</b>'i tek ürünlü, cironun <b>${spP(A1.ciroPay)}</b>'ini getiriyor. 4+ ürünlü sepetler sepetlerin <b>${spP(A4.pay)}</b>'i, cironun <b>${spP(A4.ciroPay)}</b>'i.</span></div>
+  <section class="kpis">
+    <div class="kpi"><label>Sepet</label><div class="v num">${fmt0.format(T.sepet)}</div><div class="s">Ciro ${TL(T.ciro)}${!SP.store&&R.kurumsal.ciro?` · kurumsal hariç`:""}</div></div>
+    <div class="kpi"><label>Ortalama sepet</label><div class="v num">${TL(T.ort)}</div><div class="s">Medyan ${TL(T.med)}</div></div>
+    <div class="kpi"><label>Sepet başına ürün</label><div class="v num">${spD2(T.adet)}</div><div class="s">Çok ürünlü sepet ${spP(T.cokUrun)}</div></div>
+    <div class="kpi"><label>Çapraz satış oranı</label><div class="v num">${spP(T.cokGrup)}</div><div class="s">Birden fazla ürün grubu olan sepet</div></div>
+  </section>
+  <section class="kpis">
+    <div class="kpi"><label>Ek garanti alan müşteri</label><div class="v num">${spP(R.EG.oran)}</div><div class="s">${R.EG.egMusteri} / ${egElig} beyaz eşya müşterisi</div></div>
+    <div class="kpi"><label>Ek garanti satışı</label><div class="v num">${fmt0.format(R.egAdet)} adet</div><div class="s">${TL(R.egTl)} · ürünlerin ${spP(R.EG.urunOran)}'i</div></div>
+    <div class="kpi"><label>Beyaz eşyaya KEA</label><div class="v num">${spP(T.kea)}</div><div class="s">${fmt0.format(T.beyaz)} beyaz eşya sepetinden</div></div>
+    <div class="kpi"><label>İkinci beyaz eşya</label><div class="v num">${spP(T.ikinci)}</div><div class="s">Beyaz eşya sepetinde 2+ grup</div></div>
+  </section>
+  <div class="grid2 eq">
+    <section class="panel"><div class="panel-h"><h2>Sepetteki ürün adedine göre</h2></div>${spBars(R.adetD,k=>k+" ürün")}</section>
+    <section class="panel"><div class="panel-h"><h2>Sepet tutarına göre</h2></div>${spBars(R.tlD,k=>k)}</section>
+  </div>
+  <section class="panel"><div class="panel-h"><div><h2>Hangi ürün grupları birlikte satılıyor?</h2><div class="hint">Satırdaki grubu içeren sepetlerin yüzde kaçında sütundaki grup da var. Gri köşegen: o grubu içeren sepet sayısı. Üzerine gelince ayrıntı görünür.</div></div></div>
+    <div class="tbl-wrap"><table style="min-width:${180+matrix.length*52}px"><thead><tr><th></th>${matrix.map(g=>`<th class="r" style="white-space:normal;vertical-align:bottom;font-size:10px;letter-spacing:.02em;width:52px">${esc(g)}</th>`).join("")}</tr></thead>
+    <tbody>${matrix.map(a=>`<tr><td><b>${esc(a)}</b></td>${matrix.map(c=>heat(a,c)).join("")}</tr>`).join("")}</tbody></table></div></section>
+  <section class="panel"><div class="panel-h"><div><h2>Ürün grubu bazında</h2><div class="hint"><b>Tek başına</b> = sepette başka ürün grubu yok. Sağda en çok birlikte satılan üç grup ve oranı.</div></div></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Ürün grubu</th><th class="r">Sepet</th><th class="r">Tek başına</th><th>En çok yanında</th><th>2.</th><th>3.</th></tr></thead>
+    <tbody>${R.grup.map(r=>`<tr><td>${esc(r.g)}</td><td class="r num">${fmt0.format(r.sepet)}</td><td class="r num">${r.tek>=60?`<span class="chip warn">${spP(r.tek)}</span>`:spP(r.tek)}</td>${[0,1,2].map(i=>{const y=r.yan[i];return`<td>${y?`${esc(y.g)} <span class="num muted">${spP(y.oran)}</span>`:'<span class="muted">—</span>'}</td>`}).join("")}</tr>`).join("")}</tbody></table></div></section>
+  ${!SP.store?`<section class="panel"><div class="panel-h"><h2>Mağaza bazında</h2></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Mağaza</th><th class="r">Sepet</th><th class="r">Ciro</th><th class="r">Ort. sepet</th><th class="r">Medyan</th><th class="r">Ürün / sepet</th><th class="r">Çapraz satış</th><th class="r">Ek garanti alan</th><th class="r">Beyaz eşyaya KEA</th></tr></thead>
+    <tbody>${R.stores.map(r=>`<tr><td>${esc(r.k)}</td><td class="r num">${fmt0.format(r.sepet)}</td><td class="r num">${TL(r.ciro)}</td><td class="r num">${TL(r.ort)}</td><td class="r num">${TL(r.med)}</td><td class="r num">${spD2(r.adet)}</td><td class="r num">${spP(r.cokGrup)}</td><td class="r num">${egCell(r.eg)}</td><td class="r num">${keaCell(r)}</td></tr>`).join("")}</tbody></table></div></section>`:""}
+  <section class="panel"><div class="panel-h"><div><h2>Temsilci bazında</h2><div class="hint">En az 5 sepeti olan temsilciler${R.repsAz?` (${R.repsAz} temsilci daha az sepetli, listede yok)`:""}. Ek garanti ve KEA oranı 5'ten az uygun müşteri / sepette gösterilmez. Parantez: alan / uygun müşteri ve beyaz eşya sepeti sayısı.</div></div></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Temsilci</th><th class="r">Sepet</th><th class="r">Ciro</th><th class="r">Ort. sepet</th><th class="r">Ürün / sepet</th><th class="r">Çapraz satış</th><th class="r">Ek garanti alan</th><th class="r">Beyaz eşyaya KEA</th></tr></thead>
+    <tbody>${R.reps.map(r=>`<tr><td>${esc(r.k)}</td><td class="r num">${fmt0.format(r.sepet)}</td><td class="r num">${TL(r.ciro)}</td><td class="r num">${TL(r.ort)}</td><td class="r num">${spD2(r.adet)}</td><td class="r num">${spP(r.cokGrup)}</td><td class="r num">${egCell(r.eg)}</td><td class="r num">${keaCell(r)}</td></tr>`).join("")||'<tr><td colspan="8" class="muted">5 ve üzeri sepeti olan temsilci yok.</td></tr>'}</tbody></table></div></section>
+  <section class="panel"><details><summary style="cursor:pointer;font-weight:600">Tanımlar ve varsayımlar</summary><ul class="hint" style="margin:10px 0 0;padding-left:18px">
+    <li><b>Sepet:</b> aynı müşterinin aynı gün aldığı her şey (birden fazla sipariş olsa da). İptal, satışın yapıldığı güne ve sepete düşülür; sonraki aylarda girilen iptaller de dahil.</li>
+    <li><b>Ürün sayılmayanlar:</b> birim fiyatı 1 TL ve altı satırlar (kampanya hediyesi, klima iç ünitesi) ve ek garanti satırları. Ciroya dahiller.</li>
+    <li><b>Ek garanti alan müşteri:</b> çamaşır, kurutma, bulaşık, buzdolabı, dondurucu, fırın veya pişirici alan müşterilerden ay içinde ek garanti de alanların payı (ek garanti başka gün alınmış olsa da sayılır). Ürün adında "EK GARANTİ" ya da "EG" geçen satırlar.</li>
+    <li><b>Beyaz eşyaya KEA:</b> beyaz eşya içeren sepetlerden küçük ev aleti de içerenlerin payı; kampanyayla düşük fiyata verilen KEA'lar da dahil.</li>
+    <li><b>Mağaza:</b> Günlük Kasa birimi; HESAP SEPETİ ve PAZARYERİ satışları İnternet. Kurumsal Satış birimi hariç${R.kurumsal.ciro?` (bu ay ${fmt0.format(R.kurumsal.n)} sepet, ${TL(R.kurumsal.ciro)})`:""}. <b>Temsilci:</b> sepetteki ürünlerin tutarca çoğunu satan.</li>
+    <li><b>Ürün grubu:</b> ürünün kota grubu. 55, 60 ve 80 kodlu kotalar (telefon, kulaklık, saat vb.) "Elektronik" olarak birleştirildi.</li></ul></details></section>`;
+}
+
+function bindSepet(){
+  if(S.view!=="sepet")return;
+  const ms=$("#spMonth");if(ms)ms.onchange=()=>{SP.period=ms.value;SP.linesFor=null;render();spLoad()};
+  const st=$("#spStore");if(st)st.onchange=()=>{SP.store=st.value;render()};
+  const rf=$("#spRefresh");if(rf)rf.onclick=()=>{SP.monthsLoaded=false;SP.linesFor=null;render();spLoad()};
+  const xb=$("#spXlsx");if(xb)xb.onclick=async()=>{
+    try{await loadXLSX()}catch(e){toast(errMsg(e));return}
+    const R=spCompute(SP.lines,SP.period,SP.store),T=R.T,r2=v=>v==null?null:Math.round(v*100)/100,r1=v=>v==null?null:Math.round(v*10)/10,dt=d=>String(d||"").split("-").reverse().join(".");
+    const wb=XLSX.utils.book_new();
+    const add=(name,aoa,cols)=>{const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=cols.map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,name)};
+    add("Özet",[["Sepet & Çapraz Satış",ymLabel(SP.period)],["Mağaza",SP.store||"Tüm mağazalar (Kurumsal hariç)"],["Kaynak","Günlük Kasa (iptaller düşülmüş)"],["İndirme",new Date().toLocaleString("tr-TR")],[],
+      ["Sepet sayısı",T.sepet],["Ciro",r2(T.ciro)],["Ortalama sepet",r2(T.ort)],["Medyan sepet",r2(T.med)],["Sepet başına ürün",r2(T.adet)],["Tek ürünlü sepet %",r1(T.tek)],["Çok ürünlü sepet %",r1(T.cokUrun)],["Çapraz satış (çok gruplu sepet) %",r1(T.cokGrup)],
+      ["Ek garanti alan müşteri %",r1(R.EG.oran)],["Ek garanti alan / uygun müşteri",`${R.EG.egMusteri} / ${R.EG.musteri}`],["Ek garanti / uygun ürün %",r1(R.EG.urunOran)],["Ek garanti adet",R.egAdet],["Ek garanti tutarı",r2(R.egTl)],
+      ["Beyaz eşya sepeti",T.beyaz],["Beyaz eşyaya KEA %",r1(T.kea)],["İkinci beyaz eşya %",r1(T.ikinci)]],[34,22]);
+    add("Ürün adedi",[["Sepetteki ürün","Sepet","Sepet payı %","Ciro payı %","Ortalama sepet"],...R.adetD.map(d=>[d.k,d.sepet,r1(d.pay),r1(d.ciroPay),r2(d.ort)])],[16,10,12,12,16]);
+    add("Sepet tutarı",[["Tutar aralığı","Sepet","Sepet payı %","Ciro payı %","Ortalama sepet"],...R.tlD.map(d=>[d.k,d.sepet,r1(d.pay),r1(d.ciroPay),r2(d.ort)])],[18,10,12,12,16]);
+    add("Çapraz matris",[["Birlikte görülen sepet sayısı (köşegen: grubu içeren sepet)",...R.G],...R.G.map(a=>[a,...R.G.map(c=>R.pc(a,c))]),[],
+      ["Satırdaki grubu içeren sepetlerde sütundaki grubun oranı %",...R.G],...R.G.map(a=>[a,...R.G.map(c=>a===c?null:r1(spPct(R.pc(a,c),R.gc.get(a))))])],[30,...R.G.map(()=>12)]);
+    add("Ürün grubu",[["Ürün grubu","Sepet","Tek başına %","En çok yanında","Oran %","2.","Oran %","3.","Oran %"],...R.grup.map(r=>[r.g,r.sepet,r1(r.tek),...[0,1,2].flatMap(i=>r.yan[i]?[r.yan[i].g,r1(r.yan[i].oran)]:[null,null])])],[20,8,12,20,8,20,8,20,8]);
+    const row=r=>[r.k,r.sepet,r2(r.ciro),r2(r.ort),r2(r.med),r2(r.adet),r1(r.cokGrup),r1(r.eg.oran),r.eg.egMusteri,r.eg.musteri,r1(r.kea),r.beyaz];
+    const hdr=["Sepet","Ciro","Ort. sepet","Medyan","Ürün / sepet","Çapraz satış %","Ek garanti alan %","Ek garanti alan müşteri","Uygun müşteri","Beyaz eşyaya KEA %","Beyaz eşya sepeti"];
+    if(!SP.store)add("Mağaza",[["Mağaza",...hdr],...R.stores.map(row)],[14,8,16,14,14,10,12,14,12,12,14,12]);
+    add("Temsilci",[["Temsilci",...hdr],...R.reps.map(row)],[22,8,16,14,14,10,12,14,12,12,14,12]);
+    add("Sepetler",[["Tarih","Müşteri","Mağaza","Temsilci","Tutar","Ürün adedi","Ürün grupları","Ek garanti adet","Ürünler"],
+      ...R.P.slice().sort((a,b)=>a.date.localeCompare(b.date)||b.tl-a.tl).map(b=>[dt(b.date),b.customer,b.store,b.rep,r2(b.tl),b.n,b.grps.join(", "),b.egQty||null,b.urunler])],[11,30,12,20,14,10,40,10,60]);
+    XLSX.writeFile(wb,`Sepet_Capraz_Satis_${SP.period}${SP.store?"_"+SP.store:""}.xlsx`);
+  };
 }
 
 /* === GÜNLÜK KASA === */
@@ -2649,8 +2853,8 @@ function bindArcelik(){
     if(error){toast(errMsg(error));b.disabled=false;return}toast("Ekstre silindi");arLoad(true)}));
 }
 /* === SADE MENÜ + YEDEK === */
-const NAV_GROUPS={grapor:[["grapor","Günlük Rapor"],["prapor","Perakende Raporu"],["satis","Aylık Satış Analizi"]],fiyat:[["fiyat","Fiyat & Komisyon"],["kullanici","Kullanıcılar"],["yedek","Yedek"]]};
-const TAB_OF={prim:"prim",islem:"islem",satis:"grapor",prapor:"grapor",kullanici:"fiyat",yedek:"fiyat",websip:"websip"};
+const NAV_GROUPS={grapor:[["grapor","Günlük Rapor"],["prapor","Perakende Raporu"],["satis","Aylık Satış Analizi"],["sepet","Sepet & Çapraz Satış"]],fiyat:[["fiyat","Fiyat & Komisyon"],["kullanici","Kullanıcılar"],["yedek","Yedek"]]};
+const TAB_OF={prim:"prim",sepet:"grapor",islem:"islem",satis:"grapor",prapor:"grapor",kullanici:"fiyat",yedek:"fiyat",websip:"websip"};
 function subNav(){
   const g=NAV_GROUPS[TAB_OF[S.view]||S.view];if(!g||!S.isAdmin)return"";
   return`<div class="seg" style="margin-bottom:12px" id="subNav">${g.map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${S.view===v}">${l}</button>`).join("")}</div>`;
@@ -3107,7 +3311,7 @@ function bindView(){
   const rm=$("#rm");if(rm)rm.onchange=()=>{S.rep.month=rm.value;render()};
   const rar=$("#rar");if(rar)rar.onchange=()=>{S.rep.area=rar.value;render()};
   on("#csvBtn",()=>exportCsv(filteredTx(),"afra-hareketler"));
-  bindSatis();bindGunluk();bindFiyat();bindKontrol();bindGRapor();bindSubNav();bindYedek();bindArcelik();bindIzin();bindSevk();bindWebFiyat();bindAlis();bindWebSip();bindIslem();bindGider();bindPrim();
+  bindSatis();bindGunluk();bindFiyat();bindKontrol();bindGRapor();bindSubNav();bindYedek();bindArcelik();bindIzin();bindSevk();bindWebFiyat();bindAlis();bindWebSip();bindIslem();bindGider();bindPrim();bindSepet();
   on("#repCsv",()=>exportCsv(realized().filter(t=>t.date.slice(0,7)===S.rep.month&&(!S.rep.area||t.area_id===S.rep.area)),"afra-rapor-"+S.rep.month));
 }
 
