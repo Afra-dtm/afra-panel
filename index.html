@@ -267,6 +267,8 @@ tfoot td{font-weight:600;background:var(--surface-2)}
 .err{color:var(--out);font-size:13px}
 .hint{font-size:12px;color:var(--ink-3)}
 @media (max-width:480px){.kpi{padding:12px 12px}.kpi .v{font-size:16.5px}}
+.kasa-kpis{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}.kasa-rows{display:grid;grid-template-columns:1fr auto;gap:2px 12px;margin-top:6px;max-width:340px}.kasa-rows .num{text-align:right}
+@media (max-width:600px){.kasa-kpis{grid-template-columns:minmax(0,1fr)}.kasa-kpis>.kpi+.kpi{border-left:0;border-top:1px solid var(--line-2)}.kasa-kpis .kpi .v{font-size:20px}}
 tr.clickable,td.clickable{cursor:pointer}
 td.clickable:hover{background:var(--surface-2)}
 .closebox{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
@@ -3455,15 +3457,15 @@ function vIslem(){
       <td>${mtCanEdit(r)?`<button class="btn sm" type="button" data-mted="${r.id}" title="Düzenle">✎</button>`:""}</td></tr>`}).join("");
   const shownAreas=MT.area?areas.filter(a=>a.id===MT.area):areas;
   const kasaCards=shownAreas.map(a=>{const R=L.filter(r=>r.area_id===a.id),t=mtSums(R),dv=(MT.devir||{})[a.id]||0,st=(MT.start||{})[a.id];
-    return`<div class="kpi" style="min-width:240px"><label>${esc(a.name)} kasası</label><div class="v num ${dv+t.nakit<0?"neg":""}">${TL(dv+t.nakit)}</div>
-      <div class="s" style="display:grid;grid-template-columns:auto auto;gap:2px 12px;margin-top:6px"><span>Devir</span><span class="num" style="text-align:right">${TL(dv)}</span><span>+ Nakit giriş</span><span class="num pos" style="text-align:right">${TL(t.nGir)}</span><span>− Nakit çıkış</span><span class="num neg" style="text-align:right">${TL(t.nCik)}</span></div>
+    return`<div class="kpi"><label>${esc(a.name)} kasası</label><div class="v num ${dv+t.nakit<0?"neg":""}">${TL(dv+t.nakit)}</div>
+      <div class="s kasa-rows"><span>Devir</span><span class="num" style="text-align:right">${TL(dv)}</span><span>+ Nakit giriş</span><span class="num pos" style="text-align:right">${TL(t.nGir)}</span><span>− Nakit çıkış</span><span class="num neg" style="text-align:right">${TL(t.nCik)}</span></div>
       <div class="s" style="margin-top:6px">${st?`Açılış: ${dTR(st.start_date)} · ${TL(st.amount)}`:"Açılış bakiyesi girilmedi"}${S.isAdmin?` · <a href="#" data-mtstart="${a.id}">${st?"değiştir":"gir"}</a>`:""}</div></div>`}).join("");
   let daily="";
   if(MT.mode==="ay"&&L.length){const days=[...new Set(L.map(r=>r.date))].sort();
     daily=shownAreas.map(a=>{let run=(MT.devir||{})[a.id]||0;const tr=days.map(d=>{const t=mtSums(L.filter(r=>r.area_id===a.id&&r.date===d));if(!t.n)return"";const o=run;run+=t.nakit;
         return`<tr><td class="num">${dTR(d)}</td><td class="r num">${TL(o)}</td><td class="r num pos">${TL(t.nGir)}</td><td class="r num neg">${TL(t.nCik)}</td><td class="r num"><b>${TL(run)}</b></td></tr>`}).join("");
       return`<section class="panel"><div class="panel-h"><h2>${esc(a.name)} · günlük kasa</h2></div><div class="tbl-wrap"><table style="min-width:520px"><thead><tr><th>Gün</th><th class="r">Devir</th><th class="r">Nakit giriş</th><th class="r">Nakit çıkış</th><th class="r">Gün sonu kasa</th></tr></thead><tbody>${tr}</tbody></table></div></section>`}).join("")}
-  return head+`<section class="panel"><div class="panel-h"><h2>Şube kasaları</h2><span class="meta">${MT.mode==="gun"?"gün sonu":"ay sonu"} · yalnızca nakit</span></div><div class="kpis" style="margin:0">${kasaCards}</div>
+  return head+`<section class="panel"><div class="panel-h"><h2>Şube kasaları</h2><span class="meta">${MT.mode==="gun"?"gün sonu":"ay sonu"} · yalnızca nakit</span></div><div class="kpis kasa-kpis" style="margin:0">${kasaCards}</div>
     <div class="hint">Kasa = devir + nakit satış, tahsilat ve kasa girişleri − nakit iptal, gider ve kasa çıkışları. Bankaya yatırılan ya da teslim edilen nakit için “Kasa çıkışı” girin.</div></section>
   <section class="kpis">${card(T,"Net satış")}</section>${daily}
   ${multi?`<section class="panel"><div class="panel-h"><h2>Mağaza bazında</h2></div><div class="tbl-wrap"><table style="min-width:760px"><thead><tr><th>Mağaza</th><th class="r">Satış</th><th class="r">İptal</th><th class="r">Net satış</th><th class="r">Tahsilat</th><th class="r">Gider</th><th class="r">Nakit net</th><th class="r">Kart kom.</th><th class="r">İşlem</th></tr></thead><tbody>${perArea}</tbody></table></div></section>`:""}
