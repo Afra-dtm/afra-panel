@@ -2927,9 +2927,14 @@ async function ktLoad(force){
         d.erp=out.map(r=>({...r,qty:+r.qty,sale_price:+r.sale_price}));
       }
     }else{
-      let q=sb.from("daily_log").select("*").order("id",{ascending:false}).limit(300);
-      if(KT.logF==="kapali")q=q.eq("after_close",true);else if(KT.logF==="silinen")q=q.eq("action","SİLİNDİ");else if(KT.logF==="kasa")q=q.like("action","%GÜN%");
-      const{data,error}=await q;if(error)throw error;d.logs=data;
+      // Değişiklikler: seçilen ayda (işlem zamanı, İstanbul saati) yapılan tüm kayıtlar
+      const[y,m]=KT.month.split("-").map(Number);const nx=m===12?(y+1)+"-01":y+"-"+pad(m+1);
+      const fromTs=KT.month+"-01T00:00:00+03:00",toTs=nx+"-01T00:00:00+03:00";
+      const out=[];let f=0;
+      for(;;){let q=sb.from("daily_log").select("*").gte("at",fromTs).lt("at",toTs).order("id",{ascending:false}).range(f,f+999);
+        if(KT.logF==="kapali")q=q.eq("after_close",true);else if(KT.logF==="silinen")q=q.eq("action","SİLİNDİ");else if(KT.logF==="kasa")q=q.like("action","%GÜN%");else if(KT.logF==="degisti")q=q.eq("action","DEĞİŞTİ");
+        const{data,error}=await q;if(error)throw error;out.push(...data);if(data.length<1000)break;f+=1000}
+      d.logs=out;
     }
     KT.d=d;KT.key=key;
   }catch(e){KT.err=e._msg?e.message:gkNeedsSql(e)?GK_SQL_MSG.replace("Günlük Kasa","Kontrol ekranı"):errMsg(e)}
@@ -2941,14 +2946,14 @@ function vKontrol(){
   const head=`<section class="panel"><div class="panel-h"><h2>Kontrol</h2>
       <div class="filters">
         <div class="seg" id="ktSub">${KT_SUBS.map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${KT.sub===v}">${l}</button>`).join("")}</div>
-        ${KT.sub==="indirim"||KT.sub==="mutabakat"||KT.sub==="uyari"?`<select id="ktMonth" aria-label="Ay">${gkMonthOptions().replace(/selected/g,"").replace(`value="${KT.month}"`,`value="${KT.month}" selected`)}</select>`:""}
+        ${KT.sub==="indirim"||KT.sub==="mutabakat"||KT.sub==="uyari"||KT.sub==="degisiklik"?`<select id="ktMonth" aria-label="Ay">${gkMonthOptions().replace(/selected/g,"").replace(`value="${KT.month}"`,`value="${KT.month}" selected`)}</select>`:""}
         ${KT.sub==="indirim"?`<select id="ktArea" aria-label="Mağaza"><option value="">Tüm mağazalar</option>${S.areas.map(a=>`<option value="${a.id}" ${a.id===KT.area?"selected":""}>${esc(a.name)}</option>`).join("")}</select>`:""}
-        ${KT.sub==="degisiklik"?`<select id="ktLogF" aria-label="Filtre">${[["tumu","Tümü"],["kapali","Kapanıştan sonra yapılanlar"],["silinen","Silinen kayıtlar"],["kasa","Kasa kapanış / onay"]].map(([v,l])=>`<option value="${v}" ${KT.logF===v?"selected":""}>${l}</option>`).join("")}</select>`:""}
+        ${KT.sub==="degisiklik"?`<select id="ktLogF" aria-label="Filtre">${[["tumu","Tümü"],["degisti","Değiştirilen kayıtlar"],["kapali","Kapanıştan sonra yapılanlar"],["silinen","Silinen kayıtlar"],["kasa","Kasa kapanış / onay"]].map(([v,l])=>`<option value="${v}" ${KT.logF===v?"selected":""}>${l}</option>`).join("")}</select>`:""}
         <button class="btn sm" id="ktRefresh" type="button">Yenile</button>
       </div></div>
       <div class="hint">${{dogrulama:"Her aktarımda kaynaktaki (Dynamics / dosya) toplam ile sisteme yazılan toplam karşılaştırılır. Kontrol ajanı her gece Dynamics'i baştan okuyup sonucunu buraya yazar; manuel tablonuzu da buradan karşılaştırabilirsiniz.",uyari:"Seçilen ayın Günlük Kasa kayıtları her açılışta kurallardan geçirilir: zararına satış, açıklamasız indirim, eksik alış fiyatı, eksik taksit, mükerrer kayıt, kayıt girilmemiş günler. Satıra tıklayınca o güne gidersiniz.",gunluk:"Son 14 günün mağaza bazında durumu. Her gün için: kasa kapatıldı mı, sayım farkı var mı, onaylandı mı, liste altı satış ve kapanıştan sonra değişiklik var mı. Hücreye tıklayınca o güne gidersiniz.",
         indirim:"Günlük Kasa'ya girilen perakende satışların, satış tarihindeki liste fiyatı − oliz (net liste) ile karşılaştırması. Ekstra iskonto oranı = (net liste − satış) ÷ net liste.",
-        degisiklik:"Günlük Kasa'daki her ekleme, değişiklik ve silme kaydedilir; bu kayıtlar silinemez. Kapanıştan sonra yapılan değişiklikler ayrıca işaretlenir.",
+        degisiklik:"Günlük Kasa'daki her ekleme, değişiklik ve silme kaydedilir; bu kayıtlar silinemez. Seçilen ayda yapılan tüm işlemler listelenir. Değiştirilen kayıtlarda eski → yeni değer yazar; kapanıştan sonra yapılan değişiklikler ayrıca işaretlenir.",
         mutabakat:"Günlük Kasa'ya girilen satışlar ile Satış Analizi'ne yüklenen sistem (ERP) satış detayının karşılaştırması. Sistemde olup kasaya girilmeyen satışlar en önemli uyarıdır."}[KT.sub]}</div>
     </section>`;
   if(KT.err)return head+`<div class="banner bad"><span>${esc(KT.err)}</span></div>`;
@@ -3181,7 +3186,14 @@ function ktLog(){
     const ch=[];[["amount","Tutar",v=>TL(+v)],["pay","Ödeme",v=>PAY_L[v]||v],["madde_kodu","Ürün",v=>(GK.prodMap[v]||{}).urun||v||"—"],["date","Tarih",v=>v],["customer","Müşteri",v=>v||"—"],["discount_reason","İndirim açıklaması",v=>v||"—"],["installments","Taksit",v=>v||"—"],["card","Kart",v=>v||"—"]].forEach(([k,lb,f])=>{if(String(o[k]??"")!==String(n[k]??""))ch.push(`${lb}: ${esc(f(o[k]))} → <b>${esc(f(n[k]))}</b>`)});
     return base+(ch.length?"<br>"+ch.join(" · "):"");
   };
-  return`<section class="panel"><div class="panel-h"><h2>Değişiklik geçmişi</h2><span class="meta">Son ${L.length} kayıt</span></div>
+  const cnt=a=>L.filter(l=>l.action===a).length,nAc=L.filter(l=>l.after_close).length,nGun=L.filter(l=>/GÜN/.test(l.action||"")).length;
+  return`<section class="kpis">
+    <div class="kpi"><label>Eklendi</label><div class="v num">${fmt0.format(cnt("EKLENDİ"))}</div><div class="s">${ymLabel(KT.month)}</div></div>
+    <div class="kpi"><label>Değişti</label><div class="v num">${fmt0.format(cnt("DEĞİŞTİ"))}</div><div class="s">Eski → yeni değer yazar</div></div>
+    <div class="kpi"><label>Silindi</label><div class="v num ${cnt("SİLİNDİ")?"neg":""}">${fmt0.format(cnt("SİLİNDİ"))}</div><div class="s">Kasa kapanış / açılış ${fmt0.format(nGun)}</div></div>
+    <div class="kpi"><label>Kapanış sonrası</label><div class="v num ${nAc?"neg":""}">${fmt0.format(nAc)}</div><div class="s">Kapatılmış güne dokunulan</div></div>
+  </section>
+  <section class="panel"><div class="panel-h"><h2>Değişiklik geçmişi · ${ymLabel(KT.month)}</h2><span class="meta">${fmt0.format(L.length)} kayıt</span></div>
     ${L.length?`<div class="tbl-wrap"><table style="min-width:900px"><thead><tr><th>Zaman</th><th>İşlem</th><th>Kayıt günü</th><th>Mağaza</th><th>Kim</th><th>Ayrıntı</th></tr></thead><tbody>
     ${L.map(l=>`<tr ${l.after_close?'style="background:var(--out-bg)"':""}><td class="num">${new Date(l.at).toLocaleString("tr-TR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</td><td>${chip(l.action)}${l.after_close?' <span class="chip late">Kapanış sonrası</span>':""}</td><td class="num">${l.date?l.date.split("-").reverse().join("."):""}</td><td>${esc(areaName(l.area_id))}</td><td>${esc(who(l.by_user))}</td><td style="white-space:normal;min-width:320px">${desc(l)}</td></tr>`).join("")}</tbody></table></div>`
     :'<div class="empty">Kayıt yok.</div>'}
