@@ -294,7 +294,7 @@ table.rates th:not(:first-child),table.rates td:not(:first-child){text-align:cen
 table.rates input{width:100%;max-width:72px;border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:5px 6px;text-align:right;font-family:var(--mono)}
 table input[type=date],td input[inputmode]{border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:5px 6px}
 .filters input[type=date]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
-.dnav{display:flex;align-items:stretch;gap:6px;flex:0 1 auto;min-width:0}.dnav .btn{flex:0 0 40px;justify-content:center;padding-left:0;padding-right:0}.filters .dnav input[type=date]{flex:1 1 auto;min-width:0;text-align:center}
+.dnav{display:flex;align-items:stretch;gap:6px;flex:0 1 auto;min-width:0}.dnav .btn{flex:0 0 40px;justify-content:center;padding-left:0;padding-right:0}.filters .dnav input[type=date],.filters .dnav input[type=month],.filters .dnav select{flex:1 1 auto;min-width:0;text-align:center}.dnav.drange{align-items:center}.dnav.drange>span{flex:0 0 auto}
 @media (max-width:600px){.filters .dnav{flex:1 1 100%}}
 details.more summary{cursor:pointer;color:var(--accent);font-weight:500;font-size:13px;padding:4px 0;list-style-position:inside}
 details.more[open] summary{margin-bottom:4px}
@@ -1554,7 +1554,7 @@ function vGunluk(){
         <select id="gkArea" aria-label="Mağaza">${S.isAdmin&&stores.length>1?`<option value="ALL" ${GK.area==="ALL"?"selected":""}>Tüm mağazalar</option>`:""}${stores.map(a=>`<option value="${a.id}" ${a.id===GK.area?"selected":""}>${esc(a.name)}</option>`).join("")}</select>
         <div class="seg" id="gkView">${[["gun","Gün"],["ay","Ay"]].map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${GK.view===v}">${l}</button>`).join("")}</div>
         ${GK.view==="gun"?`<div class="dnav"><button class="btn sm" id="gkPrev" type="button" aria-label="Önceki gün">◀</button><input type="date" id="gkDate" value="${GK.date}" ${S.isAdmin?"":`min="${iso(addDays(parse(TODAY),-31))}"`} max="${TODAY}"><button class="btn sm" id="gkNext" type="button" aria-label="Sonraki gün" ${GK.date>=TODAY?"disabled":""}>▶</button></div>`
-          :`<select id="gkMonth" aria-label="Ay">${gkMonthOptions()}</select>`}
+          :`<div class="dnav"><select id="gkMonth" aria-label="Ay">${gkMonthOptions()}</select></div>`}
         <button class="btn sm" id="gkImport" type="button">Arçelik'ten aktar</button>
         <button class="btn sm" id="gkCancel" type="button">İptal / İade</button>
         <button class="btn sm primary" id="gkAdd" type="button">+ Satır ekle</button>
@@ -2506,7 +2506,7 @@ function vGRapor(mode){
   const head=`<section class="panel"><div class="panel-h"><h2>${PR?"Perakende Raporu":"Günlük Rapor"}</h2>
     <div class="filters">
       <div class="seg" id="grQuick">${[["bugun","Bugün"],["dun","Dün"],["ay","Bu ay"],["gecenay","Geçen ay"]].map(([v,l])=>`<button type="button" data-v="${v}">${l}</button>`).join("")}</div>
-      <input type="date" id="grFrom" value="${GR.from}" max="${TODAY}" aria-label="Başlangıç"><span class="muted">–</span><input type="date" id="grTo" value="${GR.to}" max="${TODAY}" aria-label="Bitiş">
+      <div class="dnav drange"><input type="date" id="grFrom" value="${GR.from}" max="${TODAY}" aria-label="Başlangıç"><span class="muted">–</span><input type="date" id="grTo" value="${GR.to}" max="${TODAY}" aria-label="Bitiş"></div>
       <select id="grArea" aria-label="Mağaza"><option value="">Tüm mağazalar</option>${S.areas.map(a=>`<option value="${a.id}" ${a.id===GR.area?"selected":""}>${esc(a.name)}</option>`).join("")}</select>
       <button class="btn sm" id="grRefresh" type="button">Yenile</button>
       <button class="btn sm primary" id="grXlsx" type="button">Excel indir</button>
@@ -3658,9 +3658,9 @@ function vIslem(){
     <div class="filters">
       <select id="mtArea" aria-label="Mağaza">${areas.length>1?`<option value="">Tüm mağazalar</option>`:""}${areas.map(a=>`<option value="${a.id}" ${a.id===MT.area?"selected":""}>${esc(a.name)}</option>`).join("")}</select>
       <div class="seg" id="mtMode"><button type="button" data-v="gun" aria-pressed="${MT.mode==="gun"}">Gün</button><button type="button" data-v="ay" aria-pressed="${MT.mode==="ay"}">Ay</button></div>
-      <button class="btn sm" id="mtPrev" type="button" aria-label="Önceki">◀</button>
+      <div class="dnav"><button class="btn sm" id="mtPrev" type="button" aria-label="Önceki">◀</button>
       ${MT.mode==="gun"?`<input type="date" id="mtDate" value="${MT.date}" aria-label="Tarih">`:`<input type="month" id="mtMonth" value="${MT.month}" aria-label="Ay">`}
-      <button class="btn sm" id="mtNext" type="button" aria-label="Sonraki">▶</button>
+      <button class="btn sm" id="mtNext" type="button" aria-label="Sonraki">▶</button></div>
       <button class="btn sm" id="mtRefresh" type="button" title="Kayıtları ve komisyon oranlarını yeniden yükle">⟳ Sayfayı yenile</button>
       <button class="btn sm" id="mtXlsx" type="button">Excel indir</button>
       <button class="btn sm primary" id="mtAdd" type="button" ${areas.length?"":"disabled"}>+ Yeni işlem</button>
