@@ -489,7 +489,8 @@ async function loadAll(){
   if(S.isAdmin)jobs.push(fetchAll("account_openings"),fetchAll("profiles","*","created_at"));
   const profJob=!S.isAdmin&&(can("grapor")||can("kontrol"))?fetchAll("profiles","id,username,full_name,role,archived","created_at").catch(()=>[]):null;
   const leaveJob=fetchAll("leave_requests","*","start_date").catch(()=>[]);
-  const r=await Promise.all(jobs);S.leaves=(await leaveJob).map(l=>({...l,days:Number(l.days)}));
+  const bdJob=fetchAll("backdate_rules","*","section").catch(()=>[]);
+  const r=await Promise.all(jobs);S.leaves=(await leaveJob).map(l=>({...l,days:Number(l.days)}));S.bdRules=await bdJob;
   S.areas=r[0];S.accounts=r[1].sort((a,b)=>(a.kind+a.name).localeCompare(b.kind+b.name,"tr"));
   S.txns=r[2].map(t=>({...t,amount:Number(t.amount)}));S.userAreas=r[3];
   S.openings={};S.profiles=[];
@@ -592,7 +593,7 @@ function navGroups(){
     ["Takip",[["sevk","Sevkiyat Kontrolü","sevk"],["kontrol","Kontrol","kontrol"],["arcelik","Arçelik Ödeme","odeme"],["webfiyat","Arçelik Fiyatları","fiyat"],["alis","Alış Fiyatları","fiyat"]]],
     ["Web Sitesi",[["websip","Web Siparişleri","sepet"]]],
     ["Personel",[["izin","İzin Takibi","izin"],["prim","Prim Hesaplama","prim"],["kullanici","Kullanıcılar","kisi"]]],
-    ["Ayarlar",[["fiyat","Fiyat & Komisyon","fiyat"],["yedek","Yedek","yedek"]]]];
+    ["Ayarlar",[["fiyat","Fiyat & Komisyon","fiyat"],["geri","Geriye Dönük Giriş","kontrol"],["yedek","Yedek","yedek"]]]];
 }
 function navLabel(v){for(const[,items]of navGroups())for(const[k,l]of items)if(k===v)return l;return""}
 function setNav(open){$("#appView").classList.toggle("nav-open",open);$("#navBtn").setAttribute("aria-expanded",String(open))}
@@ -652,7 +653,7 @@ const creatorName=id=>{const p=S.profiles.find(x=>x.id===id);return p?(p.full_na
 function render(){
   let h="";
   if(!S.isAdmin&&!S.areas.length)h+=`<div class="banner info">Size henüz bir mağaza atanmamış. Kayıt girebilmek için yöneticinizden yetki isteyin.</div>`;
-  const V={ozet:vOzet,planli:vPlanli,hareket:vHareket,hesap:vHesap,rapor:vRapor,satis:vSatis,gunluk:vGunluk,islem:vIslem,grapor:()=>vGRapor("analiz"),prapor:()=>vGRapor("perakende"),kontrol:vKontrol,fiyat:vFiyat,kullanici:vKullanici,yedek:vYedek,arcelik:vArcelik,izin:vIzin,sevk:vSevk,webfiyat:vWebFiyat,alis:vAlis,websip:vWebSip,gider:vGider,prim:vPrim,sepet:vSepet};
+  const V={ozet:vOzet,planli:vPlanli,hareket:vHareket,hesap:vHesap,rapor:vRapor,satis:vSatis,gunluk:vGunluk,islem:vIslem,grapor:()=>vGRapor("analiz"),prapor:()=>vGRapor("perakende"),kontrol:vKontrol,fiyat:vFiyat,kullanici:vKullanici,yedek:vYedek,geri:vGeri,arcelik:vArcelik,izin:vIzin,sevk:vSevk,webfiyat:vWebFiyat,alis:vAlis,websip:vWebSip,gider:vGider,prim:vPrim,sepet:vSepet};
   if(!viewAllowed(S.view))S.view=firstView();
   if(!S.view){$("#pageTitle").textContent="Hoş geldiniz";$("#app").innerHTML='<div class="banner info"><span>Size henüz bir sayfa yetkisi verilmedi. Yöneticinizden yetki isteyin.</span></div>';return}
   if(!S.isAdmin&&VIEW_ONLY.has(S.view))h+='<div class="banner info"><span>Bu sayfayı görüntüleme yetkiniz var. Değişiklikleri yalnızca yöneticiler yapabilir.</span></div>';
@@ -2858,7 +2859,7 @@ function bindArcelik(){
 }
 /* === SADE MENÜ + YEDEK === */
 const NAV_GROUPS={grapor:[["grapor","Günlük Rapor"],["prapor","Perakende Raporu"],["satis","Aylık Satış Analizi"],["sepet","Sepet & Çapraz Satış"]],fiyat:[["fiyat","Fiyat & Komisyon"],["kullanici","Kullanıcılar"],["yedek","Yedek"]]};
-const TAB_OF={prim:"prim",sepet:"grapor",islem:"islem",satis:"grapor",prapor:"grapor",kullanici:"fiyat",yedek:"fiyat",websip:"websip"};
+const TAB_OF={prim:"prim",sepet:"grapor",islem:"islem",satis:"grapor",prapor:"grapor",kullanici:"fiyat",yedek:"fiyat",geri:"fiyat",websip:"websip"};
 function subNav(){
   const g=NAV_GROUPS[TAB_OF[S.view]||S.view];if(!g||!S.isAdmin)return"";
   return`<div class="seg" style="margin-bottom:12px" id="subNav">${g.map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${S.view===v}">${l}</button>`).join("")}</div>`;
@@ -2894,6 +2895,42 @@ function bindYedek(){
     }catch(e){m.textContent="Hata: "+errMsg(e)}
     b.disabled=false;
   };
+}
+
+/* === GERİYE DÖNÜK GİRİŞ (yönetici) — backdate_rules; veritabanında backdate_check ile uygulanır === */
+const bdRule=sec=>(S.bdRules||[]).find(r=>r.section===sec);
+/* kullanıcının girebileceği en eski tarih; null = sınır yok */
+function bdMin(sec){
+  if(S.isAdmin||can("geriye"))return null;const r=bdRule(sec);
+  if(!r||!r.locked||(r.allowed_users||[]).includes(S.me.id))return null;
+  return iso(addDays(parse(TODAY),-(r.days_back||0)));
+}
+function bdHint(sec){const m=bdMin(sec);if(!m)return"";
+  return`<div class="hint">${m>=TODAY?"Yalnızca bugünün tarihiyle kayıt girebilirsiniz.":"En fazla "+fmtDate(m)+" tarihine kadar geriye kayıt girebilirsiniz."} Daha eskisi için yöneticiye başvurun.</div>`}
+function vGeri(){
+  const rules=S.bdRules||[];
+  const users=S.profiles.filter(p=>p.role!=="admin"&&p.active&&!p.archived).sort((a,b)=>(a.full_name||a.username).localeCompare(b.full_name||b.username,"tr"));
+  const glob=users.filter(p=>(Array.isArray(p.perms)?p.perms:[]).includes("geriye"));
+  const nm=p=>esc(p.full_name||p.username);
+  return`<div class="banner info"><span>Mağaza personeli geçmiş tarihli kayıt giremez; kural her bölüm için ayrı ayarlanır ve veritabanında uygulanır. <b>Yöneticiler</b> her zaman girebilir.${glob.length?` Ayrıca <b>Kullanıcılar → Sayfa yetkileri</b>'nde "Geriye dönük işlem" işaretli olanlar tüm bölümlerde serbesttir: <b>${glob.map(nm).join(", ")}</b>.`:""}</span></div>`+
+  (rules.length?rules.map(r=>{const au=r.allowed_users||[];return`<section class="panel" data-bd="${esc(r.section)}">
+    <div class="panel-h"><h2>${esc(r.label)}</h2><span class="chip ${r.locked?"late":""}">${r.locked?"Kilitli":"Kilit kapalı"}</span></div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:14px;margin:4px 0 10px"><input type="checkbox" data-bd-lock style="width:auto;margin:0;flex:none" ${r.locked?"checked":""}> Geçmiş tarihli girişi kilitle</label>
+    <div class="field" style="max-width:280px"><label>Kaç gün geriye girilebilsin?</label><input type="number" min="0" max="365" step="1" data-bd-days value="${r.days_back||0}"><div class="hint">0 = yalnızca bugün · 1 = dün de girilebilir</div></div>
+    <div class="field"><label>Kilitten muaf kişiler (bu bölümde istedikleri tarihe girebilir)</label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:4px">${users.map(p=>`<label style="display:flex;gap:6px;align-items:center;font-size:13px;font-weight:400"><input type="checkbox" data-bd-user value="${p.id}" style="width:auto;margin:0;flex:none" ${au.includes(p.id)?"checked":""}> ${nm(p)}</label>`).join("")||'<span class="muted">Kullanıcı yok.</span>'}</div></div>
+    <div class="actions"><span class="muted" style="font-size:12px">${r.updated_by_name?`Son değiştiren: ${esc(r.updated_by_name)} · ${new Date(r.updated_at).toLocaleString("tr-TR",{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"})}`:""}</span><div class="right"><button type="button" class="btn primary sm" data-bd-save>Kaydet</button></div></div>
+  </section>`}).join(""):'<div class="empty">Kural bulunamadı.</div>');
+}
+function bindGeri(){
+  $("#app").querySelectorAll("[data-bd]").forEach(sec=>{const b=sec.querySelector("[data-bd-save]");b.onclick=async()=>{
+    const days=Math.trunc(+sec.querySelector("[data-bd-days]").value);
+    if(!(days>=0&&days<=365)){toast("Gün sayısı 0 ile 365 arasında olmalı");return}
+    const f={locked:sec.querySelector("[data-bd-lock]").checked,days_back:days,allowed_users:[...sec.querySelectorAll("[data-bd-user]:checked")].map(x=>x.value)};
+    b.disabled=true;
+    const{data,error}=await sb.from("backdate_rules").update(f).eq("section",sec.dataset.bd).select().single();
+    b.disabled=false;if(error){toast(errMsg(error));return}
+    S.bdRules=(S.bdRules||[]).map(r=>r.section===data.section?data:r);toast("Kaydedildi");render()}});
 }
 
 /* === KONTROL (yönetici) === */
@@ -3336,7 +3373,7 @@ function bindView(){
   const rm=$("#rm");if(rm)rm.onchange=()=>{S.rep.month=rm.value;render()};
   const rar=$("#rar");if(rar)rar.onchange=()=>{S.rep.area=rar.value;render()};
   on("#csvBtn",()=>exportCsv(filteredTx(),"afra-hareketler"));
-  bindSatis();bindGunluk();bindFiyat();bindKontrol();bindGRapor();bindSubNav();bindYedek();bindArcelik();bindIzin();bindSevk();bindWebFiyat();bindAlis();bindWebSip();bindIslem();bindGider();bindPrim();bindSepet();
+  bindSatis();bindGunluk();bindFiyat();bindKontrol();bindGRapor();bindSubNav();bindYedek();bindGeri();bindArcelik();bindIzin();bindSevk();bindWebFiyat();bindAlis();bindWebSip();bindIslem();bindGider();bindPrim();bindSepet();
   on("#repCsv",()=>exportCsv(realized().filter(t=>t.date.slice(0,7)===S.rep.month&&(!S.rep.area||t.area_id===S.rep.area)),"afra-rapor-"+S.rep.month));
 }
 
@@ -3704,13 +3741,13 @@ function vIslem(){
   </section>`;
 }
 function mtForm(r){
-  const areas=mtAreas(),isNew=!r;r=r||{kind:"SATIŞ",area_id:MT.area||(areas[0]||{}).id,date:MT.mode==="gun"&&(can("geriye")||MT.date>=TODAY)?MT.date:TODAY,qty:1,pay:"Nakit"};
+  const areas=mtAreas(),isNew=!r;r=r||{kind:"SATIŞ",area_id:MT.area||(areas[0]||{}).id,date:MT.mode==="gun"&&MT.date>=(bdMin("gunluk_islem")||"")?MT.date:TODAY,qty:1,pay:"Nakit"};
   let kind=r.kind;
   const body=()=>`<h3>${isNew?"Yeni işlem":"İşlemi düzenle"}</h3>
     <div class="typepick" id="mtKind" style="margin-bottom:12px">${MT_KIND.map(([k,l])=>`<button type="button" data-k="${k}" data-v="${k==="SATIŞ"||k==="KASA GİRİŞ"?"gelir":k==="TAHSİLAT"?"transfer":"gider"}" aria-pressed="${kind===k}">${l}</button>`).join("")}</div>
     <div class="fgrid">
       <div class="field"><label for="mt-area">Mağaza</label><select id="mt-area">${areas.map(a=>`<option value="${a.id}" ${a.id===r.area_id?"selected":""}>${esc(a.name)}</option>`).join("")}</select></div>
-      <div class="field"><label for="mt-date">Tarih</label><input id="mt-date" type="date" value="${r.date}" ${S.isAdmin?"":can("geriye")?`max="${TODAY}"`:`min="${TODAY}" max="${TODAY}"`}>${S.isAdmin||can("geriye")?"":'<div class="hint">Geçmiş tarihe kayıt için yönetici izni gerekir.</div>'}</div>
+      <div class="field"><label for="mt-date">Tarih</label><input id="mt-date" type="date" value="${r.date}" ${S.isAdmin?"":`${bdMin("gunluk_islem")?`min="${bdMin("gunluk_islem")}" `:""}max="${TODAY}"`}>${bdHint("gunluk_islem")}</div>
       <div class="field full"><label for="mt-cust">${kind==="GİDER"?"Açıklama (ne için)":MT_CASHONLY.has(kind)?"Açıklama":"Müşteri adı"}</label><input id="mt-cust" value="${esc(r.customer||"")}" placeholder="${kind==="GİDER"?"Kargo, temizlik, yemek…":kind==="KASA ÇIKIŞ"?"Bankaya yatırıldı, merkeze teslim…":kind==="KASA GİRİŞ"?"Bozuk para, merkezden gelen…":"Ad soyad"}"></div>
       ${kind==="GİDER"?`<div class="field full"><label for="mt-cat">Gider kategorisi</label><select id="mt-cat">${gdCats().map(c=>`<option ${c===(r.category||"Diğer Gider")?"selected":""}>${esc(c)}</option>`).join("")}</select><div class="hint">Bu gider otomatik olarak <b>Giderler</b> sekmesine de yazılır.</div></div>`:""}
       <div class="field"><label for="mt-amt">Tutar (₺)</label><input id="mt-amt" inputmode="text" value="${r.amount!=null?String(r.amount).replace(".",","):""}" placeholder="0,00 (eksi için -)"></div>
@@ -4173,7 +4210,7 @@ function svManualForm(rec){
   const def=ed?rec.store:SV.store&&stores.includes(SV.store)?SV.store:stores[0];const val=k=>ed?esc(rec[k]||""):"";
   sheet(`<h3>${ed?"Kaydı düzenle":"Yeni kayıt"}</h3>
     <div class="muted" style="font-size:13px;margin:-4px 0 8px">${ed?`Ekleyen: ${esc(rec.uploaded_by_name||creatorName(rec.uploaded_by)||"")}${rec.edited_by&&rec.edited_by!==rec.uploaded_by?` · Son düzenleyen: ${esc(rec.edited_by_name||creatorName(rec.edited_by)||"")}`:""}`:"Mağazada elden verilen ürünler için. AX aktarımı ve Excel yükleme bu satırlara dokunmaz."}</div>
-    <div class="field"><label for="smD">Teslim tarihi</label><input id="smD" type="date" value="${ed?rec.ship_date:SV.date}" required></div>
+    <div class="field"><label for="smD">Teslim tarihi</label><input id="smD" type="date" value="${ed?rec.ship_date:bdMin("sevkiyat")&&SV.date<bdMin("sevkiyat")?TODAY:SV.date}" ${!ed&&bdMin("sevkiyat")?`min="${bdMin("sevkiyat")}"`:""} required>${ed?"":bdHint("sevkiyat")}</div>
     <div class="field"><label for="smS">Mağaza</label><select id="smS">${stores.map(s=>`<option value="${s}" ${s===def?"selected":""}>${s==="PARSELLER"?"Parseller":"Güneşli"}</option>`).join("")}</select></div>
     <div class="field"><label for="smC">Müşteri</label><input id="smC" required autocomplete="off" value="${val("customer")}"></div>
     <div class="field"><label for="smP">Ürün</label><input id="smP" required autocomplete="off" value="${val("product")}"></div>
