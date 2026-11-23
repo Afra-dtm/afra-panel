@@ -2411,10 +2411,12 @@ async function akPreview(){
 const SITEP={snaps:null,items:{}};
 const sitepKey=d=>d.slice(0,7)+"|"+(+d.slice(8,10)>=16?2:1);
 function sitepSnapFor(date){const L=SITEP.snaps;if(!L||!L.length)return null;const k=sitepKey(date);let best=null;
-  for(const x of L){const xk=x.period+"|"+x.half;if(xk<=k&&(!best||xk>best.period+"|"+best.half))best=x}
-  return best||L.reduce((a,x)=>!a||x.period+"|"+x.half<a.period+"|"+a.half?x:a,null)}
+  const dEnd=Date.parse(date+"T23:59:59+03:00"),tt=x=>Date.parse(x.taken_at)||0;
+  const better=(x,b)=>{if(tt(x)<=dEnd)return tt(b)>dEnd||tt(x)>tt(b);return tt(b)>dEnd&&tt(x)<tt(b)};
+  for(const x of L){const xk=x.period+"|"+x.half,bk=best&&best.period+"|"+best.half;if(xk<=k&&(!best||xk>bk||(xk===bk&&better(x,best))))best=x}
+  return best||L.reduce((a,x)=>!a||x.period+"|"+x.half<a.period+"|"+a.half||(x.period+"|"+x.half===a.period+"|"+a.half&&tt(x)<tt(a))?x:a,null)}
 async function sitepEnsure(from,to){
-  try{if(!SITEP.snaps){const{data,error}=await sb.from("web_price_snapshots").select("id,period,half").eq("status","tamam");if(error)throw error;SITEP.snaps=data}
+  try{if(!SITEP.snaps){const{data,error}=await sb.from("web_price_snapshots").select("id,period,half,taken_at").eq("status","tamam");if(error)throw error;SITEP.snaps=data}
     const ids=new Set();for(let t=Date.parse(from+"T12:00:00Z"),end=Date.parse(to+"T12:00:00Z");t<=end;t+=864e5){const x=sitepSnapFor(new Date(t).toISOString().slice(0,10));if(x)ids.add(x.id);if(ids.size>40)break}
     await Promise.all([...ids].filter(id=>!SITEP.items[id]).map(async id=>{
       const rows=await gkFetch("web_price_snapshot_items",q=>q.eq("snapshot_id",id),"code","code,list_price,sale_price");
@@ -3547,16 +3549,16 @@ function openSetPw(p){
 
 /* === ARÇELİK SİTE FİYATLARI (arcelik.com.tr'den toplanır) === */
 const WF={rows:null,loading:false,err:"",q:"",cat:"",disc:false,chg:false,sort:"name",limit:200,snaps:null,sel:null,month:null,items:{}};
-/* dönemler: her ayın 1'i (1. dönem) ve 16'sı (2. dönem) ayrı saklanır (web_price_snapshots) */
-const wfNum=r=>({...r,list_price:r.list_price==null?null:+r.list_price,sale_price:r.sale_price==null?null:+r.sale_price});
+/* her arcelik.com.tr çekimi ayrı bir kayıt olarak saklanır (web_price_snapshots); ay içinde tarih sırasıyla listelenir */
+const wfNum=r=>({...r,search_name:r.search_name||r.title||String(r.code||""),list_price:r.list_price==null?null:+r.list_price,sale_price:r.sale_price==null?null:+r.sale_price});
 async function wfSnapItems(id){if(!id)return null;if(WF.items[id])return WF.items[id];const out=[];
   for(let f=0;;f+=1000){const{data,error}=await sb.from("web_price_snapshot_items").select("*").eq("snapshot_id",id).order("code").range(f,f+999);if(error)throw error;out.push(...data);if(data.length<1000)break}
   return WF.items[id]=out.map(wfNum)}
 const wfPrevSnap=id=>{const i=WF.snaps.findIndex(x=>x.id===id);return WF.snaps.slice(i+1).find(x=>x.status==="tamam")||null};
-const wfSnapLabel=x=>MONTHS_L[+x.period.slice(5)-1]+" "+x.period.slice(0,4)+" · "+(x.half===1?"1. dönem":"2. dönem");
+const wfSnapLabel=x=>new Date(x.taken_at).toLocaleString("tr-TR",{day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"})+" çekimi";
 async function wfLoad(force){if(WF.loading||(WF.rows&&!force))return;WF.loading=true;WF.err="";
   try{if(force)WF.items={};
-    const{data,error}=await sb.from("web_price_snapshots").select("*").order("period",{ascending:false}).order("half",{ascending:false});if(error)throw error;WF.snaps=data;
+    const{data,error}=await sb.from("web_price_snapshots").select("*").order("taken_at",{ascending:false}).order("id",{ascending:false});if(error)throw error;WF.snaps=data;
     if(!WF.sel||!data.some(x=>x.id===WF.sel))WF.sel=(data.find(x=>x.status==="tamam")||data[0]||{}).id||null;
     const cur=data.find(x=>x.id===WF.sel);WF.month=cur?cur.period:null;
     if(WF.sel){WF.rows=await wfSnapItems(WF.sel);const pv=wfPrevSnap(WF.sel);if(pv)await wfSnapItems(pv.id)}
@@ -3583,9 +3585,7 @@ function vWebFiyat(){
   const months=[...new Set((WF.snaps||[]).map(x=>x.period))];
   const dt=v=>new Date(v).toLocaleDateString("tr-TR",{day:"numeric",month:"long"});
   const periodBar=months.length?`<div class="filters" style="align-items:center">${months.map(m=>`<button class="btn sm${WF.month===m?" primary":""}" type="button" data-wfm="${m}">${MONTHS_L[+m.slice(5)-1]} ${m.slice(0,4)}</button>`).join("")}</div>
-    <div class="filters" style="align-items:center">${[1,2].map(h=>{const x=(WF.snaps||[]).find(y=>y.period===WF.month&&y.half===h);
-      return x?`<button class="btn sm${WF.sel===x.id?" primary":""}" type="button" data-wfs="${x.id}">${h}. dönem · ${dt(x.taken_at)} · ${fmt0.format(x.product_count)} ürün${x.status!=="tamam"?" (yükleniyor)":""}</button>`
-        :`<button class="btn sm" type="button" disabled>${h}. dönem · ${h===1?"ayın 1'i":"ayın 16'sı"} · henüz çekilmedi</button>`}).join("")}</div>`:"";
+    <div class="filters" style="align-items:center">${(WF.snaps||[]).filter(y=>y.period===WF.month).map(x=>`<button class="btn sm${WF.sel===x.id?" primary":""}" type="button" data-wfs="${x.id}">${new Date(x.taken_at).toLocaleString("tr-TR",{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"})} · ${fmt0.format(x.product_count)} ürün${x.status!=="tamam"?" (yükleniyor)":""}</button>`).join("")}</div>`:"";
   return`<section class="panel">
     ${periodBar}
     <div class="panel-h"><div><h2>Arçelik site fiyatları${cur?` <span class="muted" style="font-size:14px;font-weight:500">· ${esc(wfSnapLabel(cur))}</span>`:""}</h2><div class="hint">arcelik.com.tr'de fiyatı olan ${fmt0.format(all.length)} ürün · son tarama ${last?new Date(last).toLocaleString("tr-TR",{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"}):"—"}</div></div>
@@ -3615,7 +3615,7 @@ function bindWebFiyat(){
   const c=$("#wfCat");if(c)c.onchange=()=>{WF.cat=c.value;WF.limit=200;render()};const so=$("#wfSort");if(so)so.onchange=()=>{WF.sort=so.value;render()};
   const d=$("#wfDisc");if(d)d.onchange=()=>{WF.disc=d.checked;render()};const cg=$("#wfChg");if(cg)cg.onchange=()=>{WF.chg=cg.checked;render()};
   document.querySelectorAll("[data-wfs]").forEach(b=>b.onclick=()=>wfSelect(+b.dataset.wfs));
-  document.querySelectorAll("[data-wfm]").forEach(b=>b.onclick=()=>{const m=b.dataset.wfm,x=WF.snaps.filter(y=>y.period===m).sort((a,c)=>c.half-a.half)[0];if(x)wfSelect(x.id)});const m=$("#wfMore");if(m)m.onclick=()=>{WF.limit+=200;render()};
+  document.querySelectorAll("[data-wfm]").forEach(b=>b.onclick=()=>{const m=b.dataset.wfm,x=WF.snaps.filter(y=>y.period===m).find(y=>y.status==="tamam")||WF.snaps.find(y=>y.period===m);if(x)wfSelect(x.id)});const m=$("#wfMore");if(m)m.onclick=()=>{WF.limit+=200;render()};
   const x=$("#wfXlsx");if(x)x.onclick=async()=>{await loadXLSX();const L=wfFiltered();
     const aoa=[["Arama adı","Ürün","Kategori","Üstü çizili fiyat","Oliz'li fiyat","İndirim TL","İndirim %","Madde kodu","Bağlantı"],...L.map(r=>{const dd=r.list_price&&r.sale_price<r.list_price?r.list_price-r.sale_price:0;return[r.search_name,r.title,r.category,r.list_price,r.sale_price,dd,dd?Math.round(dd/r.list_price*1000)/10:0,r.code,r.url]})];
     const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[16,48,36,14,14,12,10,14,40].map(w=>({wch:w}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Arçelik Fiyatları");XLSX.writeFile(wb,`Arcelik_Site_Fiyatlari_${(()=>{const c=(WF.snaps||[]).find(x=>x.id===WF.sel);return c?c.period+"_"+c.half+"donem":TODAY})()}.xlsx`)};
