@@ -1540,7 +1540,7 @@ const canEditDaily=e=>S.isAdmin||(e.created_by===S.me.id&&e.date>=iso(addDays(pa
 
 function vGunluk(){
   if(!GK.area||!(GK.area==="ALL"||gkStores().some(a=>a.id===GK.area)))GK.area=gkDefaultArea();
-  if(!GK.date)GK.date=TODAY;if(!GK.month)GK.month=TODAY.slice(0,7);
+  if(!GK.date)GK.date=iso(addDays(parse(TODAY),-1));if(!GK.month)GK.month=GK.date.slice(0,7);
   if(GK.area==="ALL"&&!S.isAdmin)GK.area=gkDefaultArea();
   if(!GK.area)return'<div class="banner info"><span>Size henüz bir mağaza atanmamış. Günlük kasa girişi için yöneticinizden yetki isteyin.</span></div>';
   if(!GK.err&&GK.key!==gkKey())gkLoad();
