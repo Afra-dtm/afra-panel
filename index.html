@@ -294,6 +294,8 @@ table.rates th:not(:first-child),table.rates td:not(:first-child){text-align:cen
 table.rates input{width:100%;max-width:72px;border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:5px 6px;text-align:right;font-family:var(--mono)}
 table input[type=date],td input[inputmode]{border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:5px 6px}
 .filters input[type=date]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.dnav{display:flex;align-items:stretch;gap:6px;flex:0 1 auto;min-width:0}.dnav .btn{flex:0 0 40px;justify-content:center;padding-left:0;padding-right:0}.filters .dnav input[type=date]{flex:1 1 auto;min-width:0;text-align:center}
+@media (max-width:600px){.filters .dnav{flex:1 1 100%}}
 details.more summary{cursor:pointer;color:var(--accent);font-weight:500;font-size:13px;padding:4px 0;list-style-position:inside}
 details.more[open] summary{margin-bottom:4px}
 table.matrix th,table.matrix td{padding:7px 9px;font-size:12.5px}
@@ -1551,7 +1553,7 @@ function vGunluk(){
       <div class="filters">
         <select id="gkArea" aria-label="Mağaza">${S.isAdmin&&stores.length>1?`<option value="ALL" ${GK.area==="ALL"?"selected":""}>Tüm mağazalar</option>`:""}${stores.map(a=>`<option value="${a.id}" ${a.id===GK.area?"selected":""}>${esc(a.name)}</option>`).join("")}</select>
         <div class="seg" id="gkView">${[["gun","Gün"],["ay","Ay"]].map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${GK.view===v}">${l}</button>`).join("")}</div>
-        ${GK.view==="gun"?`<button class="btn sm" id="gkPrev" type="button" aria-label="Önceki gün">◀</button><input type="date" id="gkDate" value="${GK.date}" ${S.isAdmin?"":`min="${iso(addDays(parse(TODAY),-31))}"`} max="${TODAY}"><button class="btn sm" id="gkNext" type="button" aria-label="Sonraki gün" ${GK.date>=TODAY?"disabled":""}>▶</button>`
+        ${GK.view==="gun"?`<div class="dnav"><button class="btn sm" id="gkPrev" type="button" aria-label="Önceki gün">◀</button><input type="date" id="gkDate" value="${GK.date}" ${S.isAdmin?"":`min="${iso(addDays(parse(TODAY),-31))}"`} max="${TODAY}"><button class="btn sm" id="gkNext" type="button" aria-label="Sonraki gün" ${GK.date>=TODAY?"disabled":""}>▶</button></div>`
           :`<select id="gkMonth" aria-label="Ay">${gkMonthOptions()}</select>`}
         <button class="btn sm" id="gkImport" type="button">Arçelik'ten aktar</button>
         <button class="btn sm" id="gkCancel" type="button">İptal / İade</button>
@@ -4199,7 +4201,7 @@ function svHead(){
   const recent=SV.days?Object.entries(SV.days).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,10):[];
   return`<section class="panel">
     <div class="panel-h"><div><div class="muted" style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase">Sevkiyat günü (randevu tarihi)</div><h2 style="font-size:22px">${svDayLabel(SV.date)}</h2></div>
-      <div class="filters"><button class="btn sm" id="svPrev" type="button" aria-label="Önceki gün">‹</button><input type="date" id="svDate" value="${SV.date}"><button class="btn sm" id="svNext" type="button" aria-label="Sonraki gün">›</button>${SV.date!==TODAY?`<button class="btn sm ghost" id="svToday" type="button">Bugün</button>`:""}<button class="btn sm" id="svRefresh" type="button" ${SV.loading?"disabled":""}>${SV.loading?"Yenileniyor…":"↻ Yenile"}</button>
+      <div class="filters"><div class="dnav"><button class="btn sm" id="svPrev" type="button" aria-label="Önceki gün">‹</button><input type="date" id="svDate" value="${SV.date}"><button class="btn sm" id="svNext" type="button" aria-label="Sonraki gün">›</button></div>${SV.date!==TODAY?`<button class="btn sm ghost" id="svToday" type="button">Bugün</button>`:""}<button class="btn sm" id="svRefresh" type="button" ${SV.loading?"disabled":""}>${SV.loading?"Yenileniyor…":"↻ Yenile"}</button>
       ${svStoresForMe().length?`<button class="btn sm primary" id="svAdd" type="button">Yeni kayıt</button>`:""}${S.isAdmin?`<button class="btn sm primary" id="svUp" type="button">Excel yükle</button><input type="file" id="svFile" accept=".xlsx,.xls" hidden>`:""}${(SV.rows||[]).length?`<button class="btn sm" id="svXlsx" type="button">Excel indir</button>`:""}</div></div>
     ${recent.length?`<div class="filters">${recent.map(([d,x])=>`<button class="btn sm ${d===SV.date?"primary":""}" data-svday="${d}" type="button">${svDot(d).slice(0,5)} <span class="${x.c===x.n?"":"muted"}" style="font-size:11px">${x.c}/${x.n}</span></button>`).join("")}</div>`:""}
   </section>`;
