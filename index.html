@@ -3290,11 +3290,11 @@ function vKullanici(){
   </section>
   <section class="panel">
     <div class="panel-h"><h2>Sayfa yetkileri</h2><span class="meta">Tik attığınız anda kaydedilir</span></div>
-    <div class="tbl-wrap"><table class="perm" style="min-width:${180+PAGES.length*96}px"><thead><tr><th>Kullanıcı</th>${PAGES.map(([k,l,h])=>`<th class="c"><span class="muted" style="font-size:10px">${h}</span><br>${l}</th>`).join("")}</tr></thead><tbody>
+    <div class="tbl-wrap"><table class="perm" style="min-width:${180+(PAGES.length+1)*96}px"><thead><tr><th>Kullanıcı</th>${PAGES.map(([k,l,h])=>`<th class="c"><span class="muted" style="font-size:10px">${h}</span><br>${l}</th>`).join("")}<th class="c"><span class="muted" style="font-size:10px">Günlük İşlem</span><br>Geriye dönük işlem</th></tr></thead><tbody>
     ${live.map(p=>{const pm=permsOf(p),adm=p.role==="admin";return`<tr><td><b style="font-weight:600">${esc(p.full_name||p.username)}</b>${adm?' <span class="chip adm">Yönetici</span>':""}</td>
-      ${PAGES.map(([k])=>`<td class="c">${adm?'<i class="muted" title="Yöneticiler tüm sayfaları görür">✓</i>':`<input type="checkbox" data-perm="${p.id}" value="${k}" ${pm.includes(k)?"checked":""} aria-label="${esc(p.full_name||p.username)} ${k}">`}</td>`).join("")}</tr>`}).join("")}
+      ${PAGES.map(([k])=>`<td class="c">${adm?'<i class="muted" title="Yöneticiler tüm sayfaları görür">✓</i>':`<input type="checkbox" data-perm="${p.id}" value="${k}" ${pm.includes(k)?"checked":""} aria-label="${esc(p.full_name||p.username)} ${k}">`}</td>`).join("")}<td class="c">${adm?'<i class="muted" title="Yöneticiler her zaman geçmiş tarihe girebilir">✓</i>':`<input type="checkbox" data-perm="${p.id}" value="geriye" ${pm.includes("geriye")?"checked":""} aria-label="${esc(p.full_name||p.username)} geriye dönük işlem">`}</td></tr>`}).join("")}
     </tbody></table></div>
-    <div class="hint">Mağaza sayfalarında (Günlük Kasa, Sevkiyat) kullanıcı yalnızca yukarıda atanmış olduğu birimin kayıtlarını görür. Raporlar ve Takip sayfaları yönetici olmayanlara <b>yalnızca görüntüleme</b> olarak açılır; değişiklik, fiyat, kullanıcı ve yedek işlemleri yöneticidedir. Yöneticiler tüm sayfaları görür.</div>
+    <div class="hint">Mağaza sayfalarında (Günlük Kasa, Sevkiyat) kullanıcı yalnızca yukarıda atanmış olduğu birimin kayıtlarını görür. Raporlar ve Takip sayfaları yönetici olmayanlara <b>yalnızca görüntüleme</b> olarak açılır; değişiklik, fiyat, kullanıcı ve yedek işlemleri yöneticidedir. Yöneticiler tüm sayfaları görür. <b>Geriye dönük işlem</b>: işaretli kullanıcı Günlük İşlem'e geçmiş tarihli kayıt girebilir; işaretsizler yalnızca bugüne girer. İşiniz bitince kapatmayı unutmayın.</div>
   </section>
   <section class="panel">
     <div class="panel-h"><h2>Birimler</h2><button class="btn sm" id="addArea" type="button">+ Birim ekle</button></div>
@@ -3704,13 +3704,13 @@ function vIslem(){
   </section>`;
 }
 function mtForm(r){
-  const areas=mtAreas(),isNew=!r;r=r||{kind:"SATIŞ",area_id:MT.area||(areas[0]||{}).id,date:MT.mode==="gun"?MT.date:TODAY,qty:1,pay:"Nakit"};
+  const areas=mtAreas(),isNew=!r;r=r||{kind:"SATIŞ",area_id:MT.area||(areas[0]||{}).id,date:MT.mode==="gun"&&(can("geriye")||MT.date>=TODAY)?MT.date:TODAY,qty:1,pay:"Nakit"};
   let kind=r.kind;
   const body=()=>`<h3>${isNew?"Yeni işlem":"İşlemi düzenle"}</h3>
     <div class="typepick" id="mtKind" style="margin-bottom:12px">${MT_KIND.map(([k,l])=>`<button type="button" data-k="${k}" data-v="${k==="SATIŞ"||k==="KASA GİRİŞ"?"gelir":k==="TAHSİLAT"?"transfer":"gider"}" aria-pressed="${kind===k}">${l}</button>`).join("")}</div>
     <div class="fgrid">
       <div class="field"><label for="mt-area">Mağaza</label><select id="mt-area">${areas.map(a=>`<option value="${a.id}" ${a.id===r.area_id?"selected":""}>${esc(a.name)}</option>`).join("")}</select></div>
-      <div class="field"><label for="mt-date">Tarih</label><input id="mt-date" type="date" value="${r.date}" ${S.isAdmin?"":`min="${TODAY}" max="${TODAY}"`}></div>
+      <div class="field"><label for="mt-date">Tarih</label><input id="mt-date" type="date" value="${r.date}" ${S.isAdmin?"":can("geriye")?`max="${TODAY}"`:`min="${TODAY}" max="${TODAY}"`}>${S.isAdmin||can("geriye")?"":'<div class="hint">Geçmiş tarihe kayıt için yönetici izni gerekir.</div>'}</div>
       <div class="field full"><label for="mt-cust">${kind==="GİDER"?"Açıklama (ne için)":MT_CASHONLY.has(kind)?"Açıklama":"Müşteri adı"}</label><input id="mt-cust" value="${esc(r.customer||"")}" placeholder="${kind==="GİDER"?"Kargo, temizlik, yemek…":kind==="KASA ÇIKIŞ"?"Bankaya yatırıldı, merkeze teslim…":kind==="KASA GİRİŞ"?"Bozuk para, merkezden gelen…":"Ad soyad"}"></div>
       ${kind==="GİDER"?`<div class="field full"><label for="mt-cat">Gider kategorisi</label><select id="mt-cat">${gdCats().map(c=>`<option ${c===(r.category||"Diğer Gider")?"selected":""}>${esc(c)}</option>`).join("")}</select><div class="hint">Bu gider otomatik olarak <b>Giderler</b> sekmesine de yazılır.</div></div>`:""}
       <div class="field"><label for="mt-amt">Tutar (₺)</label><input id="mt-amt" inputmode="text" value="${r.amount!=null?String(r.amount).replace(".",","):""}" placeholder="0,00 (eksi için -)"></div>
