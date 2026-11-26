@@ -2983,6 +2983,9 @@ const CL_CSS=`<style id="clCss">
 @media (min-width:900px){.cl-scale{left:41%}}
 @media (max-width:760px){.cl-stage{height:470px}.cl-scale{top:60%}.cl-feed{display:none}.cl-leg{max-width:260px}.cl-hud h3{font-size:15px}.cl-hud.tl{max-width:56%}.cl-clock{font-size:18px}}
 @media (prefers-reduced-motion:reduce){.cl-stage *{animation:none!important}}
+.cl-ofis{background:#dfe7f1;cursor:default}.cl-ofis::before{display:none}
+.cl-ofis .cl-pill{background:rgba(15,23,42,.78);border-radius:12px;padding:10px 14px;backdrop-filter:blur(6px);color:#cbd5e1}
+.cl-ofis .cl-load{position:absolute;inset:0;display:grid;place-items:center;color:#334155;font-size:14px}
 </style>`;
 function clScene(){
   const n=CL.workers.length,R=268,states=CL.workers.map(clState);
@@ -3022,6 +3025,51 @@ function clScene(){
         <div class="cl-bb"><div class="cl-hub"><div class="cl-core">AFRA</div>Panel<small>${CL.runs.filter(r=>Date.now()-new Date(r.finished_at)<86400000).length} rapor / 24 sa</small></div></div></div>
     </div></div></div>`;
 }
+function clSummary(){
+  const states=CL.workers.map(clState),now=Date.now();
+  const up=CL.workers.map((w,i)=>({name:w.name,t:states[i].next})).filter(x=>x.t).sort((a,b)=>a.t-b.t)[0]||null;
+  return{running:states.filter(s=>s.st==="calisiyor").length,attention:states.filter(s=>s.st==="hata"||s.st==="gecikti").length,
+    r24:CL.runs.filter(r=>now-new Date(r.finished_at)<86400000).length,up}}
+function clData(){const st={};CL.workers.forEach(w=>st[w.id]=clState(w));
+  return{workers:CL.workers,states:st,runs:CL.runs,col:CL_COL,lbl:CL_LBL,fmtIn:clIn,fmtAgo:clAgo,summary:clSummary()}}
+function clOfis(){
+  const k=clSummary();
+  return CL_CSS+`<div class="cl-stage cl-ofis" id="clStage" aria-label="Çalışanlar 3B ofis">
+    <div id="clOfisHost" style="position:absolute;inset:0">${CL.ofis?"":'<div class="cl-load">3B ofis hazırlanıyor…</div>'}</div>
+    <div class="cl-hud tl" style="left:14px;top:14px"><div class="cl-pill"><h3>Çalışanlar ofisi</h3><div>${CL.workers.length} çalışan · ${k.running?`<b style="color:#22d3ee">${k.running} şu an çalışıyor</b>`:"şu an çalışan yok"}</div>
+      ${k.up?`<div style="margin-top:3px">Sıradaki: <b style="color:#fff">${esc(k.up.name)}</b> · <span data-cl-up>${clIn(k.up.t-Date.now())}</span></div>`:""}</div></div>
+    <div class="cl-hud" style="right:14px;top:14px;text-align:right"><div class="cl-pill" style="padding:8px 12px"><div class="cl-clock" id="clClock">${new Date().toLocaleTimeString("tr-TR")}</div>
+      <div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end"><button type="button" class="cl-btn" id="clZoomIn" aria-label="Yakınlaştır">+</button><button type="button" class="cl-btn" id="clZoomOut" aria-label="Uzaklaştır">−</button><button type="button" class="cl-btn" id="clSpin">${CL.spinOff?"Gezdir":"Durdur"}</button><button type="button" class="cl-btn" id="clRefresh">Yenile</button></div></div></div>
+    <div class="cl-hud" style="left:14px;bottom:12px"><div class="cl-pill" style="padding:8px 12px"><div class="cl-leg">${["calisiyor","basarili","uyari","hata","gecikti","atlandi"].map(k=>`<span><i style="background:${CL_COL[k]};box-shadow:0 0 6px ${CL_COL[k]}"></i>${CL_LBL[k]}</span>`).join("")}</div>
+      <div style="margin-top:3px;color:#94a3b8">Sürükleyerek etrafında gezin · bir masaya tıklayınca ayrıntı açılır</div></div></div>
+  </div>`;
+}
+function clOfisBind(){
+  const host=$("#clOfisHost");if(!host)return;
+  if(!CL.ofisDiv){CL.ofisDiv=document.createElement("div");CL.ofisDiv.style.cssText="position:absolute;inset:0"}
+  if(CL.ofis){host.innerHTML="";host.appendChild(CL.ofisDiv);CL.ofis.setSpin(!CL.spinOff);CL.ofis.update(clData());return}
+  if(CL.ofisLoading)return;CL.ofisLoading=true;
+  const fail=e=>{console.warn("3B ofis açılamadı",e);CL.mode="css";CL.ofisLoading=false;if(S.view==="calisan")render()};
+  try{const t=document.createElement("canvas");if(!(t.getContext("webgl2")||t.getContext("webgl")))return fail("webgl yok")}catch(e){return fail(e)}
+  import("./ofis3d.js?v=3").then(async m=>{
+    const h=$("#clOfisHost");if(!h){CL.ofisLoading=false;return}
+    h.innerHTML="";h.appendChild(CL.ofisDiv);
+    CL.ofis=await m.mount(CL.ofisDiv,{onPick:id=>{const w=CL.workers.find(x=>x.id===id);if(!w)return;CL.w=id;
+      clOpenRun(CL.runs.find(r=>r.worker_id===id),w);const sel=$("#clW");if(sel){sel.value=id;sel.onchange()}}});
+    CL.ofis.setSpin(!CL.spinOff);CL.ofis.update(clData());CL.ofisLoading=false;
+  }).catch(fail);
+}
+function clTickStart(){
+  if(CL.tick)return;
+  CL.tick=setInterval(()=>{
+    if(S.view!=="calisan"||!$("#clStage")){clearInterval(CL.tick);CL.tick=0;return}
+    const c=$("#clClock");if(c)c.textContent=new Date().toLocaleTimeString("tr-TR");
+    const k=clSummary(),u=$("[data-cl-up]");if(u&&k.up)u.textContent=clIn(k.up.t-Date.now());
+    if(CL.ofis&&$("#clOfisHost"))CL.ofis.update(clData());
+    const due=CL.workers.some(w=>{const s=clState(w);return s.st==="calisiyor"||(s.next&&s.next-Date.now()<1000)});
+    if(Date.now()-CL.loadedAt>(due?30000:120000)&&!CL.loading&&!document.hidden)clLoad();
+  },1000);
+}
 function vCalisan(){
   if(!S.isAdmin)return'<div class="banner bad"><span>Bu sayfayı yalnızca yöneticiler görebilir.</span></div>';
   if(!CL.loaded&&!CL.err){clLoad();return'<div class="empty">Yükleniyor…</div>'}
@@ -3039,7 +3087,7 @@ function vCalisan(){
     <div class="kpi"><span class="muted" style="font-size:12px">Şu an dikkat isteyen</span><b style="font-size:22px;${badNow?"color:var(--out)":""}">${badNow}</b></div></div>`;
   const list=CL.runs.filter(r=>(!CL.w||r.worker_id===CL.w)&&(!CL.st||r.status===CL.st));
   const rows=list.slice(0,300).map(r=>`<tr data-cl-r="${r.id}" style="cursor:pointer"><td style="white-space:nowrap">${clWhen(r.finished_at)}</td><td>${esc(nm(r.worker_id))}</td><td>${clChip(r.status)}</td><td>${esc(r.summary||"")}</td><td class="r" style="white-space:nowrap">${clDur(r)}</td></tr>`).join("");
-  return clScene()+kpis+`<section class="panel" id="clHist"><div class="panel-h"><h2>Çalışma geçmişi</h2><div class="filters">
+  return (CL.mode==="css"?clScene():clOfis())+kpis+`<section class="panel" id="clHist"><div class="panel-h"><h2>Çalışma geçmişi</h2><div class="filters">
     <select id="clW" aria-label="Çalışan"><option value="">Tüm çalışanlar</option>${CL.workers.map(w=>`<option value="${esc(w.id)}" ${CL.w===w.id?"selected":""}>${esc(w.name)}</option>`).join("")}</select>
     <select id="clSt" aria-label="Durum"><option value="">Tüm durumlar</option>${Object.entries(CL_ST).map(([k,[l]])=>`<option value="${k}" ${CL.st===k?"selected":""}>${l}</option>`).join("")}</select></div></div>
     <div class="hint">Son 60 gün. Ayrıntı için satıra tıklayın. Bu sayfa yalnızca yöneticilere görünür. 26 Kasım'dan önceki çalışmalar mevcut kayıtlardan (kasa kuyruğu, kontrol sonuçları, fiyat taramaları) çıkarıldı.</div>
@@ -3077,8 +3125,11 @@ function clLoop(t){
 function bindCalisan(){
   const rf=$("#clRefresh");if(!rf)return;
   rf.onclick=()=>{CL.loaded=false;CL.err="";render()};
-  const st=$("#clStage");
-  if(st){
+  const st=$("#clStage");clTickStart();
+  if(st&&$("#clOfisHost")){clOfisBind();
+    $("#clSpin").onclick=()=>{CL.spinOff=!CL.spinOff;$("#clSpin").textContent=CL.spinOff?"Gezdir":"Durdur";if(CL.ofis)CL.ofis.setSpin(!CL.spinOff)};
+    $("#clZoomIn").onclick=()=>CL.ofis&&CL.ofis.zoom(-1);$("#clZoomOut").onclick=()=>CL.ofis&&CL.ofis.zoom(1);
+  }else if(st){
     if(CL.raf)cancelAnimationFrame(CL.raf);CL.lastT=0;clApply();CL.raf=requestAnimationFrame(clLoop);
     st.onpointerdown=e=>{if(e.target.closest(".cl-card,.cl-btn"))return;CL.drag={x:e.clientX,y:e.clientY,th:CL.th,tilt:CL.tilt};st.classList.add("drag");st.setPointerCapture(e.pointerId)};
     st.onpointermove=e=>{if(!CL.drag)return;CL.th=CL.drag.th-(e.clientX-CL.drag.x)*.35;CL.tilt=Math.max(38,Math.min(72,CL.drag.tilt-(e.clientY-CL.drag.y)*.15))};
