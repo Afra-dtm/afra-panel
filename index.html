@@ -2899,16 +2899,16 @@ function bindYedek(){
 
 /* === ÇALIŞANLAR (yalnız yönetici) — 3B kontrol odası; workers + worker_runs (RLS is_admin), görevler worker_log ile yazar === */
 const CL={loaded:false,loading:false,err:"",workers:[],runs:[],w:"",st:"",th:-20,tilt:58,raf:0,drag:null,hover:false,lastTick:0,loadedAt:0};
-const CL_ST={basarili:["Başarılı","in"],uyari:["Uyarı","warn"],hata:["Hata","late"],atlandi:["Atlandı","xfer"]};
-const CL_COL={basarili:"#22c55e",uyari:"#f59e0b",hata:"#ef4444",atlandi:"#94a3b8",calisiyor:"#22d3ee",gecikti:"#fb923c",yok:"#64748b"};
-const CL_LBL={basarili:"Başarılı",uyari:"Uyarı",hata:"Hata",atlandi:"Atlandı",calisiyor:"Çalışıyor",gecikti:"Rapor gelmedi",yok:"Kayıt yok"};
+const CL_ST={calisiyor:["Çalışıyor","xfer"],basarili:["Başarılı","in"],uyari:["Uyarı","warn"],hata:["Hata","late"],atlandi:["Atlandı","xfer"]};
+const CL_COL={basarili:"#22c55e",uyari:"#f59e0b",hata:"#ef4444",atlandi:"#94a3b8",calisiyor:"#22d3ee",gecikti:"#fb923c",yok:"#64748b",bosta:"#60a5fa"};
+const CL_LBL={basarili:"Başarılı",uyari:"Uyarı",hata:"Hata",atlandi:"Atlandı",calisiyor:"Çalışıyor",gecikti:"Rapor gelmedi",yok:"Kayıt yok",bosta:"Boşta"};
 const clChip=st=>{const x=CL_ST[st]||[st,""];return`<span class="chip ${x[1]}">${esc(x[0])}</span>`};
 const clWhen=t=>t?new Date(t).toLocaleString("tr-TR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"—";
 function clAgo(t){if(!t)return"hiç";const m=Math.round((Date.now()-new Date(t))/60000);
   return m<1?"az önce":m<60?m+" dk önce":m<1440?Math.round(m/60)+" sa önce":Math.round(m/1440)+" gün önce"}
 function clIn(ms){if(ms<=0)return"şimdi";const s=Math.floor(ms/1000),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);
   return d?d+" g "+h+" sa":h?h+" sa "+m+" dk":m?m+" dk "+(s%60)+" sn":s+" sn"}
-function clDur(r){if(!r.started_at)return"";const s=Math.round((new Date(r.finished_at)-new Date(r.started_at))/1000);return s<60?s+" sn":Math.round(s/60)+" dk"}
+function clDur(r){if(!r.started_at||!r.finished_at)return"";const s=Math.round((new Date(r.finished_at)-new Date(r.started_at))/1000);return s<60?s+" sn":Math.round(s/60)+" dk"}
 /* basit cron (dakika saat gün ay haftagünü), tarayıcı saatiyle (Türkiye) */
 function clField(f,lo,hi){const o=new Set();String(f||"*").split(",").forEach(p=>{let[r,st]=p.split("/");st=+st||1;let a=lo,b=hi;
   if(r!=="*"){const q=r.split("-");a=+q[0];b=q.length>1?+q[1]:(p.includes("/")?hi:a)}for(let i=a;i<=b;i+=st)o.add(i)});return o}
@@ -2922,8 +2922,13 @@ function clFire(c,from,dir){const C=clCron(c);if(!C)return null;const base=new D
   return null}
 function clState(w){
   const now=new Date(),last=CL.runs.find(r=>r.worker_id===w.id),prev=clFire(w.cron,now,-1),next=clFire(w.cron,now,1),est=(w.est_minutes||15)*60000;
-  const since=prev&&(!last||new Date(last.finished_at)<prev-60000);
-  let st=last?last.status:"yok",prog=0;
+  if(last&&last.status==="calisiyor"){const el=now-new Date(last.started_at||last.created_at);
+    if(el<3*3600000)return{st:"calisiyor",last,prev,next,prog:Math.min(.95,el/(w.kind==="ekip"?600000:est)),task:(last.summary||"").slice(0,60)};
+    return{st:"hata",last,prev,next,prog:0}}
+  const lastT=last?new Date(last.finished_at||last.created_at):null;
+  const since=prev&&(!last||lastT<prev-60000);
+  let st=last?last.status:(w.kind==="ekip"?"bosta":"yok"),prog=0;
+  if(w.kind==="ekip"&&last&&now-lastT>12*3600000)st="bosta";
   if(since&&now-prev<est*1.6){st="calisiyor";prog=Math.min(.96,(now-prev)/est)}
   else if(since&&now-prev<6*3600000)st="gecikti";
   return{st,last,prev,next,prog}}
@@ -2931,7 +2936,7 @@ async function clLoad(){
   if(CL.loading)return;CL.loading=true;CL.err="";
   try{const since=new Date(Date.now()-60*86400000).toISOString();
     const[w,r]=await Promise.all([sb.from("workers").select("*").eq("active",true).order("sort"),
-      sb.from("worker_runs").select("*").gte("finished_at",since).order("finished_at",{ascending:false}).limit(1000)]);
+      sb.from("worker_runs").select("*").gte("created_at",since).order("created_at",{ascending:false}).limit(1500)]);
     if(w.error||r.error)throw(w.error||r.error);CL.workers=w.data||[];CL.runs=r.data||[];CL.loaded=true;CL.loadedAt=Date.now();
   }catch(e){CL.err="Çalışanlar okunamadı: "+errMsg(e)}
   CL.loading=false;if(S.view==="calisan")render()}
@@ -3002,13 +3007,13 @@ function clScene(){
         <div class="cl-card" style="--d:${(-i*.6).toFixed(1)}s" data-cl-w="${esc(w.id)}" title="${esc(w.description||"")}">
           <b>${esc(w.name)}</b>
           <span class="cl-tag"><i></i>${CL_LBL[s.st]}</span>
-          <div class="cl-sub">Son: ${s.last?clAgo(s.last.finished_at):"—"}</div>
+          <div class="cl-sub">Son: ${s.last?clAgo(s.last.finished_at||s.last.started_at):"—"}</div>
           <div class="cl-sub" data-cl-next="${esc(w.id)}">${s.st==="calisiyor"?"Çalışıyor… ~%"+Math.round(s.prog*100):"Sıradaki: "+(s.next?clIn(s.next-Date.now()):"—")}</div>
           ${s.st==="calisiyor"?`<div class="cl-bar"><span style="width:${Math.round(s.prog*100)}%"></span></div>`:""}
         </div></div></div>`}).join("");
   const runCount=states.filter(s=>s.st==="calisiyor").length;
   const up=CL.workers.map((w,i)=>({w,t:states[i].next})).filter(x=>x.t).sort((a,b)=>a.t-b.t)[0];
-  const feed=CL.runs.slice(0,5).map(r=>`<div style="--c:${CL_COL[r.status]||"#64748b"}"><b>${esc((CL.workers.find(w=>w.id===r.worker_id)||{}).name||r.worker_id)}</b> · ${clAgo(r.finished_at)}<br>${esc((r.summary||"").slice(0,90))}</div>`).join("");
+  const feed=CL.runs.slice(0,5).map(r=>`<div style="--c:${CL_COL[r.status]||"#64748b"}"><b>${esc((CL.workers.find(w=>w.id===r.worker_id)||{}).name||r.worker_id)}</b> · ${clAgo(r.finished_at||r.started_at)}<br>${esc((r.summary||"").slice(0,90))}</div>`).join("");
   return CL_CSS+`<div class="cl-stage" id="clStage" aria-label="Çalışanlar kontrol odası">
     <div class="cl-hud tl" style="left:18px;top:16px"><h3>Kontrol odası</h3><div>${n} çalışan · ${runCount?`<b style="color:#22d3ee">${runCount} şu an çalışıyor</b>`:"şu an çalışan yok"}</div>
       ${up?`<div style="margin-top:4px">Sıradaki: <b style="color:#fff">${esc(up.w.name)}</b> · <span data-cl-up>${clIn(up.t-Date.now())}</span></div>`:""}</div>
@@ -3029,7 +3034,7 @@ function clSummary(){
   const states=CL.workers.map(clState),now=Date.now();
   const up=CL.workers.map((w,i)=>({name:w.name,t:states[i].next})).filter(x=>x.t).sort((a,b)=>a.t-b.t)[0]||null;
   return{running:states.filter(s=>s.st==="calisiyor").length,attention:states.filter(s=>s.st==="hata"||s.st==="gecikti").length,
-    r24:CL.runs.filter(r=>now-new Date(r.finished_at)<86400000).length,up}}
+    r24:CL.runs.filter(r=>r.finished_at&&now-new Date(r.finished_at)<86400000).length,up}}
 function clData(){const st={};CL.workers.forEach(w=>st[w.id]=clState(w));
   return{workers:CL.workers,states:st,runs:CL.runs,col:CL_COL,lbl:CL_LBL,fmtIn:clIn,fmtAgo:clAgo,summary:clSummary()}}
 function clOfis(){
@@ -3040,7 +3045,7 @@ function clOfis(){
       ${k.up?`<div style="margin-top:3px">Sıradaki: <b style="color:#fff">${esc(k.up.name)}</b> · <span data-cl-up>${clIn(k.up.t-Date.now())}</span></div>`:""}</div></div>
     <div class="cl-hud" style="right:14px;top:14px;text-align:right"><div class="cl-pill" style="padding:8px 12px"><div class="cl-clock" id="clClock">${new Date().toLocaleTimeString("tr-TR")}</div>
       <div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end"><button type="button" class="cl-btn" id="clZoomIn" aria-label="Yakınlaştır">+</button><button type="button" class="cl-btn" id="clZoomOut" aria-label="Uzaklaştır">−</button><button type="button" class="cl-btn" id="clSpin">${CL.spinOff?"Gezdir":"Durdur"}</button><button type="button" class="cl-btn" id="clRefresh">Yenile</button></div></div></div>
-    <div class="cl-hud" style="left:14px;bottom:12px"><div class="cl-pill" style="padding:8px 12px"><div class="cl-leg">${["calisiyor","basarili","uyari","hata","gecikti","atlandi"].map(k=>`<span><i style="background:${CL_COL[k]};box-shadow:0 0 6px ${CL_COL[k]}"></i>${CL_LBL[k]}</span>`).join("")}</div>
+    <div class="cl-hud" style="left:14px;bottom:12px"><div class="cl-pill" style="padding:8px 12px"><div class="cl-leg">${["calisiyor","basarili","uyari","hata","gecikti","atlandi","bosta"].map(k=>`<span><i style="background:${CL_COL[k]};box-shadow:0 0 6px ${CL_COL[k]}"></i>${CL_LBL[k]}</span>`).join("")}</div>
       <div style="margin-top:3px;color:#94a3b8">Sürükleyerek etrafında gezin · bir masaya tıklayınca ayrıntı açılır</div></div></div>
   </div>`;
 }
@@ -3051,7 +3056,7 @@ function clOfisBind(){
   if(CL.ofisLoading)return;CL.ofisLoading=true;
   const fail=e=>{console.warn("3B ofis açılamadı",e);CL.mode="css";CL.ofisLoading=false;if(S.view==="calisan")render()};
   try{const t=document.createElement("canvas");if(!(t.getContext("webgl2")||t.getContext("webgl")))return fail("webgl yok")}catch(e){return fail(e)}
-  import("./ofis3d.js?v=3").then(async m=>{
+  import("./ofis3d.js?v=5").then(async m=>{
     const h=$("#clOfisHost");if(!h){CL.ofisLoading=false;return}
     h.innerHTML="";h.appendChild(CL.ofisDiv);
     CL.ofis=await m.mount(CL.ofisDiv,{onPick:id=>{const w=CL.workers.find(x=>x.id===id);if(!w)return;CL.w=id;
@@ -3075,9 +3080,9 @@ function vCalisan(){
   if(!CL.loaded&&!CL.err){clLoad();return'<div class="empty">Yükleniyor…</div>'}
   if(CL.err)return`<div class="banner bad"><span>${esc(CL.err)}</span><button class="btn sm" id="clRefresh" type="button">Tekrar dene</button></div>`;
   const d1=Date.now()-86400000,d7=Date.now()-7*86400000,states=CL.workers.map(clState);
-  const r24=CL.runs.filter(r=>new Date(r.finished_at)>=d1).length;
-  const bad7=CL.runs.filter(r=>new Date(r.finished_at)>=d7&&(r.status==="hata"||r.status==="uyari")).length;
-  const ok7=CL.runs.filter(r=>new Date(r.finished_at)>=d7),rate=ok7.length?Math.round(100*ok7.filter(r=>r.status==="basarili"||r.status==="atlandi").length/ok7.length):0;
+  const r24=CL.runs.filter(r=>r.finished_at&&new Date(r.finished_at)>=d1).length;
+  const bad7=CL.runs.filter(r=>r.finished_at&&new Date(r.finished_at)>=d7&&(r.status==="hata"||r.status==="uyari")).length;
+  const ok7=CL.runs.filter(r=>r.finished_at&&new Date(r.finished_at)>=d7),rate=ok7.length?Math.round(100*ok7.filter(r=>r.status==="basarili"||r.status==="atlandi").length/ok7.length):0;
   const badNow=states.filter(s=>s.st==="hata"||s.st==="gecikti").length;
   const nm=id=>(CL.workers.find(w=>w.id===id)||{}).name||id;
   const kpis=`<div class="kpis" style="margin-bottom:14px">
@@ -3086,12 +3091,12 @@ function vCalisan(){
     <div class="kpi"><span class="muted" style="font-size:12px">Son 7 günde uyarı / hata</span><b style="font-size:22px">${bad7}</b></div>
     <div class="kpi"><span class="muted" style="font-size:12px">Şu an dikkat isteyen</span><b style="font-size:22px;${badNow?"color:var(--out)":""}">${badNow}</b></div></div>`;
   const list=CL.runs.filter(r=>(!CL.w||r.worker_id===CL.w)&&(!CL.st||r.status===CL.st));
-  const rows=list.slice(0,300).map(r=>`<tr data-cl-r="${r.id}" style="cursor:pointer"><td style="white-space:nowrap">${clWhen(r.finished_at)}</td><td>${esc(nm(r.worker_id))}</td><td>${clChip(r.status)}</td><td>${esc(r.summary||"")}</td><td class="r" style="white-space:nowrap">${clDur(r)}</td></tr>`).join("");
+  const rows=list.slice(0,300).map(r=>`<tr data-cl-r="${r.id}" style="cursor:pointer"><td style="white-space:nowrap">${clWhen(r.finished_at||r.started_at)}</td><td>${esc(nm(r.worker_id))}</td><td>${clChip(r.status)}</td><td>${esc(r.summary||"")}</td><td class="r" style="white-space:nowrap">${clDur(r)}</td></tr>`).join("");
   return (CL.mode==="css"?clScene():clOfis())+kpis+`<section class="panel" id="clHist"><div class="panel-h"><h2>Çalışma geçmişi</h2><div class="filters">
     <select id="clW" aria-label="Çalışan"><option value="">Tüm çalışanlar</option>${CL.workers.map(w=>`<option value="${esc(w.id)}" ${CL.w===w.id?"selected":""}>${esc(w.name)}</option>`).join("")}</select>
     <select id="clSt" aria-label="Durum"><option value="">Tüm durumlar</option>${Object.entries(CL_ST).map(([k,[l]])=>`<option value="${k}" ${CL.st===k?"selected":""}>${l}</option>`).join("")}</select></div></div>
     <div class="hint">Son 60 gün. Ayrıntı için satıra tıklayın. Bu sayfa yalnızca yöneticilere görünür. 26 Kasım'dan önceki çalışmalar mevcut kayıtlardan (kasa kuyruğu, kontrol sonuçları, fiyat taramaları) çıkarıldı.</div>
-    ${list.length?`<div class="tbl-wrap"><table class="mtx" style="min-width:720px"><thead><tr><th>Bitiş</th><th>Çalışan</th><th>Durum</th><th>Özet</th><th class="r">Süre</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Bu filtrede çalışma yok.</div>'}
+    ${list.length?`<div class="tbl-wrap"><table class="mtx" style="min-width:720px"><thead><tr><th>Zaman</th><th>Çalışan</th><th>Durum</th><th>Özet</th><th class="r">Süre</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Bu filtrede çalışma yok.</div>'}
   </section>`;
 }
 function clDetails(d){
@@ -3102,7 +3107,7 @@ function clOpenRun(r,w){
   const s=w?clState(w):null;
   sheet(`<h3>${esc(w?w.name:r.worker_id)}</h3>
     ${w?`<div class="hint">${esc(w.description||"")} · ${esc(w.schedule_label||"")}${s&&s.next?" · sıradaki çalışma "+clWhen(s.next):""}</div>`:""}
-    ${r?`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${clChip(r.status)}<span class="muted" style="font-size:13px">${r.started_at?"Başladı "+clWhen(r.started_at)+" · ":""}Bitti ${clWhen(r.finished_at)}${clDur(r)?" · "+clDur(r):""}</span></div>
+    ${r?`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${clChip(r.status)}<span class="muted" style="font-size:13px">${r.started_at?"Başladı "+clWhen(r.started_at)+" · ":""}${r.finished_at?"Bitti "+clWhen(r.finished_at):"devam ediyor"}${clDur(r)?" · "+clDur(r):""}</span></div>
     <div style="font-size:14px;white-space:pre-wrap">${esc(r.summary||"Özet yok.")}</div>${clDetails(r.details)}`:'<div class="empty">Henüz çalışma kaydı yok.</div>'}
     <div class="actions"><div class="right"><button type="button" class="btn primary" data-cancel>Kapat</button></div></div>`,"clForm")}
 function clApply(){
