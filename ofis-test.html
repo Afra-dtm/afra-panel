@@ -1,0 +1,17 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ofis deneme</title>
+<style>body{margin:0;font-family:system-ui;background:#eef2f6}#h{position:relative;height:600px;margin:12px;border-radius:16px;overflow:hidden}#msg{padding:8px 14px;font-size:13px}</style></head>
+<body><div id="msg">Örnek verili deneme sayfası (gerçek veri yok).</div><div id="h"></div>
+<script type="module">
+import {mount} from "./ofis3d.js?v=1";
+const col={basarili:"#22c55e",uyari:"#f59e0b",hata:"#ef4444",atlandi:"#94a3b8",calisiyor:"#22d3ee",gecikti:"#fb923c",yok:"#64748b"};
+const lbl={basarili:"Başarılı",uyari:"Uyarı",hata:"Hata",atlandi:"Atlandı",calisiyor:"Çalışıyor",gecikti:"Rapor gelmedi",yok:"Kayıt yok"};
+const W=[["ax_oturum","AX Oturum Açma","atlandi"],["kasa","AX Kasa Aktarımı","basarili"],["sevkiyat","AX Günlük Sevkiyat","uyari"],["kontrol","AFRA Kontrol Ajanı","calisiyor"],["fiyat","Arçelik Fiyat Taraması","hata"],["ax_aksam","AX Akşam Oturum Kontrolü","basarili"],["guvenlik","Yazılım Güvenlik Denetimi","gecikti"]];
+const now=Date.now(),workers=W.map(([id,name])=>({id,name}));
+const runs=W.map(([id,,st],i)=>({id:i,worker_id:id,status:st==="calisiyor"||st==="gecikti"?"basarili":st,finished_at:new Date(now-(i+1)*3600e3).toISOString(),summary:"Örnek özet "+i}));
+const fmtIn=ms=>{const m=Math.max(0,Math.round(ms/60000));return m<60?m+" dk":Math.floor(m/60)+" sa "+m%60+" dk"};
+const fmtAgo=t=>Math.round((Date.now()-new Date(t))/3600e3)+" sa önce";
+const states={};W.forEach(([id,,st],i)=>states[id]={st,last:runs[i],next:new Date(now+(i+1)*2.7e6),prog:.42});
+const ctl=await mount(document.getElementById("h"),{onPick:id=>{document.getElementById("msg").textContent="Seçildi: "+id}});
+ctl.update({workers,states,runs,col,lbl,fmtIn,fmtAgo,summary:{running:1,attention:2,r24:5,up:{name:"AX Oturum Açma",t:new Date(now+2.7e6)}}});
+window.ctl=ctl;
+</script></body></html>
