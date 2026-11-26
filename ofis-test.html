@@ -457,7 +457,7 @@ function clOfisBind(){
   if(CL.ofisLoading)return;CL.ofisLoading=true;
   const fail=e=>{console.warn("3B ofis açılamadı",e);CL.mode="css";CL.ofisLoading=false;if(S.view==="calisan")render()};
   try{const t=document.createElement("canvas");if(!(t.getContext("webgl2")||t.getContext("webgl")))return fail("webgl yok")}catch(e){return fail(e)}
-  import("./ofis3d.js?v=4").then(async m=>{
+  import("./ofis3d.js?v=5").then(async m=>{
     const h=$("#clOfisHost");if(!h){CL.ofisLoading=false;return}
     h.innerHTML="";h.appendChild(CL.ofisDiv);
     CL.ofis=await m.mount(CL.ofisDiv,{onPick:id=>{const w=CL.workers.find(x=>x.id===id);if(!w)return;CL.w=id;

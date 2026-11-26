@@ -155,8 +155,8 @@ export async function mount(host, api) {
   // parıltı dokusu
   var glowTex; { const { ctx, t } = canvasTex(64, 64); const gr = ctx.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = gr; ctx.fillRect(0, 0, 64, 64); glowTex = t; disposables.push(t); }
 
-  let data = null, hoverId = null, selId = null, spin = true, az = 0.55, pol = 0.98, rad = 15, azT = az, dragging = null, t0 = performance.now(), alive = true;
-  const target = new THREE.Vector3(0, 0.9, 1.0);
+  let data = null, hoverId = null, selId = null, spin = true, az = 0.55, pol = 0.98, rad = 19, azT = az, dragging = null, t0 = performance.now(), alive = true;
+  const target = new THREE.Vector3(0, 0.9, 1.4);
 
   function drawTag(st, now) {
     const { ctx, c, t } = st.tag, s = st.state || { st: "yok" }, col = data.col[s.st] || "#64748b", hov = hoverId === st.w.id || selId === st.w.id;
@@ -293,7 +293,7 @@ export async function mount(host, api) {
   return {
     update,
     setSpin(on) { spin = on; },
-    zoom(dir) { rad = Math.max(6.5, Math.min(20, rad + dir * 2)); },
+    zoom(dir) { rad = Math.max(7, Math.min(26, rad + dir * 2)); },
     select(id) { selId = id; for (const s of stations.values()) s.lastTag = 0; },
     canvas: cv,
     dispose() { alive = false; ro.disconnect(); disposables.forEach(x => x.dispose && x.dispose()); renderer.dispose(); renderer.forceContextLoss(); cv.remove(); }
