@@ -6,7 +6,12 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.m
 const SHIRTS = [0x2563eb, 0x0d9488, 0x7c3aed, 0xdb2777, 0xea580c, 0x0891b2, 0x4f46e5, 0x16a34a];
 const SKINS = [0xf1c27d, 0xe0ac69, 0xc68642, 0xffdbac, 0x8d5524, 0xf1c27d, 0xe0ac69];
 const HAIR = [0x2b1d14, 0x3b2a1a, 0x111111, 0x6b4423, 0x1f1a17, 0x4a3426, 0x0f0f0f];
-const DESKS = [[-4.8, -1.6], [-1.6, -1.6], [1.6, -1.6], [4.8, -1.6], [-3.2, 2.2], [0, 2.2], [3.2, 2.2], [6.4, 2.2], [-6.4, 2.2]];
+const COLS = [-8, -4.8, -1.6, 1.6, 4.8, 8];
+// 0: Genel Müdür (arka köşe, büyük masa); ekip ön sıralar, zamanlanmış görevler arka sıralar
+const GM_SLOT = [-7.6, -3.9];
+const EKIP_SLOTS = [...COLS.map(x => [x, -1.2]), [-8, 2.0], [-4.8, 2.0], [-1.6, 2.0], [1.6, 2.0], [4.8, 2.0], [8, 2.0]];
+const GOREV_SLOTS = [[1.6, 2.0], [4.8, 2.0], [8, 2.0], ...COLS.map(x => [x, 5.2])];
+const SUITS = [0x1e293b, 0x334155, 0x1e3a8a, 0x3f3f46, 0x172554, 0x374151, 0x0f172a, 0x312e81, 0x27272a];
 
 function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 function canvasTex(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return { c, ctx: c.getContext("2d"), t }; }
@@ -49,7 +54,7 @@ export async function mount(host, api) {
     const g = new THREE.PlaneGeometry(22, 16); disposables.push(g);
     const fl = new THREE.Mesh(g, M(0xffffff, { map: t, roughness: 0.55 })); fl.rotation.x = -Math.PI / 2; fl.receiveShadow = true; scene.add(fl); }
   // halı
-  { const g = new THREE.PlaneGeometry(15, 7.4); disposables.push(g); const r = new THREE.Mesh(g, M(0x3b4a63, { roughness: 1 })); r.rotation.x = -Math.PI / 2; r.position.set(0, 0.005, 0.3); r.receiveShadow = true; scene.add(r); }
+  { const g = new THREE.PlaneGeometry(19.5, 9.6); disposables.push(g); const r = new THREE.Mesh(g, M(0x3b4a63, { roughness: 1 })); r.rotation.x = -Math.PI / 2; r.position.set(0.3, 0.005, 1.9); r.receiveShadow = true; scene.add(r); }
   // duvarlar
   const wallM = M(night ? 0xc9d1de : 0xf3f1ec, { roughness: 0.95 });
   box(22, 3.4, 0.2, wallM, 0, 1.7, -6, scene, false); box(0.2, 3.4, 16, wallM, -11, 1.7, 0, scene, false);
@@ -82,9 +87,15 @@ export async function mount(host, api) {
   const deskWood = M(0xd4b48c, { roughness: 0.6 }), metal = M(0x4b5563, { metalness: 0.5, roughness: 0.4 }), black = M(0x1f2937, { roughness: 0.5 });
   const chairM = M(0x334155), pants = M(0x1e293b), shoe = M(0x111111);
   const stations = new Map(); const pickables = [];
+  let nEkip = 0, nGorev = 0;
   function makeStation(w, i) {
-    const [x, z] = DESKS[i % DESKS.length];
-    const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+    const isGM = w.id === "genel_mudur", isEkip = w.kind === "ekip";
+    let slot;
+    if (isGM) slot = GM_SLOT;
+    else if (isEkip) { slot = EKIP_SLOTS[nEkip % EKIP_SLOTS.length]; nEkip++; }
+    else { slot = GOREV_SLOTS[nGorev % GOREV_SLOTS.length]; nGorev++; }
+    const [x, z] = slot;
+    const g = new THREE.Group(); g.position.set(x, 0, z); if (isGM) g.scale.setScalar(1.15); scene.add(g);
     // masa
     box(1.7, 0.06, 0.85, deskWood, 0, 0.75, 0, g); [[-0.8, -0.38], [0.8, -0.38], [-0.8, 0.38], [0.8, 0.38]].forEach(([a, b]) => box(0.05, 0.72, 0.05, metal, a, 0.36, b, g));
     box(1.6, 0.35, 0.03, M(0xb89470), 0, 0.55, -0.4, g);
@@ -95,6 +106,7 @@ export async function mount(host, api) {
     const sm = new THREE.MeshBasicMaterial({ map: scr.t, toneMapped: false }); disposables.push(sm);
     const sg = new THREE.PlaneGeometry(0.72, 0.42); disposables.push(sg); const screen = new THREE.Mesh(sg, sm); screen.position.set(0, 1.18, -0.248); g.add(screen);
     box(0.5, 0.02, 0.16, M(0x374151), 0, 0.79, 0.1, g); box(0.07, 0.02, 0.1, M(0x374151), 0.38, 0.79, 0.12, g);
+    if (isGM) { box(0.42, 0.1, 0.06, M(0xca8a04, { metalness: 0.6, roughness: 0.3 }), -0.35, 0.83, 0.3, g); box(0.9, 0.6, 0.05, M(0x7c2d12), 0, 1.2, 0.9, g); }
     // kupa + durum lambası
     cyl(0.04, 0.035, 0.09, M(SHIRTS[(i + 3) % SHIRTS.length]), -0.6, 0.83, 0.05, g, 12);
     cyl(0.05, 0.07, 0.03, metal, 0.65, 0.795, -0.25, g, 12); cyl(0.012, 0.012, 0.22, metal, 0.65, 0.9, -0.25, g, 8);
@@ -106,12 +118,13 @@ export async function mount(host, api) {
     const seat = new THREE.Group(); seat.position.set(0, 0, 0.72); g.add(seat);
     cyl(0.03, 0.03, 0.4, metal, 0, 0.22, 0, seat, 8); cyl(0.28, 0.28, 0.03, metal, 0, 0.03, 0, seat, 5);
     box(0.5, 0.07, 0.48, chairM, 0, 0.46, 0, seat); const back = box(0.48, 0.55, 0.06, chairM, 0, 0.78, 0.24, seat); back.rotation.x = -0.08;
-    const shirt = M(SHIRTS[i % SHIRTS.length]), skin = M(SKINS[i % SKINS.length], { roughness: 0.6 }), hair = M(HAIR[i % HAIR.length], { roughness: 0.9 });
+    const shirt = M(isEkip ? SUITS[i % SUITS.length] : SHIRTS[i % SHIRTS.length]), skin = M(SKINS[i % SKINS.length], { roughness: 0.6 }), hair = M(HAIR[i % HAIR.length], { roughness: 0.9 });
     const body = new THREE.Group(); body.position.set(0, 0.5, 0.02); seat.add(body);
     // bacaklar
     [-0.1, 0.1].forEach(a => { box(0.13, 0.13, 0.42, pants, a, 0.02, -0.2, body); box(0.12, 0.42, 0.12, pants, a, -0.2, -0.4, body); box(0.13, 0.07, 0.2, shoe, a, -0.44, -0.46, body); });
     const torso = new THREE.Group(); body.add(torso);
     { const cg = new THREE.CapsuleGeometry(0.17, 0.3, 6, 14); disposables.push(cg); const t = new THREE.Mesh(cg, shirt); t.position.y = 0.33; t.scale.z = 0.75; t.castShadow = true; torso.add(t); }
+    if (isEkip) { box(0.16, 0.2, 0.02, M(0xf8fafc), 0, 0.55, -0.125, torso, false); box(0.05, 0.2, 0.025, M(isGM ? 0xb91c1c : [0xdc2626, 0x2563eb, 0x059669, 0x7c3aed, 0xd97706][i % 5]), 0, 0.5, -0.135, torso, false); }
     const head = new THREE.Group(); head.position.set(0, 0.72, 0); torso.add(head);
     sph(0.13, skin, 0, 0.06, 0, head); cyl(0.05, 0.05, 0.08, skin, 0, -0.06, 0, head, 10);
     { const hg = new THREE.SphereGeometry(0.135, 20, 12, 0, Math.PI * 2, 0, Math.PI / 1.9); disposables.push(hg); const h = new THREE.Mesh(hg, hair); h.position.y = 0.075; h.rotation.x = 0.35; h.castShadow = true; head.add(h); }
@@ -123,7 +136,7 @@ export async function mount(host, api) {
     // isim etiketi
     const tag = canvasTex(512, 168); disposables.push(tag.t);
     const tm = new THREE.SpriteMaterial({ map: tag.t, transparent: true, depthWrite: false, toneMapped: false }); disposables.push(tm);
-    const sprite = new THREE.Sprite(tm); sprite.scale.set(2.35, 0.77, 1); sprite.position.set(0, 2.5, 0); sprite.renderOrder = 10; g.add(sprite);
+    const sprite = new THREE.Sprite(tm); sprite.scale.set(2.05, 0.67, 1); sprite.position.set(0, 2.45, 0); sprite.renderOrder = 10; g.add(sprite);
     // ünlem/soru işareti
     const mark = canvasTex(128, 128); disposables.push(mark.t);
     const mkm = new THREE.SpriteMaterial({ map: mark.t, transparent: true, depthWrite: false, toneMapped: false }); disposables.push(mkm);
@@ -142,8 +155,8 @@ export async function mount(host, api) {
   // parıltı dokusu
   var glowTex; { const { ctx, t } = canvasTex(64, 64); const gr = ctx.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = gr; ctx.fillRect(0, 0, 64, 64); glowTex = t; disposables.push(t); }
 
-  let data = null, hoverId = null, selId = null, spin = true, az = 0.55, pol = 0.98, rad = 12.5, azT = az, dragging = null, t0 = performance.now(), alive = true;
-  const target = new THREE.Vector3(0, 0.9, 0.4);
+  let data = null, hoverId = null, selId = null, spin = true, az = 0.55, pol = 0.98, rad = 15, azT = az, dragging = null, t0 = performance.now(), alive = true;
+  const target = new THREE.Vector3(0, 0.9, 1.0);
 
   function drawTag(st, now) {
     const { ctx, c, t } = st.tag, s = st.state || { st: "yok" }, col = data.col[s.st] || "#64748b", hov = hoverId === st.w.id || selId === st.w.id;
@@ -156,7 +169,7 @@ export async function mount(host, api) {
     ctx.font = "600 30px system-ui,Segoe UI,Arial"; ctx.fillText(data.lbl[s.st] || s.st, 60, 106);
     const w0 = ctx.measureText(data.lbl[s.st] || s.st).width;
     ctx.fillStyle = "#94a3b8"; ctx.font = "26px system-ui,Segoe UI,Arial";
-    const sub = s.st === "calisiyor" ? "~%" + Math.round((s.prog || 0) * 100) : s.next ? "sıradaki " + data.fmtIn(s.next - now) : "";
+    const sub = s.st === "calisiyor" ? (s.task ? s.task : "~%" + Math.round((s.prog || 0) * 100)) : s.next ? "sıradaki " + data.fmtIn(s.next - now) : (s.last ? data.fmtAgo(s.last.finished_at || s.last.started_at) : "");
     ctx.fillText(fitText(ctx, sub, 420 - w0), 80 + w0, 106);
     t.needsUpdate = true;
   }
@@ -172,7 +185,7 @@ export async function mount(host, api) {
     } else {
       ctx.fillStyle = col; ctx.font = "700 30px system-ui,Arial"; ctx.fillText(data.lbl[s.st] || s.st, 14, 80);
       ctx.fillStyle = "#cbd5e1"; ctx.font = "16px system-ui,Arial";
-      ctx.fillText("Son: " + (s.last ? data.fmtAgo(s.last.finished_at) : "—"), 14, 112);
+      ctx.fillText("Son: " + (s.last ? data.fmtAgo(s.last.finished_at || s.last.started_at) : "—"), 14, 112);
       ctx.fillText("Sıradaki: " + (s.next ? data.fmtIn(s.next - now) : "—"), 14, 136);
       // küçük grafik: son 10 çalışma
       const rs = data.runs.filter(r => r.worker_id === st.w.id).slice(0, 12).reverse();
@@ -200,7 +213,7 @@ export async function mount(host, api) {
     d.runs.slice(0, 4).forEach((r, i) => { const y = 316 + i * 58; ctx.fillStyle = d.col[r.status] || "#64748b"; ctx.fillRect(36, y, 8, 42);
       const nm = (d.workers.find(w => w.id === r.worker_id) || {}).name || r.worker_id;
       ctx.fillStyle = "#fff"; ctx.font = "600 24px system-ui,Arial"; ctx.fillText(fitText(ctx, nm, 380), 58, y + 18);
-      ctx.fillStyle = "#94a3b8"; ctx.font = "22px system-ui,Arial"; ctx.fillText(fitText(ctx, d.fmtAgo(r.finished_at) + " · " + (r.summary || ""), 900), 58, y + 42); });
+      ctx.fillStyle = "#94a3b8"; ctx.font = "22px system-ui,Arial"; ctx.fillText(fitText(ctx, d.fmtAgo(r.finished_at || r.started_at) + " · " + (r.summary || ""), 900), 58, y + 42); });
     t.needsUpdate = true;
   }
 
