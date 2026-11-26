@@ -140,3 +140,10 @@ GÖREV: Afra Dayanıklı Tüketim (Arçelik bayisi) için arcelik.com.tr'deki t�
 - state='hata' ya da tarayıcıya ulaşılamıyorsa: "Arçelik fiyat taraması yapılamadı: <neden>. Görev yarın tekrar deneyecek." (Çarşambaysa: "Bu hafta fiyat çekilemedi; bilgisayar açıkken bu sohbete 'fiyatları çek' yazabilirsiniz.") Başarısız çekimi 'tamam' YAPMA.
 - Sekmeyi kapat. Kendi SQL'inle hiçbir tabloya yazma; kayıtları betikteki ingest_web_price_snapshot fonksiyonu yapar.
 ```
+
+## ORTAK SON ADIM — ÇALIŞAN KAYDI (26 Kasım 2026'dan itibaren 7 görevin hepsinde)
+Her görev, nerede durursa dursun, en sonda AFRA Panel → Takip → Çalışanlar sayfasını besleyen kaydı yazar:
+`select worker_log('<id>', '<basarili|uyari|hata|atlandi>', '<özet>', '<ayrıntı json>'::jsonb, '<T0>'::timestamptz);`
+Kimlikler: ax_oturum, kasa, sevkiyat, kontrol, fiyat, ax_aksam, guvenlik (tablo `workers`; cron ve tahmini süre orada).
+`worker_log` anon/authenticated'a kapalıdır; yalnızca görevlerin execute_sql bağlantısı çağırır. `workers` / `worker_runs` yalnız yöneticiye okunur.
+Görev metinlerinin güncel hâli zamanlanmış görevlerin kendisindedir (bu dosyadaki eski metinlere bu adım eklenmedi).
