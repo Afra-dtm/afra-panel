@@ -76,7 +76,7 @@ export async function mount(host, api) {
     [[-10, -5], [9.6, -5], [-10, 6.5], [8.6, 5.6]].forEach(([x, z], i) => { cyl(0.28, 0.22, 0.5, pot, x, 0.25, z); sph(0.45, i % 2 ? leaf : leaf2, x, 0.85, z); sph(0.32, leaf, x + 0.2, 1.15, z - 0.1); sph(0.28, leaf2, x - 0.18, 1.2, z + 0.12); });
     // su sebili
     cyl(0.22, 0.22, 1.0, M(0xe5e7eb), 8.4, 0.5, -5.3); cyl(0.17, 0.17, 0.45, M(0x60a5fa, { transparent: true, opacity: 0.65, roughness: 0.1 }), 8.4, 1.22, -5.3);
-})); }
+  }
 
   // masalar + çalışanlar
   const deskWood = M(0xd4b48c, { roughness: 0.6 }), metal = M(0x4b5563, { metalness: 0.5, roughness: 0.4 }), black = M(0x1f2937, { roughness: 0.5 });
