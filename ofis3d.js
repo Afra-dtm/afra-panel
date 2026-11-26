@@ -76,9 +76,7 @@ export async function mount(host, api) {
     [[-10, -5], [9.6, -5], [-10, 6.5], [8.6, 5.6]].forEach(([x, z], i) => { cyl(0.28, 0.22, 0.5, pot, x, 0.25, z); sph(0.45, i % 2 ? leaf : leaf2, x, 0.85, z); sph(0.32, leaf, x + 0.2, 1.15, z - 0.1); sph(0.28, leaf2, x - 0.18, 1.2, z + 0.12); });
     // su sebili
     cyl(0.22, 0.22, 1.0, M(0xe5e7eb), 8.4, 0.5, -5.3); cyl(0.17, 0.17, 0.45, M(0x60a5fa, { transparent: true, opacity: 0.65, roughness: 0.1 }), 8.4, 1.22, -5.3);
-    // tavan lambaları (görsel)
-    const lm = new THREE.MeshBasicMaterial({ color: 0xfff7e0 }); disposables.push(lm);
-    [-4, 0, 4].forEach(x => [-1.5, 2.5].forEach(z => { const g = new THREE.BoxGeometry(1.6, 0.04, 0.3); disposables.push(g); const l = new THREE.Mesh(g, lm); l.position.set(x, 3.3, z); scene.add(l); })); }
+})); }
 
   // masalar + çalışanlar
   const deskWood = M(0xd4b48c, { roughness: 0.6 }), metal = M(0x4b5563, { metalness: 0.5, roughness: 0.4 }), black = M(0x1f2937, { roughness: 0.5 });
@@ -125,7 +123,7 @@ export async function mount(host, api) {
     // isim etiketi
     const tag = canvasTex(512, 168); disposables.push(tag.t);
     const tm = new THREE.SpriteMaterial({ map: tag.t, transparent: true, depthWrite: false, toneMapped: false }); disposables.push(tm);
-    const sprite = new THREE.Sprite(tm); sprite.scale.set(1.9, 0.62, 1); sprite.position.set(0, 2.35, 0); sprite.renderOrder = 10; g.add(sprite);
+    const sprite = new THREE.Sprite(tm); sprite.scale.set(2.35, 0.77, 1); sprite.position.set(0, 2.5, 0); sprite.renderOrder = 10; g.add(sprite);
     // ünlem/soru işareti
     const mark = canvasTex(128, 128); disposables.push(mark.t);
     const mkm = new THREE.SpriteMaterial({ map: mark.t, transparent: true, depthWrite: false, toneMapped: false }); disposables.push(mkm);
@@ -144,7 +142,7 @@ export async function mount(host, api) {
   // parıltı dokusu
   var glowTex; { const { ctx, t } = canvasTex(64, 64); const gr = ctx.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = gr; ctx.fillRect(0, 0, 64, 64); glowTex = t; disposables.push(t); }
 
-  let data = null, hoverId = null, selId = null, spin = true, az = 0.55, pol = 0.98, rad = 15.5, azT = az, dragging = null, t0 = performance.now(), alive = true;
+  let data = null, hoverId = null, selId = null, spin = true, az = 0.55, pol = 0.98, rad = 12.5, azT = az, dragging = null, t0 = performance.now(), alive = true;
   const target = new THREE.Vector3(0, 0.9, 0.4);
 
   function drawTag(st, now) {
@@ -282,7 +280,7 @@ export async function mount(host, api) {
   return {
     update,
     setSpin(on) { spin = on; },
-    zoom(dir) { rad = Math.max(8, Math.min(22, rad + dir * 2)); },
+    zoom(dir) { rad = Math.max(6.5, Math.min(20, rad + dir * 2)); },
     select(id) { selId = id; for (const s of stations.values()) s.lastTag = 0; },
     canvas: cv,
     dispose() { alive = false; ro.disconnect(); disposables.forEach(x => x.dispose && x.dispose()); renderer.dispose(); renderer.forceContextLoss(); cv.remove(); }
