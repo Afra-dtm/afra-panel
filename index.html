@@ -590,7 +590,7 @@ function navGroups(){
   return[
     ["Mağaza",[["gunluk","Günlük Kasa","kasa"],["islem","Günlük İşlem","islem"],["gider","Giderler","gider"]]],
     ["Raporlar",[["grapor","Günlük Rapor","rapor"],["prapor","Perakende Raporu","rapor"],["satis","Aylık Satış Analizi","satis"],["sepet","Sepet & Çapraz Satış","capraz"]]],
-    ["Takip",[["sevk","Sevkiyat Kontrolü","sevk"],["kontrol","Kontrol","kontrol"],["arcelik","Arçelik Ödeme","odeme"],["webfiyat","Arçelik Fiyatları","fiyat"],["alis","Alış Fiyatları","fiyat"]]],
+    ["Takip",[["sevk","Sevkiyat Kontrolü","sevk"],["kontrol","Kontrol","kontrol"],["arcelik","Arçelik Ödeme","odeme"],["webfiyat","Arçelik Fiyatları","fiyat"],["alis","Alış Fiyatları","fiyat"],["calisan","Çalışanlar","kisi"]]],
     ["Web Sitesi",[["websip","Web Siparişleri","sepet"]]],
     ["Personel",[["izin","İzin Takibi","izin"],["prim","Prim Hesaplama","prim"],["kullanici","Kullanıcılar","kisi"]]],
     ["Ayarlar",[["fiyat","Fiyat & Komisyon","fiyat"],["geri","Geriye Dönük Giriş","kontrol"],["yedek","Yedek","yedek"]]]];
@@ -653,7 +653,7 @@ const creatorName=id=>{const p=S.profiles.find(x=>x.id===id);return p?(p.full_na
 function render(){
   let h="";
   if(!S.isAdmin&&!S.areas.length)h+=`<div class="banner info">Size henüz bir mağaza atanmamış. Kayıt girebilmek için yöneticinizden yetki isteyin.</div>`;
-  const V={ozet:vOzet,planli:vPlanli,hareket:vHareket,hesap:vHesap,rapor:vRapor,satis:vSatis,gunluk:vGunluk,islem:vIslem,grapor:()=>vGRapor("analiz"),prapor:()=>vGRapor("perakende"),kontrol:vKontrol,fiyat:vFiyat,kullanici:vKullanici,yedek:vYedek,geri:vGeri,arcelik:vArcelik,izin:vIzin,sevk:vSevk,webfiyat:vWebFiyat,alis:vAlis,websip:vWebSip,gider:vGider,prim:vPrim,sepet:vSepet};
+  const V={ozet:vOzet,planli:vPlanli,hareket:vHareket,hesap:vHesap,rapor:vRapor,satis:vSatis,gunluk:vGunluk,islem:vIslem,grapor:()=>vGRapor("analiz"),prapor:()=>vGRapor("perakende"),kontrol:vKontrol,fiyat:vFiyat,kullanici:vKullanici,yedek:vYedek,geri:vGeri,calisan:vCalisan,arcelik:vArcelik,izin:vIzin,sevk:vSevk,webfiyat:vWebFiyat,alis:vAlis,websip:vWebSip,gider:vGider,prim:vPrim,sepet:vSepet};
   if(!viewAllowed(S.view))S.view=firstView();
   if(!S.view){$("#pageTitle").textContent="Hoş geldiniz";$("#app").innerHTML='<div class="banner info"><span>Size henüz bir sayfa yetkisi verilmedi. Yöneticinizden yetki isteyin.</span></div>';return}
   if(!S.isAdmin&&VIEW_ONLY.has(S.view))h+='<div class="banner info"><span>Bu sayfayı görüntüleme yetkiniz var. Değişiklikleri yalnızca yöneticiler yapabilir.</span></div>';
@@ -2859,7 +2859,7 @@ function bindArcelik(){
 }
 /* === SADE MENÜ + YEDEK === */
 const NAV_GROUPS={grapor:[["grapor","Günlük Rapor"],["prapor","Perakende Raporu"],["satis","Aylık Satış Analizi"],["sepet","Sepet & Çapraz Satış"]],fiyat:[["fiyat","Fiyat & Komisyon"],["kullanici","Kullanıcılar"],["yedek","Yedek"]]};
-const TAB_OF={prim:"prim",sepet:"grapor",islem:"islem",satis:"grapor",prapor:"grapor",kullanici:"fiyat",yedek:"fiyat",geri:"fiyat",websip:"websip"};
+const TAB_OF={prim:"prim",sepet:"grapor",islem:"islem",satis:"grapor",prapor:"grapor",kullanici:"fiyat",yedek:"fiyat",geri:"fiyat",websip:"websip",calisan:"calisan"};
 function subNav(){
   const g=NAV_GROUPS[TAB_OF[S.view]||S.view];if(!g||!S.isAdmin)return"";
   return`<div class="seg" style="margin-bottom:12px" id="subNav">${g.map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${S.view===v}">${l}</button>`).join("")}</div>`;
@@ -2895,6 +2895,82 @@ function bindYedek(){
     }catch(e){m.textContent="Hata: "+errMsg(e)}
     b.disabled=false;
   };
+}
+
+/* === ÇALIŞANLAR (yalnız yönetici) — zamanlanmış görevlerin çalışma kaydı; workers + worker_runs, RLS is_admin === */
+const CL={loaded:false,loading:false,err:"",workers:[],runs:[],w:"",st:""};
+const CL_ST={basarili:["Başarılı","in"],uyari:["Uyarı","warn"],hata:["Hata","late"],atlandi:["Atlandı","xfer"]};
+const clChip=st=>{const x=CL_ST[st]||[st,""];return`<span class="chip ${x[1]}">${esc(x[0])}</span>`};
+const clWhen=t=>t?new Date(t).toLocaleString("tr-TR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"—";
+function clAgo(t){if(!t)return"hiç çalışmadı";const m=Math.round((Date.now()-new Date(t))/60000);
+  return m<1?"az önce":m<60?m+" dk önce":m<1440?Math.round(m/60)+" saat önce":Math.round(m/1440)+" gün önce"}
+function clDur(r){if(!r.started_at)return"";const s=Math.round((new Date(r.finished_at)-new Date(r.started_at))/1000);return s<60?s+" sn":Math.round(s/60)+" dk"}
+async function clLoad(){
+  if(CL.loading)return;CL.loading=true;CL.err="";
+  try{
+    const since=new Date(Date.now()-60*86400000).toISOString();
+    const[w,r]=await Promise.all([sb.from("workers").select("*").eq("active",true).order("sort"),
+      sb.from("worker_runs").select("*").gte("finished_at",since).order("finished_at",{ascending:false}).limit(1000)]);
+    if(w.error||r.error)throw(w.error||r.error);
+    CL.workers=w.data||[];CL.runs=r.data||[];CL.loaded=true;
+  }catch(e){CL.err="Çalışanlar okunamadı: "+errMsg(e)}
+  CL.loading=false;if(S.view==="calisan")render();
+}
+function vCalisan(){
+  if(!S.isAdmin)return'<div class="banner bad"><span>Bu sayfayı yalnızca yöneticiler görebilir.</span></div>';
+  if(!CL.loaded&&!CL.err){clLoad();return'<div class="empty">Yükleniyor…</div>'}
+  if(CL.err)return`<div class="banner bad"><span>${esc(CL.err)}</span><button class="btn sm" id="clRefresh" type="button">Tekrar dene</button></div>`;
+  const last={};CL.runs.forEach(r=>{if(!last[r.worker_id])last[r.worker_id]=r});
+  const d1=Date.now()-86400000,d7=Date.now()-7*86400000;
+  const r24=CL.runs.filter(r=>new Date(r.finished_at)>=d1).length;
+  const bad7=CL.runs.filter(r=>new Date(r.finished_at)>=d7&&(r.status==="hata"||r.status==="uyari")).length;
+  const badNow=CL.workers.filter(w=>last[w.id]&&last[w.id].status==="hata").length;
+  const nm=id=>(CL.workers.find(w=>w.id===id)||{}).name||id;
+  const kpis=`<div class="kpis" style="margin-bottom:14px">
+    <div class="kpi"><span class="muted" style="font-size:12px">Çalışan</span><b style="font-size:22px">${CL.workers.length}</b></div>
+    <div class="kpi"><span class="muted" style="font-size:12px">Son 24 saatte çalışma</span><b style="font-size:22px">${r24}</b></div>
+    <div class="kpi"><span class="muted" style="font-size:12px">Son 7 günde uyarı / hata</span><b style="font-size:22px">${bad7}</b></div>
+    <div class="kpi"><span class="muted" style="font-size:12px">Son çalışması hatalı</span><b style="font-size:22px;${badNow?"color:var(--out)":""}">${badNow}</b></div></div>`;
+  const cards=CL.workers.map(w=>{const r=last[w.id];return`<button type="button" class="panel" data-cl-w="${esc(w.id)}" aria-pressed="${CL.w===w.id}"
+      style="text-align:left;cursor:pointer;margin:0;display:flex;flex-direction:column;gap:6px;font:inherit;color:inherit;${CL.w===w.id?"outline:2px solid var(--accent);":""}">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><b style="font-size:15px">${esc(w.name)}</b>${r?clChip(r.status):'<span class="chip">Kayıt yok</span>'}</div>
+      <span class="muted" style="font-size:12px">${esc(w.schedule_label||"")}${w.needs_pc?" · bilgisayar + Chrome gerekir":" · bulutta çalışır"}</span>
+      <span style="font-size:13px;color:var(--ink-2)">${esc(w.description||"")}</span>
+      <span style="font-size:13px"><b>Son çalışma:</b> ${r?clWhen(r.finished_at)+" ("+clAgo(r.finished_at)+")":"—"}</span>
+      ${r&&r.summary?`<span class="muted" style="font-size:12px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical">${esc(r.summary)}</span>`:""}
+    </button>`}).join("");
+  const list=CL.runs.filter(r=>(!CL.w||r.worker_id===CL.w)&&(!CL.st||r.status===CL.st));
+  const rows=list.slice(0,300).map(r=>`<tr data-cl-r="${r.id}" style="cursor:pointer"><td style="white-space:nowrap">${clWhen(r.finished_at)}</td><td>${esc(nm(r.worker_id))}</td><td>${clChip(r.status)}</td><td>${esc(r.summary||"")}</td><td class="r" style="white-space:nowrap">${clDur(r)}</td></tr>`).join("");
+  return`<div class="banner info"><span>Panelin otomatik çalışanları: belirli saatlerde kendiliğinden çalışan yapay zekâ görevleri. Her çalışma bitince sonucunu buraya yazar. Bu sayfayı yalnızca yöneticiler görür.</span><button class="btn sm" id="clRefresh" type="button">Yenile</button></div>
+  <div style="height:12px"></div>${kpis}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:14px">${cards}</div>
+  <section class="panel"><div class="panel-h"><h2>Çalışma geçmişi</h2><div class="filters">
+    <select id="clW" aria-label="Çalışan"><option value="">Tüm çalışanlar</option>${CL.workers.map(w=>`<option value="${esc(w.id)}" ${CL.w===w.id?"selected":""}>${esc(w.name)}</option>`).join("")}</select>
+    <select id="clSt" aria-label="Durum"><option value="">Tüm durumlar</option>${Object.entries(CL_ST).map(([k,[l]])=>`<option value="${k}" ${CL.st===k?"selected":""}>${l}</option>`).join("")}</select></div></div>
+    <div class="hint">Son 60 gün. Ayrıntı için satıra tıklayın. Bu sayfa kurulmadan önceki çalışmalar mevcut kayıtlardan (kasa kuyruğu, kontrol sonuçları, fiyat taramaları) çıkarıldı.</div>
+    ${list.length?`<div class="tbl-wrap"><table class="mtx" style="min-width:720px"><thead><tr><th>Bitiş</th><th>Çalışan</th><th>Durum</th><th>Özet</th><th class="r">Süre</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Bu filtrede çalışma yok.</div>'}
+  </section>`;
+}
+function clDetails(d){
+  if(!d||typeof d!=="object"||!Object.keys(d).length)return"";
+  const v=x=>x!==null&&typeof x==="object"?`<pre style="white-space:pre-wrap;margin:0;font-size:12px">${esc(JSON.stringify(x,null,2))}</pre>`:esc(x);
+  return`<div class="tbl-wrap"><table class="mtx"><tbody>${Object.entries(d).map(([k,x])=>`<tr><th style="width:30%;vertical-align:top">${esc(k)}</th><td>${v(x)}</td></tr>`).join("")}</tbody></table></div>`;
+}
+function bindCalisan(){
+  const rf=$("#clRefresh");if(!rf)return;
+  rf.onclick=()=>{CL.loaded=false;CL.err="";render()};
+  $("#app").querySelectorAll("[data-cl-w]").forEach(b=>b.onclick=()=>{CL.w=CL.w===b.dataset.clW?"":b.dataset.clW;render()});
+  const w=$("#clW");if(w)w.onchange=()=>{CL.w=w.value;render()};
+  const st=$("#clSt");if(st)st.onchange=()=>{CL.st=st.value;render()};
+  $("#app").querySelectorAll("[data-cl-r]").forEach(tr=>tr.onclick=()=>{
+    const r=CL.runs.find(x=>String(x.id)===tr.dataset.clR);if(!r)return;
+    const wk=CL.workers.find(x=>x.id===r.worker_id)||{};
+    sheet(`<h3>${esc(wk.name||r.worker_id)}</h3>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${clChip(r.status)}<span class="muted" style="font-size:13px">${r.started_at?"Başladı "+clWhen(r.started_at)+" · ":""}Bitti ${clWhen(r.finished_at)}${clDur(r)?" · "+clDur(r):""}</span></div>
+      <div style="font-size:14px;white-space:pre-wrap">${esc(r.summary||"Özet yok.")}</div>
+      ${clDetails(r.details)}
+      <div class="actions"><div class="right"><button type="button" class="btn primary" data-cancel>Kapat</button></div></div>`,"clForm");
+  });
 }
 
 /* === GERİYE DÖNÜK GİRİŞ (yönetici) — backdate_rules; veritabanında backdate_check ile uygulanır === */
@@ -3373,7 +3449,7 @@ function bindView(){
   const rm=$("#rm");if(rm)rm.onchange=()=>{S.rep.month=rm.value;render()};
   const rar=$("#rar");if(rar)rar.onchange=()=>{S.rep.area=rar.value;render()};
   on("#csvBtn",()=>exportCsv(filteredTx(),"afra-hareketler"));
-  bindSatis();bindGunluk();bindFiyat();bindKontrol();bindGRapor();bindSubNav();bindYedek();bindGeri();bindArcelik();bindIzin();bindSevk();bindWebFiyat();bindAlis();bindWebSip();bindIslem();bindGider();bindPrim();bindSepet();
+  bindSatis();bindGunluk();bindFiyat();bindKontrol();bindGRapor();bindSubNav();bindYedek();bindGeri();bindCalisan();bindArcelik();bindIzin();bindSevk();bindWebFiyat();bindAlis();bindWebSip();bindIslem();bindGider();bindPrim();bindSepet();
   on("#repCsv",()=>exportCsv(realized().filter(t=>t.date.slice(0,7)===S.rep.month&&(!S.rep.area||t.area_id===S.rep.area)),"afra-rapor-"+S.rep.month));
 }
 
