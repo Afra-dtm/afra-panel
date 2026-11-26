@@ -237,7 +237,7 @@ export async function mount(host, api) {
     const dt = Math.min(0.05, (now - lastFrame) / 1000); lastFrame = now; const T = (now - t0) / 1000, wall = Date.now();
     if (spin && !dragging && !hoverId) azT = 0.55 + Math.sin(T * 0.09) * 0.75;
     az += (azT - az) * Math.min(1, dt * 3);
-    const r = rad * (host.clientWidth < 640 ? 1.25 : 1);
+    const r = rad * (host.clientWidth < 640 ? 1.5 : 1);
     camera.position.set(target.x + r * Math.sin(pol) * Math.sin(az), target.y + r * Math.cos(pol), target.z + r * Math.sin(pol) * Math.cos(az)); camera.lookAt(target);
     if (data) {
       const doSec = now - secTick > 1000; if (doSec) { secTick = now; drawTV(wall); }
